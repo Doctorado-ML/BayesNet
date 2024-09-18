@@ -51,10 +51,15 @@ endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
 
 
 if (CODE_COVERAGE)
+get_property(LANGUAGES GLOBAL PROPERTY ENABLED_LANGUAGES)
+message("ALL LANGUAGES: ${LANGUAGES}")
+foreach(LANG ${LANGUAGES})
+    message("${LANG} compiler is \"${CMAKE_${LANG}_COMPILER_ID}\"")
+endforeach()
   enable_testing()
-  include(CodeCoverage)
-  MESSAGE("Code coverage enabled")
-  SET(GCC_COVERAGE_LINK_FLAGS " ${GCC_COVERAGE_LINK_FLAGS} -lgcov --coverage")
+  #include(CodeCoverage)
+  #MESSAGE("Code coverage enabled")
+  #SET(GCC_COVERAGE_LINK_FLAGS " ${GCC_COVERAGE_LINK_FLAGS} -lgcov --coverage")
 endif (CODE_COVERAGE)
 
 if (ENABLE_CLANG_TIDY)

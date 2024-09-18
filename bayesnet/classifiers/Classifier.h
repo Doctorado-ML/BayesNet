@@ -38,6 +38,7 @@ namespace bayesnet {
         std::string dump_cpt() const override;
         void setHyperparameters(const nlohmann::json& hyperparameters) override; //For classifiers that don't have hyperparameters
     protected:
+        torch::Device device;
         bool fitted;
         unsigned int m, n; // m: number of samples, n: number of features
         Network model;

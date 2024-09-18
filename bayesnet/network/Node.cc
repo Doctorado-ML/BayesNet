@@ -97,7 +97,7 @@ namespace bayesnet {
         dimensions.push_back(numStates);
         transform(parents.begin(), parents.end(), back_inserter(dimensions), [](const auto& parent) { return parent->getNumStates(); });
         // Create a tensor of zeros with the dimensions of the CPT
-        cpTable = torch::zeros(dimensions, torch::kDouble) + smoothing;
+        cpTable = torch::zeros(dimensions, torch::kDouble).to(device) + smoothing;
         // Fill table with counts
         auto pos = find(features.begin(), features.end(), name);
         if (pos == features.end()) {
