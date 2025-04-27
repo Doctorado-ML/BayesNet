@@ -25,7 +25,7 @@ if percentage < 90:
     print("⛔Coverage is less than 90%. I won't update the badge.")
     sys.exit(1)
 percentage_label = str(percentage).replace('.', ',')
-coverage_line = f"[![Coverage Badge](https://img.shields.io/badge/Coverage-{percentage_label}%25-green)](html/index.html)"
+coverage_line = f"[![Coverage Badge](https://img.shields.io/badge/Coverage-{percentage_label}%25-green)](https://gitea.rmontanana.es/rmontanana/BayesNet)"
 # Update README.md
 with open(readme_file, "r") as f:
     lines = f.readlines()
