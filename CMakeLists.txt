@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.24)
 
 project(BayesNet
   VERSION 1.0.7
@@ -8,14 +8,10 @@ project(BayesNet
 )
 
 if (CODE_COVERAGE AND NOT ENABLE_TESTING)
-  MESSAGE(FATAL_ERROR "Code coverage requires testing enabled")
+  message(FATAL_ERROR "Code coverage requires testing enabled")
 endif (CODE_COVERAGE AND NOT ENABLE_TESTING)
 
 find_package(Torch REQUIRED)
-
-if (POLICY CMP0135)
-  cmake_policy(SET CMP0135 NEW)
-endif ()
 
 # Global CMake variables
 # ----------------------
@@ -24,7 +20,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED            ON)
 set(CMAKE_CXX_EXTENSIONS                  OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS          ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -fno-elide-constructors")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ofast")
 if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
@@ -44,19 +40,28 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules ${CMAKE_MODULE_P
 include(AddGitSubmodule)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-  MESSAGE("Debug mode")
+  message(STATUS "* Debug mode")
+  enable_testing()
   set(ENABLE_TESTING ON)
   set(CODE_COVERAGE ON)
 endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
 
+# Testing
+# -------
+if (ENABLE_TESTING)
+  message(STATUS "Testing enabled")
+  add_subdirectory(tests/lib/catch2)
+  include(CTest)
+  add_subdirectory(tests)
+endif (ENABLE_TESTING)
+if (CODE_COVERAGE)
+  include(CodeCoverage)
+  message(STATUS "Code coverage enabled")
+  set(GCC_COVERAGE_LINK_FLAGS " ${GCC_COVERAGE_LINK_FLAGS} -lgcov --coverage")
+endif (CODE_COVERAGE)
+
 get_property(LANGUAGES GLOBAL PROPERTY ENABLED_LANGUAGES)
 message(STATUS "Languages=${LANGUAGES}")
-if (CODE_COVERAGE)
-  enable_testing()
-  include(CodeCoverage)
-  MESSAGE(STATUS "Code coverage enabled")
-  SET(GCC_COVERAGE_LINK_FLAGS " ${GCC_COVERAGE_LINK_FLAGS} -lgcov --coverage")
-endif (CODE_COVERAGE)
 
 if (ENABLE_CLANG_TIDY)
   include(StaticAnalyzers) # clang-tidy
@@ -74,14 +79,7 @@ add_git_submodule("lib/mdlp")
 add_subdirectory(config)
 add_subdirectory(bayesnet)
 
-# Testing
-# -------
-if (ENABLE_TESTING)
-MESSAGE(STATUS "Testing enabled")
-  add_subdirectory(tests/lib/catch2)
-  include(CTest)
-  add_subdirectory(tests)
-endif (ENABLE_TESTING)
+
 
 # Installation
 # ------------
@@ -100,9 +98,7 @@ if (Doxygen_FOUND)
   set(doxyfile_in ${DOC_DIR}/Doxyfile.in)
   set(doxyfile ${DOC_DIR}/Doxyfile)
   configure_file(${doxyfile_in} ${doxyfile} @ONLY)
-  doxygen_add_docs(doxygen
-      WORKING_DIRECTORY ${DOC_DIR}
-    CONFIG_FILE ${doxyfile})
+  doxygen_add_docs(doxygen WORKING_DIRECTORY ${DOC_DIR} CONFIG_FILE ${doxyfile})
 else (Doxygen_FOUND) 
-  MESSAGE("* Doxygen not found")
+  message(WARNING "* Doxygen not found")
 endif (Doxygen_FOUND)

@@ -35,7 +35,8 @@ RUN rm -fr lcov-2.1
 
 # Install Miniconda
 RUN mkdir -p /opt/conda 
-RUN wget --quiet "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh" -O /opt/conda/miniconda.sh && \
+# RUN wget --quiet "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-aarch64.sh" -O /opt/conda/miniconda.sh && \
+RUN wget --quiet "https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh" -O /opt/conda/miniconda.sh && \
     bash /opt/conda/miniconda.sh -b -p /opt/miniconda
 
 # Add conda to PATH
