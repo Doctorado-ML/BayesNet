@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 
 project(BayesNet
-  VERSION 1.0.7
+  VERSION 1.1.0
   DESCRIPTION "Bayesian Network and basic classifiers Library."
   HOMEPAGE_URL "https://github.com/rmontanana/bayesnet"
   LANGUAGES CXX
@@ -41,7 +41,6 @@ option(INSTALL_GTEST "Enable installation of googletest."         OFF)
 # CMakes modules
 # --------------
 set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules ${CMAKE_MODULE_PATH})
-include(AddGitSubmodule)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
   MESSAGE("Debug mode")
@@ -65,9 +64,10 @@ endif (ENABLE_CLANG_TIDY)
 # External libraries - dependencies of BayesNet
 # ---------------------------------------------
 
-# include(FetchContent)
-add_git_submodule("lib/json")
-add_git_submodule("lib/mdlp")
+find_package(Torch CONFIG REQUIRED)
+find_package(fimdlp CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(folding CONFIG REQUIRED)
 
 # Subdirectories
 # --------------
@@ -78,7 +78,7 @@ add_subdirectory(bayesnet)
 # -------
 if (ENABLE_TESTING)
 MESSAGE(STATUS "Testing enabled")
-  add_subdirectory(tests/lib/catch2)
+  find_package(Catch2 CONFIG REQUIRED)
   include(CTest)
   add_subdirectory(tests)
 endif (ENABLE_TESTING)

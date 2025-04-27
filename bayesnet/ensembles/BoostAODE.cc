@@ -7,23 +7,22 @@
 #include "BoostAODE.h"
 #include "bayesnet/classifiers/SPODE.h"
 #include <limits.h>
-#include <loguru.cpp>
-#include <loguru.hpp>
+// #include <loguru.cpp>
+// #include <loguru.hpp>
 #include <random>
 #include <set>
 #include <tuple>
 
-namespace bayesnet
-{
+namespace bayesnet {
 
     BoostAODE::BoostAODE(bool predict_voting) : Boost(predict_voting)
     {
     }
     std::vector<int> BoostAODE::initializeModels(const Smoothing_t smoothing)
     {
-        torch::Tensor weights_ = torch::full({m}, 1.0 / m, torch::kFloat64);
+        torch::Tensor weights_ = torch::full({ m }, 1.0 / m, torch::kFloat64);
         std::vector<int> featuresSelected = featureSelection(weights_);
-        for (const int &feature : featuresSelected) {
+        for (const int& feature : featuresSelected) {
             std::unique_ptr<Classifier> model = std::make_unique<SPODE>(feature);
             model->fit(dataset, features, className, states, weights_, smoothing);
             models.push_back(std::move(model));
@@ -33,7 +32,7 @@ namespace bayesnet
         notes.push_back("Used features in initialization: " + std::to_string(featuresSelected.size()) + " of " + std::to_string(features.size()) + " with " + select_features_algorithm);
         return featuresSelected;
     }
-    void BoostAODE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothing)
+    void BoostAODE::trainModel(const torch::Tensor& weights, const Smoothing_t smoothing)
     {
         //
         // Logging setup
@@ -46,7 +45,7 @@ namespace bayesnet
         // as explained in Ensemble methods (Zhi-Hua Zhou, 2012)
         fitted = true;
         double alpha_t = 0;
-        torch::Tensor weights_ = torch::full({m}, 1.0 / m, torch::kFloat64);
+        torch::Tensor weights_ = torch::full({ m }, 1.0 / m, torch::kFloat64);
         bool finished = false;
         std::vector<int> featuresUsed;
         n_models = 0;
@@ -74,7 +73,7 @@ namespace bayesnet
         // validation error is not decreasing
         // run out of features
         bool ascending = order_algorithm == Orders.ASC;
-        std::mt19937 g{173};
+        std::mt19937 g{ 173 };
         while (!finished) {
             // Step 1: Build ranking with mutual information
             auto featureSelection = metrics.SelectKBestWeighted(weights_, ascending, n); // Get all the features sorted
@@ -83,7 +82,7 @@ namespace bayesnet
             }
             // Remove used features
             featureSelection.erase(remove_if(begin(featureSelection), end(featureSelection), [&](auto x) { return std::find(begin(featuresUsed), end(featuresUsed), x) != end(featuresUsed); }),
-                                   end(featureSelection));
+                end(featureSelection));
             int k = bisection ? pow(2, tolerance) : 1;
             int counter = 0; // The model counter of the current pack
             // VLOG_SCOPE_F(1, "counter=%d k=%d featureSelection.size: %zu", counter, k, featureSelection.size());
@@ -175,7 +174,7 @@ namespace bayesnet
         }
         notes.push_back("Number of models: " + std::to_string(n_models));
     }
-    std::vector<std::string> BoostAODE::graph(const std::string &title) const
+    std::vector<std::string> BoostAODE::graph(const std::string& title) const
     {
         return Ensemble::graph(title);
     }

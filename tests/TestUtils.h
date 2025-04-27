@@ -11,8 +11,8 @@
 #include <vector>
 #include <map>
 #include <tuple>
-#include <ArffFiles.hpp>
-#include <CPPFImdlp.h>
+#include <ArffFiles/ArffFiles.hpp>
+#include <fimdlp/CPPFImdlp.h>
 #include <folding.hpp>
 #include <bayesnet/network/Network.h>
 

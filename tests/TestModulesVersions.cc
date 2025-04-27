@@ -7,7 +7,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
 #include <string>
-#include <CPPFImdlp.h>
+#include <fimdlp/CPPFImdlp.h>
 #include <folding.hpp>
 #include <nlohmann/json.hpp>
 #define TO_STR2(x) #x

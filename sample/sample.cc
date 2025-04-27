@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: MIT
 // ***************************************************************
 
-#include <ArffFiles.hpp>
-#include <CPPFImdlp.h>
+#include <ArffFiles/ArffFiles.hpp>
+#include <fimdlp/CPPFImdlp.h>
 #include <bayesnet/ensembles/XBAODE.h>
 
 std::vector<mdlp::labels_t> discretizeDataset(std::vector<mdlp::samples_t>& X, mdlp::labels_t& y)

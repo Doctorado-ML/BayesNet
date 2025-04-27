@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: viewcoverage coverage setup help install uninstall diagrams buildr buildd test clean debug release sample updatebadge doc doc-install
+.PHONY: viewcoverage coverage setup help install uninstall diagrams buildr buildd test clean debug release sample updatebadge doc doc-install init clean-test
 
 f_release = build_Release
 f_debug = build_Debug
@@ -63,7 +63,7 @@ buildd: ## Build the debug targets
 buildr: ## Build the release targets
 	cmake --build $(f_release) -t $(app_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
 
-clean: ## Clean the tests info
+clean-test: ## Clean the tests info
 	@echo ">>> Cleaning Debug BayesNet tests...";
 	$(call ClearTests)
 	@echo ">>> Done";
@@ -79,18 +79,32 @@ install: ## Install library
 	@cmake --install $(f_release) --prefix $(prefix)
 	@echo ">>> Done";
 
+init: ## Initialize the project installing dependencies
+	@echo ">>> Installing dependencies"
+	@vcpkg install
+	@echo ">>> Done";
+
+clean: ## Clean the project
+	@echo ">>> Cleaning the project..."
+	@if test -d build_Debug ; then echo "- Deleting build_Debug folder" ; rm -rf build_Debug; fi
+	@if test -d build_Release ; then echo "- Deleting build_Release folder" ; rm -rf build_Release; fi
+	@if test -f CMakeCache.txt ; then echo "- Deleting CMakeCache.txt"; rm -f CMakeCache.txt; fi
+	@if test -d vcpkg_installed ; then echo "- Deleting vcpkg_installed folder" ; rm -rf vcpkg_installed; fi
+	@$(MAKE) clean-test
+	@echo ">>> Done";
+
 debug: ## Build a debug version of the project
 	@echo ">>> Building Debug BayesNet...";
 	@if [ -d ./$(f_debug) ]; then rm -rf ./$(f_debug); fi
 	@mkdir $(f_debug); 
-	@cmake -S . -B $(f_debug) -D CMAKE_BUILD_TYPE=Debug -D ENABLE_TESTING=ON -D CODE_COVERAGE=ON
+	@cmake -S . -B $(f_debug) -D CMAKE_BUILD_TYPE=Debug -D ENABLE_TESTING=ON -D CODE_COVERAGE=ON -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake
 	@echo ">>> Done";
 
 release: ## Build a Release version of the project
 	@echo ">>> Building Release BayesNet...";
 	@if [ -d ./$(f_release) ]; then rm -rf ./$(f_release); fi
 	@mkdir $(f_release); 
-	@cmake -S . -B $(f_release) -D CMAKE_BUILD_TYPE=Release
+	@cmake -S . -B $(f_release) -D CMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake
 	@echo ">>> Done";
 
 fname = "tests/data/iris.arff"
@@ -112,7 +126,7 @@ sample2: ## Build sample2
 opt = ""
 test: ## Run tests (opt="-s") to verbose output the tests, (opt="-c='Test Maximum Spanning Tree'") to run only that section
 	@echo ">>> Running BayesNet tests...";
-	@$(MAKE) clean
+	@$(MAKE) clean-test
 	@cmake --build $(f_debug) -t $(test_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
 	@for t in $(test_targets); do \
 		echo ">>> Running $$t...";\
@@ -133,6 +147,7 @@ coverage: ## Run tests and generate coverage report (build/index.html)
 	$(lcov) --directory CMakeFiles --capture --demangle-cpp --ignore-errors source,source --output-file coverage.info >/dev/null 2>&1; \
 	$(lcov) --remove coverage.info '/usr/*' --output-file coverage.info >/dev/null 2>&1; \
 	$(lcov) --remove coverage.info 'lib/*' --output-file coverage.info >/dev/null 2>&1; \
+	$(lcov) --remove coverage.info 'include/*' --output-file coverage.info >/dev/null 2>&1; \
 	$(lcov) --remove coverage.info 'libtorch/*' --output-file coverage.info >/dev/null 2>&1; \
 	$(lcov) --remove coverage.info 'tests/*' --output-file coverage.info >/dev/null 2>&1; \
 	$(lcov) --remove coverage.info 'bayesnet/utils/loguru.*' --ignore-errors unused --output-file coverage.info >/dev/null 2>&1; \
