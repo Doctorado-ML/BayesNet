@@ -18,7 +18,7 @@
 std::map<std::string, std::string> modules = {
     { "mdlp", "2.0.1" },
     { "Folding", "1.1.1" },
-    { "json", "3.11" },
+    { "json", "3.12" },
     { "ArffFiles", "1.1.0" }
 };
 
