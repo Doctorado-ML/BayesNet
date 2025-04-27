@@ -1,0 +1,12 @@
+{
+    "name": "sample-project",
+    "version-string": "0.1.0",
+    "dependencies": [
+        "bayesnet",
+        "folding",
+        "arff-files",
+        "fimdlp",
+        "nlohmann-json",
+        "libtorch-bin"
+    ]
+}

@@ -1,0 +1,21 @@
+{
+  "default-registry": {
+    "kind": "git",
+    "baseline": "760bfd0c8d7c89ec640aec4df89418b7c2745605",
+    "repository": "https://github.com/microsoft/vcpkg"
+  },
+  "registries": [
+    {
+      "kind": "git",
+      "repository": "https://github.com/rmontanana/vcpkg-stash",
+      "baseline": "393efa4e74e053b6f02c4ab03738c8fe796b28e5",
+      "packages": [
+        "arff-files",
+        "fimdlp",
+        "libtorch-bin",
+        "bayesnet",
+        "folding"
+      ]
+    }
+  ]
+}

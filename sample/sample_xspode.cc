@@ -4,8 +4,8 @@
 // SPDX-License-Identifier: MIT
 // ***************************************************************
 
-#include <ArffFiles.hpp>
-#include <CPPFImdlp.h>
+#include <ArffFiles/ArffFiles.hpp>
+#include <fimdlp/CPPFImdlp.h>
 #include <bayesnet/ensembles/BoostAODE.h>
 #include <bayesnet/classifiers/XSPODE.h>
 
