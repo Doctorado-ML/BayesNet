@@ -12,43 +12,103 @@
 
 Bayesian Network Classifiers library
 
-## Dependencies
+## Setup
 
-The only external dependency is [libtorch](https://pytorch.org/cppdocs/installing.html) which can be installed with the following commands:
+### Using the vcpkg library
 
-```bash
-wget https://download.pytorch.org/libtorch/nightly/cpu/libtorch-shared-with-deps-latest.zip
-unzip libtorch-shared-with-deps-latest.zip
+You can use the library with the vcpkg library manager. In your project you have to add the following files:
+
+#### vcpkg.json
+
+```json
+{
+  "name": "sample-project",
+  "version-string": "0.1.0",
+  "dependencies": [
+    "bayesnet"
+  ]
+}
 ```
 
-## Setup
+#### vcpkg-configuration.json
+
+```json
+{
+  "registries": [
+    {
+      "kind": "git",
+      "repository": "https://github.com/rmontanana/vcpkg-stash",
+      "baseline": "393efa4e74e053b6f02c4ab03738c8fe796b28e5",
+      "packages": [
+        "folding",
+        "bayesnet",
+        "arff-files",
+        "fimdlp",
+        "libtorch-bin"
+      ]
+    }
+  ],
+  "default-registry": {
+    "kind": "git",
+    "repository": "https://github.com/microsoft/vcpkg",
+    "baseline": "760bfd0c8d7c89ec640aec4df89418b7c2745605"
+  }
+}
+```
+
+#### CMakeLists.txt
+
+You have to include the following lines in your `CMakeLists.txt` file:
+
+```cmake
+find_package(bayesnet CONFIG REQUIRED)
+
+add_executable(myapp main.cpp)
+
+target_link_libraries(myapp PRIVATE bayesnet::bayesnet)
+```
+
+After that, you can use the `vcpkg` command to install the dependencies:
+
+```bash
+vcpkg install
+```
+
+**Note: In the `sample` folder you can find a sample application that uses the library. You can use it as a reference to create your own application.**
+
+## Playing with the library
+
+The dependencies are managed with [vcpkg](https://vcpkg.io/) and supported by a private vcpkg repository in [https://github.com/rmontanana/vcpkg-stash](https://github.com/rmontanana/vcpkg-stash).
 
 ### Getting the code
 
 ```bash
-git clone --recurse-submodules https://github.com/doctorado-ml/bayesnet
+git clone https://github.com/doctorado-ml/bayesnet
 ```
+
+Once you have the code, you can use the `make` command to build the project. The `Makefile` is used to manage the build process and it will automatically download and install the dependencies.
 
 ### Release
 
 ```bash
-make release
-make buildr
-sudo make install
+make init # Install dependencies
+make release # Build the release version
+make buildr # compile and link the release version
 ```
 
 ### Debug & Tests
 
 ```bash
-make debug
-make test
+make init # Install dependencies
+make debug # Build the debug version
+make test # Run the tests
 ```
 
 ### Coverage
 
 ```bash
-make coverage
-make viewcoverage
+make coverage # Run the tests with coverage
+make viewcoverage # View the coverage report in the browser
 ```
 
 ### Sample app
