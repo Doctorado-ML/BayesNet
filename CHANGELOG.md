@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2025-05-08
+
+### Internal
+
+- Fix the vcpkg configuration in building the library.
+- Fix the sample app to use the vcpkg configuration.
+
 ## [1.1.0] - 2025-04-27
 
 ### Internal
