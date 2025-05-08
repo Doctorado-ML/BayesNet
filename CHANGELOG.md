@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Internal
 
-- Add changes to .clang-format to ajust to vscode format style thanks to <https://clang-format-configurator.site/>
+- Add changes to .clang-format to adjust to vscode format style thanks to <https://clang-format-configurator.site/>
 - Remove all the dependencies as git submodules and add them as vcpkg dependencies.
 - Fix the dependencies versions for this specific BayesNet version.
 

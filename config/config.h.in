@@ -11,4 +11,4 @@ static constexpr std::string_view project_name = "@PROJECT_NAME@";
 static constexpr std::string_view project_version = "@PROJECT_VERSION@";
 static constexpr std::string_view project_description = "@PROJECT_DESCRIPTION@";
 static constexpr std::string_view git_sha = "@GIT_SHA@";
-static constexpr std::string_view data_path = "@BayesNet_SOURCE_DIR@/tests/data/";
+static constexpr std::string_view data_path = "@bayesnet_SOURCE_DIR@/tests/data/";

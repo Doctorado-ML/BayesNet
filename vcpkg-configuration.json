@@ -8,7 +8,7 @@
     {
       "kind": "git",
       "repository": "https://github.com/rmontanana/vcpkg-stash",
-      "baseline": "393efa4e74e053b6f02c4ab03738c8fe796b28e5",
+      "baseline": "1ea69243c0e8b0de77c9d1dd6e1d7593ae7f3627",
       "packages": [
         "arff-files",
         "fimdlp",
