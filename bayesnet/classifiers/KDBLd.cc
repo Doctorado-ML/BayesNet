@@ -28,6 +28,11 @@ namespace bayesnet {
         auto Xt = prepareX(X);
         return KDB::predict(Xt);
     }
+    torch::Tensor KDBLd::predict_proba(torch::Tensor& X)
+    {
+        auto Xt = prepareX(X);
+        return KDB::predict_proba(Xt);
+    }
     std::vector<std::string> KDBLd::graph(const std::string& name) const
     {
         return KDB::graph(name);

@@ -29,6 +29,11 @@ namespace bayesnet {
         auto Xt = prepareX(X);
         return TAN::predict(Xt);
     }
+    torch::Tensor TANLd::predict_proba(torch::Tensor& X)
+    {
+        auto Xt = prepareX(X);
+        return TAN::predict_proba(Xt);
+    }
     std::vector<std::string> TANLd::graph(const std::string& name) const
     {
         return TAN::graph(name);

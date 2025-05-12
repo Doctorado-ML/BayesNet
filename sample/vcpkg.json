@@ -6,7 +6,7 @@
         "fimdlp",
         "libtorch-bin",
         "folding",
-        "bayesnet"
+        "nlohmann-json"
     ],
     "overrides": [
         {

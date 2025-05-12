@@ -43,6 +43,11 @@ namespace bayesnet {
         auto Xt = prepareX(X);
         return SPODE::predict(Xt);
     }
+    torch::Tensor SPODELd::predict_proba(torch::Tensor& X)
+    {
+        auto Xt = prepareX(X);
+        return SPODE::predict_proba(Xt);
+    }
     std::vector<std::string> SPODELd::graph(const std::string& name) const
     {
         return SPODE::graph(name);

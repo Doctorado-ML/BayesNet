@@ -11,7 +11,7 @@ namespace bayesnet {
     Proposal::~Proposal()
     {
         for (auto& [key, value] : discretizers) {
-            delete value; 
+            delete value;
         }
     }
     void Proposal::checkInput(const torch::Tensor& X, const torch::Tensor& y)
