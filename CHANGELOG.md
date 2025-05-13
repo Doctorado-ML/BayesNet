@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix the vcpkg configuration in building the library.
 - Fix the sample app to use the vcpkg configuration.
 - Add predict_proba method to all Ld classifiers.
+- Optimize the computeCPT method in the Node class with libtorch vectorized operations and remove the for loop.
 
 ## [1.1.0] - 2025-04-27
 
