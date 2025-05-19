@@ -23,6 +23,7 @@ namespace bayesnet {
             throw std::invalid_argument("y must be an integer tensor");
         }
     }
+    // Fit method for single classifier
     map<std::string, std::vector<int>> Proposal::localDiscretizationProposal(const map<std::string, std::vector<int>>& oldStates, Network& model)
     {
         // order of local discretization is important. no good 0, 1, 2...

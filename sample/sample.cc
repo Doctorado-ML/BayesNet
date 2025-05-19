@@ -69,8 +69,8 @@ std::tuple<torch::Tensor, torch::Tensor, std::vector<std::string>, std::string> 
 
 int main(int argc, char* argv[])
 {
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <file_name>" << std::endl;
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " <arff_file_name> <model>" << std::endl;
         return 1;
     }
     std::string file_name = argv[1];
@@ -79,6 +79,11 @@ int main(int argc, char* argv[])
     };
     if (models.find(model_name) == models.end()) {
         std::cerr << "Model not found: " << model_name << std::endl;
+        std::cerr << "Available models: ";
+        for (const auto& model : models) {
+            std::cerr << model.first << " ";
+        }
+        std::cerr << std::endl;
         return 1;
     }
     auto clf = models[model_name];

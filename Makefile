@@ -111,12 +111,13 @@ release: ## Build a Release version of the project
 	@echo ">>> Done";
 
 fname = "tests/data/iris.arff"
+model = "TANLd"
 sample: ## Build sample
 	@echo ">>> Building Sample...";
 	@if [ -d ./sample/build ]; then rm -rf ./sample/build; fi
 	@cd sample && cmake -B build -S . -D CMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake && \
 	cmake --build build -t bayesnet_sample
-	sample/build/bayesnet_sample $(fname)
+	sample/build/bayesnet_sample $(fname) $(model)
 	@echo ">>> Done";
 
 fname = "tests/data/iris.arff"

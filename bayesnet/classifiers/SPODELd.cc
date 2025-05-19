@@ -45,7 +45,6 @@ namespace bayesnet {
     }
     torch::Tensor SPODELd::predict_proba(torch::Tensor& X)
     {
-        std::cout << "Debug: SPODELd::predict_proba" << std::endl;
         auto Xt = prepareX(X);
         return SPODE::predict_proba(Xt);
     }
