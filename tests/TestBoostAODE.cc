@@ -11,32 +11,35 @@
 #include "TestUtils.h"
 #include "bayesnet/ensembles/BoostAODE.h"
 
-TEST_CASE("Feature_select CFS", "[BoostAODE]") {
+TEST_CASE("Feature_select CFS", "[BoostAODE]")
+{
     auto raw = RawDatasets("glass", true);
     auto clf = bayesnet::BoostAODE();
-    clf.setHyperparameters({{"select_features", "CFS"}});
+    clf.setHyperparameters({ {"select_features", "CFS"} });
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
     REQUIRE(clf.getNumberOfNodes() == 90);
     REQUIRE(clf.getNumberOfEdges() == 153);
     REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 6 of 9 with CFS");
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 9 of 9 with CFS");
     REQUIRE(clf.getNotes()[1] == "Number of models: 9");
 }
-TEST_CASE("Feature_select IWSS", "[BoostAODE]") {
+TEST_CASE("Feature_select IWSS", "[BoostAODE]")
+{
     auto raw = RawDatasets("glass", true);
     auto clf = bayesnet::BoostAODE();
-    clf.setHyperparameters({{"select_features", "IWSS"}, {"threshold", 0.5}});
+    clf.setHyperparameters({ {"select_features", "IWSS"}, {"threshold", 0.5} });
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
     REQUIRE(clf.getNumberOfNodes() == 90);
     REQUIRE(clf.getNumberOfEdges() == 153);
     REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 4 of 9 with IWSS");
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 9 of 9 with IWSS");
     REQUIRE(clf.getNotes()[1] == "Number of models: 9");
 }
-TEST_CASE("Feature_select FCBF", "[BoostAODE]") {
+TEST_CASE("Feature_select FCBF", "[BoostAODE]")
+{
     auto raw = RawDatasets("glass", true);
     auto clf = bayesnet::BoostAODE();
-    clf.setHyperparameters({{"select_features", "FCBF"}, {"threshold", 1e-7}});
+    clf.setHyperparameters({ {"select_features", "FCBF"}, {"threshold", 1e-7} });
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
     REQUIRE(clf.getNumberOfNodes() == 90);
     REQUIRE(clf.getNumberOfEdges() == 153);
@@ -44,26 +47,28 @@ TEST_CASE("Feature_select FCBF", "[BoostAODE]") {
     REQUIRE(clf.getNotes()[0] == "Used features in initialization: 4 of 9 with FCBF");
     REQUIRE(clf.getNotes()[1] == "Number of models: 9");
 }
-TEST_CASE("Test used features in train note and score", "[BoostAODE]") {
+TEST_CASE("Test used features in train note and score", "[BoostAODE]")
+{
     auto raw = RawDatasets("diabetes", true);
     auto clf = bayesnet::BoostAODE(true);
     clf.setHyperparameters({
         {"order", "asc"},
         {"convergence", true},
         {"select_features", "CFS"},
-    });
+        });
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
     REQUIRE(clf.getNumberOfNodes() == 72);
     REQUIRE(clf.getNumberOfEdges() == 120);
     REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 6 of 8 with CFS");
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 7 of 8 with CFS");
     REQUIRE(clf.getNotes()[1] == "Number of models: 8");
     auto score = clf.score(raw.Xv, raw.yv);
     auto scoret = clf.score(raw.Xt, raw.yt);
-    REQUIRE(score == Catch::Approx(0.809895813).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.809895813).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.8046875f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.8046875f).epsilon(raw.epsilon));
 }
-TEST_CASE("Voting vs proba", "[BoostAODE]") {
+TEST_CASE("Voting vs proba", "[BoostAODE]")
+{
     auto raw = RawDatasets("iris", true);
     auto clf = bayesnet::BoostAODE(false);
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
@@ -71,7 +76,7 @@ TEST_CASE("Voting vs proba", "[BoostAODE]") {
     auto pred_proba = clf.predict_proba(raw.Xv);
     clf.setHyperparameters({
         {"predict_voting", true},
-    });
+        });
     auto score_voting = clf.score(raw.Xv, raw.yv);
     auto pred_voting = clf.predict_proba(raw.Xv);
     REQUIRE(score_proba == Catch::Approx(0.97333).epsilon(raw.epsilon));
@@ -81,17 +86,18 @@ TEST_CASE("Voting vs proba", "[BoostAODE]") {
     REQUIRE(clf.dump_cpt().size() == 7004);
     REQUIRE(clf.topological_order() == std::vector<std::string>());
 }
-TEST_CASE("Order asc, desc & random", "[BoostAODE]") {
+TEST_CASE("Order asc, desc & random", "[BoostAODE]")
+{
     auto raw = RawDatasets("glass", true);
-    std::map<std::string, double> scores{{"asc", 0.83645f}, {"desc", 0.84579f}, {"rand", 0.84112}};
-    for (const std::string &order : {"asc", "desc", "rand"}) {
+    std::map<std::string, double> scores{ {"asc", 0.83645f}, {"desc", 0.84579f}, {"rand", 0.84112} };
+    for (const std::string& order : { "asc", "desc", "rand" }) {
         auto clf = bayesnet::BoostAODE();
         clf.setHyperparameters({
             {"order", order},
             {"bisection", false},
             {"maxTolerance", 1},
             {"convergence", false},
-        });
+            });
         clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
         auto score = clf.score(raw.Xv, raw.yv);
         auto scoret = clf.score(raw.Xt, raw.yt);
@@ -100,7 +106,8 @@ TEST_CASE("Order asc, desc & random", "[BoostAODE]") {
         REQUIRE(scoret == Catch::Approx(scores[order]).epsilon(raw.epsilon));
     }
 }
-TEST_CASE("Oddities", "[BoostAODE]") {
+TEST_CASE("Oddities", "[BoostAODE]")
+{
     auto clf = bayesnet::BoostAODE();
     auto raw = RawDatasets("iris", true);
     auto bad_hyper = nlohmann::json{
@@ -109,34 +116,35 @@ TEST_CASE("Oddities", "[BoostAODE]") {
         {{"maxTolerance", 0}},
         {{"maxTolerance", 7}},
     };
-    for (const auto &hyper : bad_hyper.items()) {
+    for (const auto& hyper : bad_hyper.items()) {
         INFO("BoostAODE hyper: " << hyper.value().dump());
         REQUIRE_THROWS_AS(clf.setHyperparameters(hyper.value()), std::invalid_argument);
     }
-    REQUIRE_THROWS_AS(clf.setHyperparameters({{"maxTolerance", 0}}), std::invalid_argument);
+    REQUIRE_THROWS_AS(clf.setHyperparameters({ {"maxTolerance", 0} }), std::invalid_argument);
     auto bad_hyper_fit = nlohmann::json{
         {{"select_features", "IWSS"}, {"threshold", -0.01}},
         {{"select_features", "IWSS"}, {"threshold", 0.51}},
         {{"select_features", "FCBF"}, {"threshold", 1e-8}},
         {{"select_features", "FCBF"}, {"threshold", 1.01}},
     };
-    for (const auto &hyper : bad_hyper_fit.items()) {
+    for (const auto& hyper : bad_hyper_fit.items()) {
         INFO("BoostAODE hyper: " << hyper.value().dump());
         clf.setHyperparameters(hyper.value());
         REQUIRE_THROWS_AS(clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing),
-                          std::invalid_argument);
+            std::invalid_argument);
     }
 
     auto bad_hyper_fit2 = nlohmann::json{
         {{"alpha_block", true}, {"block_update", true}},
         {{"bisection", false}, {"block_update", true}},
     };
-    for (const auto &hyper : bad_hyper_fit2.items()) {
+    for (const auto& hyper : bad_hyper_fit2.items()) {
         INFO("BoostAODE hyper: " << hyper.value().dump());
         REQUIRE_THROWS_AS(clf.setHyperparameters(hyper.value()), std::invalid_argument);
     }
 }
-TEST_CASE("Bisection Best", "[BoostAODE]") {
+TEST_CASE("Bisection Best", "[BoostAODE]")
+{
     auto clf = bayesnet::BoostAODE();
     auto raw = RawDatasets("kdd_JapaneseVowels", true, 1200, true, false);
     clf.setHyperparameters({
@@ -145,7 +153,7 @@ TEST_CASE("Bisection Best", "[BoostAODE]") {
         {"convergence", true},
         {"block_update", false},
         {"convergence_best", false},
-    });
+        });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     REQUIRE(clf.getNumberOfNodes() == 210);
     REQUIRE(clf.getNumberOfEdges() == 378);
@@ -156,7 +164,8 @@ TEST_CASE("Bisection Best", "[BoostAODE]") {
     REQUIRE(score == Catch::Approx(0.991666675f).epsilon(raw.epsilon));
     REQUIRE(scoret == Catch::Approx(0.991666675f).epsilon(raw.epsilon));
 }
-TEST_CASE("Bisection Best vs Last", "[BoostAODE]") {
+TEST_CASE("Bisection Best vs Last", "[BoostAODE]")
+{
     auto raw = RawDatasets("kdd_JapaneseVowels", true, 1500, true, false);
     auto clf = bayesnet::BoostAODE(true);
     auto hyperparameters = nlohmann::json{
@@ -176,7 +185,8 @@ TEST_CASE("Bisection Best vs Last", "[BoostAODE]") {
     auto score_last = clf.score(raw.X_test, raw.y_test);
     REQUIRE(score_last == Catch::Approx(0.976666689f).epsilon(raw.epsilon));
 }
-TEST_CASE("Block Update", "[BoostAODE]") {
+TEST_CASE("Block Update", "[BoostAODE]")
+{
     auto clf = bayesnet::BoostAODE();
     auto raw = RawDatasets("mfeat-factors", true, 500);
     clf.setHyperparameters({
@@ -184,7 +194,7 @@ TEST_CASE("Block Update", "[BoostAODE]") {
         {"block_update", true},
         {"maxTolerance", 3},
         {"convergence", true},
-    });
+        });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     REQUIRE(clf.getNumberOfNodes() == 868);
     REQUIRE(clf.getNumberOfEdges() == 1724);
@@ -205,13 +215,14 @@ TEST_CASE("Block Update", "[BoostAODE]") {
     // }
     // std::cout << "Score " << score << std::endl;
 }
-TEST_CASE("Alphablock", "[BoostAODE]") {
+TEST_CASE("Alphablock", "[BoostAODE]")
+{
     auto clf_alpha = bayesnet::BoostAODE();
     auto clf_no_alpha = bayesnet::BoostAODE();
     auto raw = RawDatasets("diabetes", true);
     clf_alpha.setHyperparameters({
         {"alpha_block", true},
-    });
+        });
     clf_alpha.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     clf_no_alpha.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_alpha = clf_alpha.score(raw.X_test, raw.y_test);

@@ -1,8 +1,8 @@
-// **
+// ***************************************************************
 // SPDX-FileCopyrightText: Copyright 2024 Ricardo Montañana Gómez
 // SPDX-FileType: SOURCE
 // SPDX-License-Identifier: MIT
-// **
+// ***************************************************************
 
 #include "bayesnet/utils/bayesnetUtils.h"
 #include "FeatureSelect.h"
@@ -136,6 +136,4 @@ namespace bayesnet {
         if (!fitted) throw std::runtime_error("FeatureSelect not fitted");
         return selectedScores;
     }
-
-} // namespace bayesnet
- 
+}
