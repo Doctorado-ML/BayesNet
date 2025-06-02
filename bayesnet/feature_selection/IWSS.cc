@@ -26,10 +26,26 @@ namespace bayesnet {
         auto first_feature = pop_first(featureOrderCopy);
         selectedFeatures.push_back(first_feature);
         selectedScores.push_back(suLabels.at(first_feature));
-        //     Second with the score of the candidates
-        selectedFeatures.push_back(pop_first(featureOrderCopy));
-        auto merit = computeMeritCFS();
-        selectedScores.push_back(merit);
+        // Select second feature that maximizes merit with first
+        double maxMerit = 0.0;
+        int secondFeature = -1;
+        for (const auto& candidate : featureOrderCopy) {
+            selectedFeatures.push_back(candidate);
+            double candidateMerit = computeMeritCFS();
+            if (candidateMerit > maxMerit) {
+                maxMerit = candidateMerit;
+                secondFeature = candidate;
+            }
+            selectedFeatures.pop_back();
+        }
+
+        if (secondFeature != -1) {
+            selectedFeatures.push_back(secondFeature);
+            selectedScores.push_back(maxMerit);
+            // Remove from featureOrderCopy
+            featureOrderCopy.erase(std::remove(featureOrderCopy.begin(), featureOrderCopy.end(), secondFeature), featureOrderCopy.end());
+        }
+        double merit = maxMerit;
         for (const auto feature : featureOrderCopy) {
             selectedFeatures.push_back(feature);
             // Compute merit with selectedFeatures
