@@ -14,9 +14,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix CFS metric expression in the FeatureSelection class.
 - Fix the vcpkg configuration in building the library.
 - Fix the sample app to use the vcpkg configuration.
-- Add predict_proba method to all Ld classifiers.
 - Refactor the computeCPT method in the Node class with libtorch vectorized operations.
 - Refactor the sample to use local discretization models.
+
+### Added
+
+- Add predict_proba method to all Ld classifiers.
+- Add L1FS feature selection methods to the FeatureSelection class.
 
 ## [1.1.0] - 2025-04-27
 
