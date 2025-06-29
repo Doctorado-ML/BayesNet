@@ -10,17 +10,16 @@
 #include "Classifier.h"
 namespace bayesnet {
     class KDB : public Classifier {
-    private:
-        int k;
-        float theta;
-    protected:
-        void add_m_edges(int idx, std::vector<int>& S, torch::Tensor& weights);
-        void buildModel(const torch::Tensor& weights) override;
     public:
         explicit KDB(int k, float theta = 0.03);
         virtual ~KDB() = default;
         void setHyperparameters(const nlohmann::json& hyperparameters_) override;
         std::vector<std::string> graph(const std::string& name = "KDB") const override;
+    protected:
+        int k;
+        float theta;
+        void add_m_edges(int idx, std::vector<int>& S, torch::Tensor& weights);
+        void buildModel(const torch::Tensor& weights) override;
     };
 }
 #endif

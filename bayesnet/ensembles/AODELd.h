@@ -20,6 +20,8 @@ namespace bayesnet {
     protected:
         void trainModel(const torch::Tensor& weights, const Smoothing_t smoothing) override;
         void buildModel(const torch::Tensor& weights) override;
+    private:
+        nlohmann::json hyperparameters = {}; // Hyperparameters for the model
     };
 }
 #endif // !AODELD_H

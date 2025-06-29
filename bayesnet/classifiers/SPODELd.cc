@@ -7,7 +7,11 @@
 #include "SPODELd.h"
 
 namespace bayesnet {
-    SPODELd::SPODELd(int root) : SPODE(root), Proposal(dataset, features, className) {}
+    SPODELd::SPODELd(int root) : SPODE(root), Proposal(dataset, features, className)
+    {
+        validHyperparameters = validHyperparameters_ld; // Inherits the valid hyperparameters from Proposal
+    }
+
     SPODELd& SPODELd::fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
         checkInput(X_, y_);

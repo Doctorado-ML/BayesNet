@@ -9,6 +9,7 @@
 namespace bayesnet {
     AODELd::AODELd(bool predict_voting) : Ensemble(predict_voting), Proposal(dataset, features, className)
     {
+        validHyperparameters = validHyperparameters_ld; // Inherits the valid hyperparameters from Proposal
     }
     AODELd& AODELd::fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
@@ -31,6 +32,7 @@ namespace bayesnet {
         models.clear();
         for (int i = 0; i < features.size(); ++i) {
             models.push_back(std::make_unique<SPODELd>(i));
+            models.back()->setHyperparameters(hyperparameters);
         }
         n_models = models.size();
         significanceModels = std::vector<double>(n_models, 1.0);
