@@ -19,6 +19,7 @@ namespace bayesnet {
         SPODELd& commonFit(const std::vector<std::string>& features, const std::string& className, map<std::string, std::vector<int>>& states, const Smoothing_t smoothing);
         std::vector<std::string> graph(const std::string& name = "SPODELd") const override;
         torch::Tensor predict(torch::Tensor& X) override;
+        torch::Tensor predict_proba(torch::Tensor& X) override;
         static inline std::string version() { return "0.0.1"; };
     };
 }

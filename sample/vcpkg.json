@@ -2,11 +2,32 @@
     "name": "sample-project",
     "version-string": "0.1.0",
     "dependencies": [
-        "bayesnet",
-        "folding",
         "arff-files",
         "fimdlp",
-        "nlohmann-json",
-        "libtorch-bin"
+        "libtorch-bin",
+        "folding",
+        "nlohmann-json"
+    ],
+    "overrides": [
+        {
+            "name": "arff-files",
+            "version": "1.1.0"
+        },
+        {
+            "name": "fimdlp",
+            "version": "2.0.1"
+        },
+        {
+            "name": "libtorch-bin",
+            "version": "2.7.0"
+        },
+        {
+            "name": "bayesnet",
+            "version": "1.1.1"
+        },
+        {
+            "name": "folding",
+            "version": "1.1.1"
+        }
     ]
 }

@@ -7,13 +7,42 @@
 #include "Proposal.h"
 
 namespace bayesnet {
-    Proposal::Proposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_) : pDataset(dataset_), pFeatures(features_), pClassName(className_) {}
-    Proposal::~Proposal()
+    Proposal::Proposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_) : pDataset(dataset_), pFeatures(features_), pClassName(className_)
     {
-        for (auto& [key, value] : discretizers) {
-            delete value; 
+    }
+    void Proposal::setHyperparameters(const nlohmann::json& hyperparameters_)
+    {
+        auto hyperparameters = hyperparameters_;
+        if (hyperparameters.contains("ld_proposed_cuts")) {
+            ld_params.proposed_cuts = hyperparameters["ld_proposed_cuts"];
+            hyperparameters.erase("ld_proposed_cuts");
+        }
+        if (hyperparameters.contains("mdlp_max_depth")) {
+            ld_params.max_depth = hyperparameters["mdlp_max_depth"];
+            hyperparameters.erase("mdlp_max_depth");
+        }
+        if (hyperparameters.contains("mdlp_min_length")) {
+            ld_params.min_length = hyperparameters["mdlp_min_length"];
+            hyperparameters.erase("mdlp_min_length");
+        }
+        if (hyperparameters.contains("ld_algorithm")) {
+            auto algorithm = hyperparameters["ld_algorithm"];
+            hyperparameters.erase("ld_algorithm");
+            if (algorithm == "MDLP") {
+                discretizationType = discretization_t::MDLP;
+            } else if (algorithm == "BINQ") {
+                discretizationType = discretization_t::BINQ;
+            } else if (algorithm == "BINU") {
+                discretizationType = discretization_t::BINU;
+            } else {
+                throw std::invalid_argument("Invalid discretization algorithm: " + algorithm.get<std::string>());
+            }
+        }
+        if (!hyperparameters.empty()) {
+            throw std::invalid_argument("Invalid hyperparameters for Proposal: " + hyperparameters.dump());
         }
     }
+
     void Proposal::checkInput(const torch::Tensor& X, const torch::Tensor& y)
     {
         if (!torch::is_floating_point(X)) {
@@ -23,6 +52,7 @@ namespace bayesnet {
             throw std::invalid_argument("y must be an integer tensor");
         }
     }
+    // Fit method for single classifier
     map<std::string, std::vector<int>> Proposal::localDiscretizationProposal(const map<std::string, std::vector<int>>& oldStates, Network& model)
     {
         // order of local discretization is important. no good 0, 1, 2...
@@ -83,8 +113,15 @@ namespace bayesnet {
         pDataset = torch::zeros({ n + 1, m }, torch::kInt32);
         auto yv = std::vector<int>(y.data_ptr<int>(), y.data_ptr<int>() + y.size(0));
         // discretize input data by feature(row)
+        std::unique_ptr<mdlp::Discretizer> discretizer;
         for (auto i = 0; i < pFeatures.size(); ++i) {
-            auto* discretizer = new mdlp::CPPFImdlp();
+            if (discretizationType == discretization_t::BINQ) {
+                discretizer = std::make_unique<mdlp::BinDisc>(ld_params.proposed_cuts, mdlp::strategy_t::QUANTILE);
+            } else if (discretizationType == discretization_t::BINU) {
+                discretizer = std::make_unique<mdlp::BinDisc>(ld_params.proposed_cuts, mdlp::strategy_t::UNIFORM);
+            } else { // Default is MDLP
+                discretizer = std::make_unique<mdlp::CPPFImdlp>(ld_params.min_length, ld_params.max_depth, ld_params.proposed_cuts);
+            }
             auto Xt_ptr = Xf.index({ i }).data_ptr<float>();
             auto Xt = std::vector<float>(Xt_ptr, Xt_ptr + Xf.size(1));
             discretizer->fit(Xt, yv);
@@ -92,7 +129,7 @@ namespace bayesnet {
             auto xStates = std::vector<int>(discretizer->getCutPoints().size() + 1);
             iota(xStates.begin(), xStates.end(), 0);
             states[pFeatures[i]] = xStates;
-            discretizers[pFeatures[i]] = discretizer;
+            discretizers[pFeatures[i]] = std::move(discretizer);
         }
         int n_classes = torch::max(y).item<int>() + 1;
         auto yStates = std::vector<int>(n_classes);

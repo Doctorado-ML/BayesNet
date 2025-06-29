@@ -5,7 +5,7 @@ SHELL := /bin/bash
 f_release = build_Release
 f_debug = build_Debug
 f_diagrams = diagrams
-app_targets = BayesNet
+app_targets = bayesnet
 test_targets = TestBayesNet
 clang-uml = clang-uml
 plantuml = plantuml
@@ -86,10 +86,13 @@ init: ## Initialize the project installing dependencies
 
 clean: ## Clean the project
 	@echo ">>> Cleaning the project..."
-	@if test -d build_Debug ; then echo "- Deleting build_Debug folder" ; rm -rf build_Debug; fi
-	@if test -d build_Release ; then echo "- Deleting build_Release folder" ; rm -rf build_Release; fi
 	@if test -f CMakeCache.txt ; then echo "- Deleting CMakeCache.txt"; rm -f CMakeCache.txt; fi
-	@if test -d vcpkg_installed ; then echo "- Deleting vcpkg_installed folder" ; rm -rf vcpkg_installed; fi
+	@for folder in $(f_release) $(f_debug) vpcpkg_installed install_test ; do \
+	if test -d "$$folder" ; then \
+		echo "- Deleting $$folder folder" ; \
+		rm -rf "$$folder"; \
+	fi; \
+	done
 	@$(MAKE) clean-test
 	@echo ">>> Done";
 
@@ -108,12 +111,13 @@ release: ## Build a Release version of the project
 	@echo ">>> Done";
 
 fname = "tests/data/iris.arff"
+model = "TANLd"
 sample: ## Build sample
 	@echo ">>> Building Sample...";
 	@if [ -d ./sample/build ]; then rm -rf ./sample/build; fi
 	@cd sample && cmake -B build -S . -D CMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake && \
 	cmake --build build -t bayesnet_sample
-	sample/build/bayesnet_sample $(fname)
+	sample/build/bayesnet_sample $(fname) $(model)
 	@echo ">>> Done";
 
 fname = "tests/data/iris.arff"

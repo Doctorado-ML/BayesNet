@@ -1,21 +1,19 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.27)
 
-project(BayesNet
-  VERSION 1.1.0
+project(bayesnet
+  VERSION 1.1.2
   DESCRIPTION "Bayesian Network and basic classifiers Library."
   HOMEPAGE_URL "https://github.com/rmontanana/bayesnet"
   LANGUAGES CXX
 )
 
-if (CODE_COVERAGE AND NOT ENABLE_TESTING)
-  MESSAGE(FATAL_ERROR "Code coverage requires testing enabled")
-endif (CODE_COVERAGE AND NOT ENABLE_TESTING)
+set(CMAKE_CXX_STANDARD 17)
+cmake_policy(SET CMP0135 NEW)
 
-find_package(Torch REQUIRED)
-
-if (POLICY CMP0135)
-  cmake_policy(SET CMP0135 NEW)
-endif ()
+find_package(Torch CONFIG REQUIRED)
+find_package(fimdlp CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
+find_package(folding CONFIG REQUIRED)
 
 # Global CMake variables
 # ----------------------
@@ -33,65 +31,86 @@ endif()
 
 # Options
 # -------
-option(ENABLE_CLANG_TIDY "Enable to add clang tidy."              OFF)
-option(ENABLE_TESTING "Unit testing build"                        OFF)
-option(CODE_COVERAGE "Collect coverage from test library"         OFF)
-option(INSTALL_GTEST "Enable installation of googletest."         OFF)
+option(ENABLE_CLANG_TIDY "Enable to add clang tidy"              OFF)
+option(ENABLE_TESTING "Unit testing build"                       OFF)
+option(CODE_COVERAGE "Collect coverage from test library"        OFF)
+option(INSTALL_GTEST "Enable installation of googletest"         OFF)
 
-# CMakes modules
-# --------------
-set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules ${CMAKE_MODULE_PATH})
-
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-  MESSAGE("Debug mode")
-  set(ENABLE_TESTING ON)
-  set(CODE_COVERAGE ON)
-endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
-
-get_property(LANGUAGES GLOBAL PROPERTY ENABLED_LANGUAGES)
-message(STATUS "Languages=${LANGUAGES}")
-if (CODE_COVERAGE)
-  enable_testing()
-  include(CodeCoverage)
-  MESSAGE(STATUS "Code coverage enabled")
-  SET(GCC_COVERAGE_LINK_FLAGS " ${GCC_COVERAGE_LINK_FLAGS} -lgcov --coverage")
-endif (CODE_COVERAGE)
+add_subdirectory(config)
 
 if (ENABLE_CLANG_TIDY)
-  include(StaticAnalyzers) # clang-tidy
+    include(StaticAnalyzers) # clang-tidy
 endif (ENABLE_CLANG_TIDY)
 
-# External libraries - dependencies of BayesNet
-# ---------------------------------------------
+# Add the library
+# ---------------
+include_directories(
+    ${bayesnet_SOURCE_DIR}
+    ${CMAKE_BINARY_DIR}/configured_files/include
+)
 
-find_package(Torch CONFIG REQUIRED)
-find_package(fimdlp CONFIG REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED)
-find_package(folding CONFIG REQUIRED)
+file(GLOB_RECURSE Sources "bayesnet/*.cc")
 
-# Subdirectories
-# --------------
-add_subdirectory(config)
-add_subdirectory(bayesnet)
+add_library(bayesnet ${Sources})
+target_link_libraries(bayesnet fimdlp::fimdlp folding::folding "${TORCH_LIBRARIES}")
 
 # Testing
 # -------
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    MESSAGE("Debug mode")
+    set(ENABLE_TESTING ON)
+    set(CODE_COVERAGE ON)
+endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
 if (ENABLE_TESTING)
-MESSAGE(STATUS "Testing enabled")
-  find_package(Catch2 CONFIG REQUIRED)
-  include(CTest)
-  add_subdirectory(tests)
+    MESSAGE(STATUS "Testing enabled")
+    find_package(Catch2 CONFIG REQUIRED)
+    find_package(arff-files CONFIG REQUIRED)
+    enable_testing()
+    include(CTest)
+    add_subdirectory(tests)
+else(ENABLE_TESTING)
+    message("Release mode")
 endif (ENABLE_TESTING)
 
 # Installation
 # ------------
-install(TARGETS BayesNet
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/bayesnetConfigVersion.cmake"
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY AnyNewerVersion
+)
+
+configure_package_config_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/bayesnetConfig.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/bayesnetConfig.cmake"
+    INSTALL_DESTINATION share/bayesnet)
+
+install(TARGETS bayesnet
+        EXPORT bayesnetTargets
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
         CONFIGURATIONS Release)
-install(DIRECTORY bayesnet/ DESTINATION include/bayesnet FILES_MATCHING CONFIGURATIONS Release PATTERN "*.h")
-install(FILES ${CMAKE_BINARY_DIR}/configured_files/include/bayesnet/config.h DESTINATION include/bayesnet CONFIGURATIONS Release)
 
+install(DIRECTORY bayesnet/ 
+    DESTINATION include/bayesnet 
+    FILES_MATCHING 
+    CONFIGURATIONS Release 
+    PATTERN "*.h")
+install(FILES ${CMAKE_BINARY_DIR}/configured_files/include/bayesnet/config.h 
+    DESTINATION include/bayesnet 
+    CONFIGURATIONS Release)
+
+install(EXPORT bayesnetTargets
+        FILE bayesnetTargets.cmake
+        NAMESPACE bayesnet::
+        DESTINATION share/bayesnet)
+
+install(FILES
+    "${CMAKE_CURRENT_BINARY_DIR}/bayesnetConfig.cmake"
+    "${CMAKE_CURRENT_BINARY_DIR}/bayesnetConfigVersion.cmake"
+    DESTINATION share/bayesnet
+)
 # Documentation
 # -------------
 find_package(Doxygen)

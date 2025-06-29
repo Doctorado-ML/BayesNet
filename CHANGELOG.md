@@ -7,11 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2025-06-30
+
+### Internal
+
+- Add docs generation to CMakeLists.txt.
+- Add new hyperparameters to the Ld classifiers:
+  - *ld_algorithm*: algorithm to use for local discretization, with the following options: "MDLP", "BINQ", "BINU".
+  - *ld_proposed_cuts*: number of cut points to return.
+  - *mdlp_min_length*: minimum length of a partition in MDLP algorithm to be evaluated for partition.
+  - *mdlp_max_depth*: maximum level of recursion in MDLP algorithm.
+
+## [1.1.1] - 2025-05-20
+
+### Internal
+
+- Fix CFS metric expression in the FeatureSelection class.
+- Fix the vcpkg configuration in building the library.
+- Fix the sample app to use the vcpkg configuration.
+- Refactor the computeCPT method in the Node class with libtorch vectorized operations.
+- Refactor the sample to use local discretization models.
+
+### Added
+
+- Add predict_proba method to all Ld classifiers.
+- Add L1FS feature selection methods to the FeatureSelection class.
+
 ## [1.1.0] - 2025-04-27
 
 ### Internal
 
-- Add changes to .clang-format to ajust to vscode format style thanks to <https://clang-format-configurator.site/>
+- Add changes to .clang-format to adjust to vscode format style thanks to <https://clang-format-configurator.site/>
 - Remove all the dependencies as git submodules and add them as vcpkg dependencies.
 - Fix the dependencies versions for this specific BayesNet version.
 
