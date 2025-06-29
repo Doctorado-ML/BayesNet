@@ -10,10 +10,36 @@ project(bayesnet
 set(CMAKE_CXX_STANDARD 17)
 cmake_policy(SET CMP0135 NEW)
 
+# Package manager detection
+if(EXISTS ${CMAKE_BINARY_DIR}/conan_toolchain.cmake)
+    include(${CMAKE_BINARY_DIR}/conan_toolchain.cmake)
+    set(USING_CONAN TRUE)
+    message(STATUS "Using Conan package manager")
+else()
+    set(USING_CONAN FALSE)
+    message(STATUS "Using vcpkg package manager")
+endif()
+
+# Find packages - works with both Conan and vcpkg
 find_package(Torch CONFIG REQUIRED)
-find_package(fimdlp CONFIG REQUIRED)
 find_package(nlohmann_json CONFIG REQUIRED)
-find_package(folding CONFIG REQUIRED)
+
+# These packages might not be available in Conan yet, so we handle them conditionally
+if(NOT USING_CONAN)
+    find_package(fimdlp CONFIG REQUIRED)
+    find_package(folding CONFIG REQUIRED)
+else()
+    # For Conan, we'll need to either find alternatives or create custom packages
+    # For now, we'll look for them and warn if not found
+    find_package(fimdlp CONFIG QUIET)
+    find_package(folding CONFIG QUIET)
+    if(NOT fimdlp_FOUND)
+        message(WARNING "fimdlp not found - you may need to create a custom Conan recipe")
+    endif()
+    if(NOT folding_FOUND)
+        message(WARNING "folding not found - you may need to create a custom Conan recipe")
+    endif()
+endif()
 
 # Global CMake variables
 # ----------------------
@@ -52,7 +78,17 @@ include_directories(
 file(GLOB_RECURSE Sources "bayesnet/*.cc")
 
 add_library(bayesnet ${Sources})
-target_link_libraries(bayesnet fimdlp::fimdlp folding::folding "${TORCH_LIBRARIES}")
+
+# Link libraries conditionally based on package manager
+set(BAYESNET_LINK_LIBRARIES "${TORCH_LIBRARIES}")
+if(fimdlp_FOUND)
+    list(APPEND BAYESNET_LINK_LIBRARIES fimdlp::fimdlp)
+endif()
+if(folding_FOUND)
+    list(APPEND BAYESNET_LINK_LIBRARIES folding::folding)
+endif()
+
+target_link_libraries(bayesnet ${BAYESNET_LINK_LIBRARIES})
 
 # Testing
 # -------
@@ -64,7 +100,17 @@ endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
 if (ENABLE_TESTING)
     MESSAGE(STATUS "Testing enabled")
     find_package(Catch2 CONFIG REQUIRED)
-    find_package(arff-files CONFIG REQUIRED)
+    
+    # Handle arff-files conditionally for different package managers
+    if(NOT USING_CONAN)
+        find_package(arff-files CONFIG REQUIRED)
+    else()
+        find_package(arff-files CONFIG QUIET)
+        if(NOT arff-files_FOUND)
+            message(WARNING "arff-files not found - you may need to create a custom Conan recipe")
+        endif()
+    endif()
+    
     enable_testing()
     include(CTest)
     add_subdirectory(tests)

@@ -1,0 +1,10 @@
+sources:
+  "1.1.2":
+    url: "https://github.com/rmontanana/BayesNet/archive/v1.1.2.tar.gz"
+    sha256: "placeholder_sha256"  # Replace with actual SHA256 when releasing
+  "1.0.7":
+    url: "https://github.com/rmontanana/BayesNet/archive/v1.0.7.tar.gz"
+    sha256: "placeholder_sha256"  # Replace with actual SHA256 when releasing
+
+patches:
+  # Add patches here if needed for specific versions

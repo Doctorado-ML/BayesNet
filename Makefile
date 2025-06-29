@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: viewcoverage coverage setup help install uninstall diagrams buildr buildd test clean debug release sample updatebadge doc doc-install init clean-test
+.PHONY: viewcoverage coverage setup help install uninstall diagrams buildr buildd test clean debug release sample updatebadge doc doc-install init clean-test conan-init conan-debug conan-release conan-create conan-upload conan-clean
 
 f_release = build_Release
 f_debug = build_Debug
@@ -226,3 +226,48 @@ help: ## Show help message
 		printf '\033[0m'; \
 		printf "%s\n" $$help_info; \
 	done
+
+# Conan package manager targets
+# ============================
+
+conan-init: ## Install dependencies using Conan
+	@echo ">>> Installing dependencies with Conan"
+	@which conan || (echo ">>> Please install Conan first: pip install conan"; exit 1)
+	@conan profile detect --force
+	@conan install . --build=missing
+	@echo ">>> Done"
+
+conan-debug: ## Build debug version using Conan
+	@echo ">>> Building Debug BayesNet with Conan..."
+	@if [ -d ./$(f_debug) ]; then rm -rf ./$(f_debug); fi
+	@mkdir $(f_debug)
+	@conan install . -s build_type=Debug -o enable_testing=True -o enable_coverage=True --build=missing -of $(f_debug)
+	@cmake -S . -B $(f_debug) -D CMAKE_BUILD_TYPE=Debug -D ENABLE_TESTING=ON -D CODE_COVERAGE=ON
+	@echo ">>> Done"
+
+conan-release: ## Build release version using Conan
+	@echo ">>> Building Release BayesNet with Conan..."
+	@if [ -d ./$(f_release) ]; then rm -rf ./$(f_release); fi
+	@mkdir $(f_release)
+	@conan install . -s build_type=Release --build=missing -of $(f_release)
+	@cmake -S . -B $(f_release) -D CMAKE_BUILD_TYPE=Release
+	@echo ">>> Done"
+
+conan-create: ## Create Conan package
+	@echo ">>> Creating Conan package..."
+	@conan create . --build=missing
+	@echo ">>> Done"
+
+profile ?= default
+remote ?= conancenter
+conan-upload: ## Upload package to Conan remote (profile=default remote=conancenter)
+	@echo ">>> Uploading to Conan remote $(remote) with profile $(profile)..."
+	@conan upload bayesnet/$(shell grep version conanfile.py | cut -d'"' -f2) -r $(remote) --confirm
+	@echo ">>> Done"
+
+conan-clean: ## Clean Conan cache and build folders
+	@echo ">>> Cleaning Conan cache and build folders..."
+	@conan remove "*" --confirm
+	@if test -d "$(f_release)" ; then rm -rf "$(f_release)"; fi
+	@if test -d "$(f_debug)" ; then rm -rf "$(f_debug)"; fi
+	@echo ">>> Done"
