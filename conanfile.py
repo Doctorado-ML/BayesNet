@@ -35,14 +35,14 @@ class BayesNetConan(ConanFile):
     
     def requirements(self):
         # Core dependencies
-        self.requires("libtorch/2.1.2")
+        self.requires("libtorch/2.7.0")
         self.requires("nlohmann_json/3.11.3")
         
         # Custom dependencies - these will need to be available in your Conan center or custom remotes
         # For now, we'll comment them out and provide instructions in the README
-        self.requires("folding/1.1.1@user/channel")  # Custom package
-        self.requires("fimdlp/2.1.0@user/channel")   # Custom package  
-        self.requires("arff-files/1.2.0@user/channel") # Custom package
+        self.requires("folding/1.1.1")  # Custom package
+        self.requires("fimdlp/2.1.0")   # Custom package  
+        self.requires("arff-files/1.2.0") # Custom package
         
         # Test dependencies
         if self.options.enable_testing:
