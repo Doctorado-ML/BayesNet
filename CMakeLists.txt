@@ -10,37 +10,6 @@ project(bayesnet
 set(CMAKE_CXX_STANDARD 17)
 cmake_policy(SET CMP0135 NEW)
 
-# Package manager detection
-if(EXISTS ${CMAKE_BINARY_DIR}/conan_toolchain.cmake)
-    include(${CMAKE_BINARY_DIR}/conan_toolchain.cmake)
-    set(USING_CONAN TRUE)
-    message(STATUS "Using Conan package manager")
-else()
-    set(USING_CONAN FALSE)
-    message(STATUS "Using vcpkg package manager")
-endif()
-
-# Find packages - works with both Conan and vcpkg
-find_package(Torch CONFIG REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED)
-
-# These packages might not be available in Conan yet, so we handle them conditionally
-if(NOT USING_CONAN)
-    find_package(fimdlp CONFIG REQUIRED)
-    find_package(folding CONFIG REQUIRED)
-else()
-    # For Conan, we'll need to either find alternatives or create custom packages
-    # For now, we'll look for them and warn if not found
-    find_package(fimdlp CONFIG QUIET)
-    find_package(folding CONFIG QUIET)
-    if(NOT fimdlp_FOUND)
-        message(WARNING "fimdlp not found - you may need to create a custom Conan recipe")
-    endif()
-    if(NOT folding_FOUND)
-        message(WARNING "folding not found - you may need to create a custom Conan recipe")
-    endif()
-endif()
-
 # Global CMake variables
 # ----------------------
 set(CMAKE_CXX_STANDARD 17)
@@ -57,16 +26,31 @@ endif()
 
 # Options
 # -------
-option(ENABLE_CLANG_TIDY "Enable to add clang tidy"              OFF)
 option(ENABLE_TESTING "Unit testing build"                       OFF)
 option(CODE_COVERAGE "Collect coverage from test library"        OFF)
-option(INSTALL_GTEST "Enable installation of googletest"         OFF)
+option(USING_CONAN "Use Conan package manager"                   OFF)
+
+if(USING_CONAN)
+    message(STATUS "Using Conan package manager")
+else(USING_CONAN)
+    message(STATUS "Using vcpkg package manager")
+endif(USING_CONAN)
+    
+find_package(Torch CONFIG REQUIRED)
+if(NOT TARGET torch::torch)
+    add_library(torch::torch INTERFACE IMPORTED GLOBAL)
+
+    # expose include paths and libraries that the find-module discovered
+    set_target_properties(torch::torch PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${TORCH_INCLUDE_DIRS}"
+        INTERFACE_LINK_LIBRARIES      "${TORCH_LIBRARIES}")
+endif()
+
+find_package(fimdlp CONFIG REQUIRED)
+find_package(folding CONFIG REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 add_subdirectory(config)
-
-if (ENABLE_CLANG_TIDY)
-    include(StaticAnalyzers) # clang-tidy
-endif (ENABLE_CLANG_TIDY)
 
 # Add the library
 # ---------------
@@ -79,16 +63,13 @@ file(GLOB_RECURSE Sources "bayesnet/*.cc")
 
 add_library(bayesnet ${Sources})
 
-# Link libraries conditionally based on package manager
-set(BAYESNET_LINK_LIBRARIES "${TORCH_LIBRARIES}")
-if(fimdlp_FOUND)
-    list(APPEND BAYESNET_LINK_LIBRARIES fimdlp::fimdlp)
-endif()
-if(folding_FOUND)
-    list(APPEND BAYESNET_LINK_LIBRARIES folding::folding)
-endif()
-
-target_link_libraries(bayesnet ${BAYESNET_LINK_LIBRARIES})
+target_link_libraries(bayesnet
+    nlohmann_json::nlohmann_json
+    folding::folding
+    fimdlp::fimdlp
+    torch::torch
+    arff-files::arff-files
+)
 
 # Testing
 # -------

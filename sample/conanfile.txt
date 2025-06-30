@@ -1,0 +1,14 @@
+[requires]
+libtorch/2.7.0
+arff-files/1.2.0
+fimdlp/2.1.0
+folding/1.1.1
+bayesnet/1.2.0
+nlohmann_json/3.11.3
+
+[generators]
+CMakeToolchain
+CMakeDeps
+
+[options]
+libtorch/2.7.0:shared=True

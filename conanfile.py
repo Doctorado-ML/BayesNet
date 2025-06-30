@@ -5,7 +5,7 @@ import os
 
 class BayesNetConan(ConanFile):
     name = "bayesnet"
-    version = "1.1.2"
+    version = "1.2.0"
     
     # Binary configuration
     settings = "os", "compiler", "build_type", "arch"
@@ -23,7 +23,7 @@ class BayesNetConan(ConanFile):
     }
     
     # Sources are located in the same place as this recipe, copy them to the recipe
-    exports_sources = "CMakeLists.txt", "bayesnet/*", "config/*", "cmake/*", "tests/*", "bayesnetConfig.cmake.in"
+    exports_sources = "CMakeLists.txt", "bayesnet/*", "config/*", "cmake/*", "docs/*", "tests/*", "bayesnetConfig.cmake.in"
     
     def config_options(self):
         if self.settings.os == "Windows":
@@ -37,19 +37,13 @@ class BayesNetConan(ConanFile):
         # Core dependencies
         self.requires("libtorch/2.7.0")
         self.requires("nlohmann_json/3.11.3")
-        
-        # Custom dependencies - these will need to be available in your Conan center or custom remotes
-        # For now, we'll comment them out and provide instructions in the README
         self.requires("folding/1.1.1")  # Custom package
         self.requires("fimdlp/2.1.0")   # Custom package  
-        self.requires("arff-files/1.2.0") # Custom package
-        
-        # Test dependencies
-        if self.options.enable_testing:
-            self.requires("catch2/3.8.1")
     
     def build_requirements(self):
         self.build_requires("cmake/[>=3.27]")
+        self.test_requires("arff-files/1.2.0") # Custom package
+        self.test_requires("catch2/3.8.1")
     
     def layout(self):
         cmake_layout(self)

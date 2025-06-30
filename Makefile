@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: viewcoverage coverage setup help install uninstall diagrams buildr buildd test clean debug release sample updatebadge doc doc-install init clean-test conan-init conan-debug conan-release conan-create conan-upload conan-clean
+.PHONY: viewcoverage coverage setup help install uninstall diagrams buildr buildd test clean vcpkg-debug vcpkg-release vcpkg-sample updatebadge doc doc-install init clean-test conan-debug conan-release conan-create conan-upload conan-clean conan-sample
 
 f_release = build_Release
 f_debug = build_Debug
@@ -31,7 +31,6 @@ define ClearTests
 	fi ; 
 endef
 
-
 setup: ## Install dependencies for tests and coverage
 	@if [ "$(shell uname)" = "Darwin" ]; then \
 		brew install gcovr; \
@@ -42,47 +41,6 @@ setup: ## Install dependencies for tests and coverage
 		sudo dnf install lcov;\
 	fi
 	@echo "* You should install plantuml & graphviz for the diagrams"
-
-diagrams: ## Create an UML class diagram & dependency of the project (diagrams/BayesNet.png)
-	@which $(plantuml) || (echo ">>> Please install plantuml"; exit 1)
-	@which $(dot) || (echo ">>> Please install graphviz"; exit 1)
-	@which $(clang-uml) || (echo ">>> Please install clang-uml"; exit 1)
-	@export PLANTUML_LIMIT_SIZE=16384
-	@echo ">>> Creating UML class diagram of the project...";
-	@$(clang-uml) -p 
-	@cd $(f_diagrams); \
-	$(plantuml) -tsvg BayesNet.puml
-	@echo ">>> Creating dependency graph diagram of the project...";
-	$(MAKE) debug
-	cd $(f_debug) && cmake .. --graphviz=dependency.dot 
-	@$(dot) -Tsvg $(f_debug)/dependency.dot.BayesNet -o $(f_diagrams)/dependency.svg
-
-buildd: ## Build the debug targets
-	cmake --build $(f_debug) -t $(app_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
-
-buildr: ## Build the release targets
-	cmake --build $(f_release) -t $(app_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
-
-clean-test: ## Clean the tests info
-	@echo ">>> Cleaning Debug BayesNet tests...";
-	$(call ClearTests)
-	@echo ">>> Done";
-
-uninstall: ## Uninstall library
-	@echo ">>> Uninstalling BayesNet...";
-	xargs rm < $(f_release)/install_manifest.txt
-	@echo ">>> Done";
-
-prefix = "/usr/local"
-install: ## Install library
-	@echo ">>> Installing BayesNet...";
-	@cmake --install $(f_release) --prefix $(prefix)
-	@echo ">>> Done";
-
-init: ## Initialize the project installing dependencies
-	@echo ">>> Installing dependencies"
-	@vcpkg install
-	@echo ">>> Done";
 
 clean: ## Clean the project
 	@echo ">>> Cleaning the project..."
@@ -96,37 +54,38 @@ clean: ## Clean the project
 	@$(MAKE) clean-test
 	@echo ">>> Done";
 
-debug: ## Build a debug version of the project
-	@echo ">>> Building Debug BayesNet...";
-	@if [ -d ./$(f_debug) ]; then rm -rf ./$(f_debug); fi
-	@mkdir $(f_debug); 
-	@cmake -S . -B $(f_debug) -D CMAKE_BUILD_TYPE=Debug -D ENABLE_TESTING=ON -D CODE_COVERAGE=ON -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake
+# Build targets
+# =============
+
+buildd: ## Build the debug targets
+	cmake --build $(f_debug) -t $(app_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
+
+buildr: ## Build the release targets
+	cmake --build $(f_release) -t $(app_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
+
+
+# Install targets
+# ===============
+
+uninstall: ## Uninstall library
+	@echo ">>> Uninstalling BayesNet...";
+	xargs rm < $(f_release)/install_manifest.txt
 	@echo ">>> Done";
 
-release: ## Build a Release version of the project
-	@echo ">>> Building Release BayesNet...";
-	@if [ -d ./$(f_release) ]; then rm -rf ./$(f_release); fi
-	@mkdir $(f_release); 
-	@cmake -S . -B $(f_release) -D CMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake
+prefix = "/usr/local"
+install: ## Install library
+	@echo ">>> Installing BayesNet...";
+	@cmake --install $(f_release) --prefix $(prefix)
 	@echo ">>> Done";
 
-fname = "tests/data/iris.arff"
-model = "TANLd"
-sample: ## Build sample
-	@echo ">>> Building Sample...";
-	@if [ -d ./sample/build ]; then rm -rf ./sample/build; fi
-	@cd sample && cmake -B build -S . -D CMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake && \
-	cmake --build build -t bayesnet_sample
-	sample/build/bayesnet_sample $(fname) $(model)
-	@echo ">>> Done";
 
-fname = "tests/data/iris.arff"
-sample2: ## Build sample2
-	@echo ">>> Building Sample...";
-	@if [ -d ./sample/build ]; then rm -rf ./sample/build; fi
-	@cd sample && cmake -B build -S . -D CMAKE_BUILD_TYPE=Debug && cmake --build build -t bayesnet_sample_xspode
-	sample/build/bayesnet_sample_xspode $(fname)
-	@echo ">>> Done";		
+# Test targets
+# ============
+
+clean-test: ## Clean the tests info
+	@echo ">>> Cleaning Debug BayesNet tests...";
+	$(call ClearTests)
+	@echo ">>> Done";
 
 opt = ""
 test: ## Run tests (opt="-s") to verbose output the tests, (opt="-c='Test Maximum Spanning Tree'") to run only that section
@@ -182,6 +141,9 @@ updatebadge: ## Update the coverage badge in README.md
 	@env python update_coverage.py $(f_debug)/tests
 	@echo ">>> Done";
 
+# Documentation targets
+# =====================
+
 doc: ## Generate documentation
 	@echo ">>> Generating documentation..."
 	@cmake --build $(f_release) -t doxygen
@@ -196,6 +158,20 @@ doc: ## Generate documentation
 	fi
 	@echo ">>> Done";
 
+diagrams: ## Create an UML class diagram & dependency of the project (diagrams/BayesNet.png)
+	@which $(plantuml) || (echo ">>> Please install plantuml"; exit 1)
+	@which $(dot) || (echo ">>> Please install graphviz"; exit 1)
+	@which $(clang-uml) || (echo ">>> Please install clang-uml"; exit 1)
+	@export PLANTUML_LIMIT_SIZE=16384
+	@echo ">>> Creating UML class diagram of the project...";
+	@$(clang-uml) -p 
+	@cd $(f_diagrams); \
+	$(plantuml) -tsvg BayesNet.puml
+	@echo ">>> Creating dependency graph diagram of the project...";
+	$(MAKE) debug
+	cd $(f_debug) && cmake .. --graphviz=dependency.dot 
+	@$(dot) -Tsvg $(f_debug)/dependency.dot.BayesNet -o $(f_diagrams)/dependency.svg
+
 docdir = ""
 doc-install: ## Install documentation
 	@echo ">>> Installing documentation..."
@@ -209,6 +185,111 @@ doc-install: ## Install documentation
 	@cp -rp $(docsrcdir)/* $(docdir)
 	@sudo cp -rp $(mansrcdir) $(mandestdir)
 	@echo ">>> Done";
+
+# Conan package manager targets
+# =============================
+
+# conan-debug: ## Build debug version using Conan
+# 	@echo ">>> Building Debug BayesNet with Conan..."
+# 	@if [ -d ./$(f_debug) ]; then rm -rf ./$(f_debug); fi
+# 	@mkdir $(f_debug)
+# 	@conan install . -s build_type=Debug --build=missing -of $(f_debug)
+# 	@cmake -S . -B $(f_debug) -D CMAKE_BUILD_TYPE=Debug -D ENABLE_TESTING=ON -D CODE_COVERAGE=ON -D USING_CONAN=ON -DCMAKE_TOOLCHAIN_FILE=$(f_debug)/build/Debug/generators/conan_toolchain.cmake
+# 	@echo ">>> Done"
+conan-debug:             ## Build debug version using Conan
+	@echo ">>> Building *Debug* BayesNet with Conan..."
+	@rm -rf $(f_debug)            # wipe previous tree
+	@conan install . \
+	            -s build_type=Debug \
+	            --build=missing \
+	            -of $(f_debug) \
+				--profile=debug
+	@cmake -S . -B $(f_debug) \
+	       -DCMAKE_BUILD_TYPE=Debug \
+	       -DENABLE_TESTING=ON \
+	       -DCODE_COVERAGE=ON \
+	       -DUSING_CONAN=ON \
+	       -DCMAKE_TOOLCHAIN_FILE=$(f_debug)/build/Debug/generators/conan_toolchain.cmake
+	@echo ">>> Done"
+
+conan-release: ## Build release version using Conan
+	@echo ">>> Building Release BayesNet with Conan..."
+	@conan install . \
+	            -s build_type=Release \
+	            --build=missing \
+	            -of $(f_debug) \
+				--profile=release
+	@if [ -d ./$(f_release) ]; then rm -rf ./$(f_release); fi
+	@mkdir $(f_release)
+	@conan install . -s build_type=Release --build=missing -of $(f_release)
+	@cmake -S . -B $(f_release) -D CMAKE_BUILD_TYPE=Release -D USING_CONAN=ON -DCMAKE_TOOLCHAIN_FILE=$(f_release)/build/Release/generators/conan_toolchain.cmake
+	@echo ">>> Done"
+
+conan-create: ## Create Conan package
+	@echo ">>> Creating Conan package..."
+	@conan create . --build=missing -tf "" --profile=release
+	@conan create . --build=missing -tf "" --profile=debug
+	@echo ">>> Done"
+
+profile ?= default
+remote ?= Cimmeria
+conan-upload: ## Upload package to Conan remote (profile=default remote=conancenter)
+	@echo ">>> Uploading to Conan remote $(remote) with profile $(profile)..."
+	@conan upload bayesnet/$(grep version conanfile.py | cut -d'"' -f2) -r $(remote) --confirm
+	@echo ">>> Done"
+
+conan-clean: ## Clean Conan cache and build folders
+	@echo ">>> Cleaning Conan cache and build folders..."
+	@conan remove "*" --confirm
+	@if test -d "$(f_release)" ; then rm -rf "$(f_release)"; fi
+	@if test -d "$(f_debug)" ; then rm -rf "$(f_debug)"; fi
+	@echo ">>> Done"
+
+fname = "tests/data/iris.arff"
+model = "TANLd"
+conan-sample: ## Build sample with Conan
+	@echo ">>> Building Sample with Conan...";
+	@if [ -d ./sample/build ]; then rm -rf ./sample/build; fi
+	@cd sample && conan install . --output-folder=build --build=missing
+	@cd sample && cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake && \
+	cmake --build build -t bayesnet_sample
+	sample/build/bayesnet_sample $(fname) $(model)
+	@echo ">>> Done";
+
+# vcpkg package manager targets
+# =============================
+
+vcpkg-init: ## Initialize the project installing dependencies using vcpkg
+	@echo ">>> Installing dependencies with vcpkg"
+	@vcpkg install
+	@echo ">>> Done";
+
+vcpkg-debug: ## Build a debug version of the project using vcpkg
+	@echo ">>> Building Debug BayesNet with vcpkg...";
+	@if [ -d ./$(f_debug) ]; then rm -rf ./$(f_debug); fi
+	@mkdir $(f_debug); 
+	@cmake -S . -B $(f_debug) -D CMAKE_BUILD_TYPE=Debug -D ENABLE_TESTING=ON -D CODE_COVERAGE=ON -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake
+	@echo ">>> Done";
+
+vcpkg-release: ## Build a Release version of the project using vcpkg
+	@echo ">>> Building Release BayesNet with vcpkg...";
+	@if [ -d ./$(f_release) ]; then rm -rf ./$(f_release); fi
+	@mkdir $(f_release); 
+	@cmake -S . -B $(f_release) -D CMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake
+	@echo ">>> Done";
+
+fname = "tests/data/iris.arff"
+model = "TANLd"
+vcpkg-sample: ## Build sample with vcpkg
+	@echo ">>> Building Sample with vcpkg...";
+	@if [ -d ./sample/build ]; then rm -rf ./sample/build; fi
+	@cd sample && cmake -B build -S . -D CMAKE_BUILD_TYPE=Release -DUSING_VCPKG=ON -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake && \
+	cmake --build build -t bayesnet_sample
+	sample/build/bayesnet_sample $(fname) $(model)
+	@echo ">>> Done";
+
+# Help target
+# ===========
 
 help: ## Show help message
 	@IFS=$$'\n' ; \
@@ -226,48 +307,3 @@ help: ## Show help message
 		printf '\033[0m'; \
 		printf "%s\n" $$help_info; \
 	done
-
-# Conan package manager targets
-# ============================
-
-conan-init: ## Install dependencies using Conan
-	@echo ">>> Installing dependencies with Conan"
-	@which conan || (echo ">>> Please install Conan first: pip install conan"; exit 1)
-	@conan profile detect --force
-	@conan install . --build=missing
-	@echo ">>> Done"
-
-conan-debug: ## Build debug version using Conan
-	@echo ">>> Building Debug BayesNet with Conan..."
-	@if [ -d ./$(f_debug) ]; then rm -rf ./$(f_debug); fi
-	@mkdir $(f_debug)
-	@conan install . -s build_type=Debug -o enable_testing=True -o enable_coverage=True --build=missing -of $(f_debug)
-	@cmake -S . -B $(f_debug) -D CMAKE_BUILD_TYPE=Debug -D ENABLE_TESTING=ON -D CODE_COVERAGE=ON
-	@echo ">>> Done"
-
-conan-release: ## Build release version using Conan
-	@echo ">>> Building Release BayesNet with Conan..."
-	@if [ -d ./$(f_release) ]; then rm -rf ./$(f_release); fi
-	@mkdir $(f_release)
-	@conan install . -s build_type=Release --build=missing -of $(f_release)
-	@cmake -S . -B $(f_release) -D CMAKE_BUILD_TYPE=Release
-	@echo ">>> Done"
-
-conan-create: ## Create Conan package
-	@echo ">>> Creating Conan package..."
-	@conan create . --build=missing
-	@echo ">>> Done"
-
-profile ?= default
-remote ?= conancenter
-conan-upload: ## Upload package to Conan remote (profile=default remote=conancenter)
-	@echo ">>> Uploading to Conan remote $(remote) with profile $(profile)..."
-	@conan upload bayesnet/$(shell grep version conanfile.py | cut -d'"' -f2) -r $(remote) --confirm
-	@echo ">>> Done"
-
-conan-clean: ## Clean Conan cache and build folders
-	@echo ">>> Cleaning Conan cache and build folders..."
-	@conan remove "*" --confirm
-	@if test -d "$(f_release)" ; then rm -rf "$(f_release)"; fi
-	@if test -d "$(f_debug)" ; then rm -rf "$(f_debug)"; fi
-	@echo ">>> Done"
