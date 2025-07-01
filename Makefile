@@ -220,8 +220,8 @@ release: ## Build release version using Conan
 
 conan-create: ## Create Conan package
 	@echo ">>> Creating Conan package..."
-	@conan create . --build=missing -tf "" --profile=release -tf ""
-	@conan create . --build=missing -tf "" --profile=debug
+	@conan create . --build=missing -tf "" --profile=release
+	@conan create . --build=missing -tf "" --profile=debug -o "&:enable_coverage=False" -o "&:enable_testing=False"
 	@echo ">>> Done"
 
 profile ?= release

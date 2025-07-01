@@ -24,7 +24,6 @@ conan profile new default --detect
     [generators]
     CMakeDeps
     CMakeToolchain
-
     ```
 
 1. Install dependencies:
