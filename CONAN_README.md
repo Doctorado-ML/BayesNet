@@ -16,29 +16,28 @@ conan profile new default --detect
 
 1. Create a `conanfile.txt` in your project:
 
-```ini
-[requires]
-libtorch/2.7.0
-bayesnet/1.2.0
+    ```ini
+    [requires]
+    libtorch/2.7.0
+    bayesnet/1.2.0
 
-[generators]
-CMakeDeps
-CMakeToolchain
+    [generators]
+    CMakeDeps
+    CMakeToolchain
+    ```
 
-```
+1. Install dependencies:
 
-2. Install dependencies:
+    ```bash
+    conan install . --build=missing
+    ```
 
-```bash
-conan install . --build=missing
-```
+1. In your CMakeLists.txt:
 
-3. In your CMakeLists.txt:
-
-```cmake
-find_package(bayesnet REQUIRED)
-target_link_libraries(your_target bayesnet::bayesnet)
-```
+    ```cmake
+    find_package(bayesnet REQUIRED)
+    target_link_libraries(your_target bayesnet::bayesnet)
+    ```
 
 ### Building BayesNet with Conan
 
@@ -69,8 +68,8 @@ make conan-create
 For the custom dependencies, you'll need to create Conan recipes:
 
 1. **folding**: Cross-validation library
-2. **fimdlp**: Discretization library
-3. **arff-files**: ARFF file format parser
+1. **fimdlp**: Discretization library
+1. **arff-files**: ARFF file format parser
 
 Contact the maintainer or create custom recipes for these packages.
 

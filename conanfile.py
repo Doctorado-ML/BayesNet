@@ -18,7 +18,7 @@ class BayesNetConan(ConanFile):
         "enable_testing": False,
         "enable_coverage": False
     }
-    
+
     # Sources are located in the same place as this recipe, copy them to the recipe
     exports_sources = "CMakeLists.txt", "bayesnet/*", "config/*", "cmake/*", "docs/*", "tests/*", "bayesnetConfig.cmake.in"
     
@@ -35,7 +35,7 @@ class BayesNetConan(ConanFile):
             self.version = match.group(1)
         else:
             raise Exception("Version not found in CMakeLists.txt")
-        self.version = match.group(1) 
+        self.version = match.group(1)
 
     def config_options(self):
         if self.settings.os == "Windows":
@@ -50,7 +50,7 @@ class BayesNetConan(ConanFile):
         self.requires("libtorch/2.7.0")
         self.requires("nlohmann_json/3.11.3")
         self.requires("folding/1.1.1")  # Custom package
-        self.requires("fimdlp/2.1.0")   # Custom package  
+        self.requires("fimdlp/2.1.0")   # Custom package
     
     def build_requirements(self):
         self.build_requires("cmake/[>=3.27]")

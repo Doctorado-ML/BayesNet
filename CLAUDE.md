@@ -9,14 +9,17 @@ BayesNet is a C++ library implementing Bayesian Network Classifiers. It provides
 ## Build System & Dependencies
 
 ### Dependency Management
+
 The project supports **two package managers**:
 
 #### vcpkg (Default)
-- Uses vcpkg with private registry at https://github.com/rmontanana/vcpkg-stash
+
+- Uses vcpkg with private registry at <https://github.com/rmontanana/vcpkg-stash>
 - Core dependencies: libtorch, nlohmann-json, folding, fimdlp, arff-files, catch2
 - All dependencies defined in `vcpkg.json` with version overrides
 
 #### Conan (Alternative)
+
 - Modern C++ package manager with better dependency resolution
 - Configured via `conanfile.py` for packaging and distribution
 - Supports subset of dependencies (libtorch, nlohmann-json, catch2)
@@ -25,6 +28,7 @@ The project supports **two package managers**:
 ### Build Commands
 
 #### Using vcpkg (Default)
+
 ```bash
 # Initialize dependencies
 make init
@@ -49,6 +53,7 @@ make clean
 ```
 
 #### Using Conan
+
 ```bash
 # Install Conan first: pip install conan
 
@@ -74,6 +79,7 @@ make conan-clean
 ```
 
 ### CMake Configuration
+
 - Uses CMake 3.27+ with C++17 standard
 - Debug builds automatically enable testing and coverage
 - Release builds optimize with `-Ofast`
@@ -89,6 +95,7 @@ make conan-clean
 - Coverage reporting with lcov/genhtml
 
 ### Test Categories
+
 - A2DE, BoostA2DE, BoostAODE, XSPODE, XSPnDE, XBAODE, XBA2DE
 - Classifier, Ensemble, FeatureSelection, Metrics, Models
 - Network, Node, MST, Modules
@@ -96,6 +103,7 @@ make conan-clean
 ## Code Architecture
 
 ### Core Structure
+
 ```
 bayesnet/
 ├── BaseClassifier.h          # Abstract base for all classifiers
@@ -107,12 +115,14 @@ bayesnet/
 ```
 
 ### Key Design Patterns
+
 - **BaseClassifier** abstract interface for all algorithms
 - Template-based design with both std::vector and torch::Tensor support
 - Network/Node abstraction for Bayesian network representation
 - Feature selection as separate, composable modules
 
 ### Data Handling
+
 - Supports both discrete integer data and continuous data with discretization
 - ARFF file format support through arff-files library
 - Tensor operations via PyTorch C++ (libtorch)
@@ -128,6 +138,7 @@ bayesnet/
 ## Sample Applications
 
 Sample code in `sample/` directory demonstrates library usage:
+
 ```bash
 make sample fname=tests/data/iris.arff model=TANLd
 ```
@@ -135,6 +146,7 @@ make sample fname=tests/data/iris.arff model=TANLd
 ## Package Distribution
 
 ### Creating Conan Packages
+
 ```bash
 # Create package locally
 make conan-create
@@ -148,7 +160,9 @@ make conan-upload remote=myremote profile=myprofile
 ```
 
 ### Using the Library
+
 With Conan:
+
 ```python
 # conanfile.txt or conanfile.py
 [requires]
@@ -159,6 +173,7 @@ cmake
 ```
 
 With vcpkg:
+
 ```json
 {
   "dependencies": ["bayesnet"]
@@ -170,7 +185,7 @@ With vcpkg:
 - **Add new classifier**: Extend BaseClassifier, implement in appropriate subdirectory
 - **Add new test**: Update `tests/CMakeLists.txt` and create test in `tests/`
 - **Modify build**: Edit main `CMakeLists.txt` or use Makefile targets
-- **Update dependencies**: 
+- **Update dependencies**:
   - vcpkg: Modify `vcpkg.json` and run `make init`
   - Conan: Modify `conanfile.py` and run `make conan-init`
 - **Package for distribution**: Use `make conan-create` for Conan packaging
