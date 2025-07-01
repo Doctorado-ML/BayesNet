@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - *ld_proposed_cuts*: number of cut points to return.
   - *mdlp_min_length*: minimum length of a partition in MDLP algorithm to be evaluated for partition.
   - *mdlp_max_depth*: maximum level of recursion in MDLP algorithm.
+- Remove vcpkg as a dependency manager, now the library is built with Conan package manager and CMake.
 
 ## [1.1.1] - 2025-05-20
 

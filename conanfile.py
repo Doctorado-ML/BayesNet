@@ -1,13 +1,10 @@
+import os, re, pathlib
 from conan import ConanFile
 from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout, CMakeDeps
-from conan.tools.files import copy, save
-import os
+from conan.tools.files import copy
 
 class BayesNetConan(ConanFile):
     name = "bayesnet"
-    version = "1.2.0"
-    
-    # Binary configuration
     settings = "os", "compiler", "build_type", "arch"
     options = {
         "shared": [True, False],
@@ -25,6 +22,21 @@ class BayesNetConan(ConanFile):
     # Sources are located in the same place as this recipe, copy them to the recipe
     exports_sources = "CMakeLists.txt", "bayesnet/*", "config/*", "cmake/*", "docs/*", "tests/*", "bayesnetConfig.cmake.in"
     
+    def set_version(self) -> None:
+        cmake = pathlib.Path(self.recipe_folder) / "CMakeLists.txt"
+        text  = cmake.read_text(encoding="utf-8")
+
+        # Accept either: project(foo VERSION 1.2.3)  or  set(foo_VERSION 1.2.3)
+        match = re.search(
+            r"""project\s*\([^\)]*VERSION\s+([0-9]+\.[0-9]+\.[0-9]+)""",
+            text, re.IGNORECASE | re.VERBOSE
+        )
+        if match:
+            self.version = match.group(1)
+        else:
+            raise Exception("Version not found in CMakeLists.txt")
+        self.version = match.group(1) 
+
     def config_options(self):
         if self.settings.os == "Windows":
             del self.options.fPIC

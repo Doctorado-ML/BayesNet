@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 
 project(bayesnet
-  VERSION 1.1.2
+  VERSION 1.2.0
   DESCRIPTION "Bayesian Network and basic classifiers Library."
   HOMEPAGE_URL "https://github.com/rmontanana/bayesnet"
   LANGUAGES CXX
@@ -28,18 +28,11 @@ endif()
 # -------
 option(ENABLE_TESTING "Unit testing build"                       OFF)
 option(CODE_COVERAGE "Collect coverage from test library"        OFF)
-option(USING_CONAN "Use Conan package manager"                   OFF)
 
-if(USING_CONAN)
-    message(STATUS "Using Conan package manager")
-else(USING_CONAN)
-    message(STATUS "Using vcpkg package manager")
-endif(USING_CONAN)
     
 find_package(Torch CONFIG REQUIRED)
 if(NOT TARGET torch::torch)
     add_library(torch::torch INTERFACE IMPORTED GLOBAL)
-
     # expose include paths and libraries that the find-module discovered
     set_target_properties(torch::torch PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${TORCH_INCLUDE_DIRS}"
@@ -81,17 +74,7 @@ endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
 if (ENABLE_TESTING)
     MESSAGE(STATUS "Testing enabled")
     find_package(Catch2 CONFIG REQUIRED)
-    
-    # Handle arff-files conditionally for different package managers
-    if(NOT USING_CONAN)
-        find_package(arff-files CONFIG REQUIRED)
-    else()
-        find_package(arff-files CONFIG QUIET)
-        if(NOT arff-files_FOUND)
-            message(WARNING "arff-files not found - you may need to create a custom Conan recipe")
-        endif()
-    endif()
-    
+    find_package(arff-files CONFIG REQUIRED)
     enable_testing()
     include(CTest)
     add_subdirectory(tests)

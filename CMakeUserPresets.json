@@ -5,8 +5,8 @@
     },
     "include": [
         "build/Release/generators/CMakePresets.json",
-        "build_Release/build/Release/generators/CMakePresets.json",
         "build_Debug/build/Debug/generators/CMakePresets.json",
-        "build_Debug/build/Release/generators/CMakePresets.json"
+        "build_Debug/build/Release/generators/CMakePresets.json",
+        "build_Release/build/Release/generators/CMakePresets.json"
     ]
 }

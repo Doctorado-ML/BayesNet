@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: viewcoverage coverage setup help install uninstall diagrams buildr buildd test clean vcpkg-debug vcpkg-release vcpkg-sample updatebadge doc doc-install init clean-test conan-debug conan-release conan-create conan-upload conan-clean conan-sample
+.PHONY: viewcoverage coverage setup help install uninstall diagrams buildr buildd test clean updatebadge doc doc-install init clean-test conan-debug conan-release conan-create conan-upload conan-clean conan-sample
 
 f_release = build_Release
 f_debug = build_Debug
@@ -189,14 +189,7 @@ doc-install: ## Install documentation
 # Conan package manager targets
 # =============================
 
-# conan-debug: ## Build debug version using Conan
-# 	@echo ">>> Building Debug BayesNet with Conan..."
-# 	@if [ -d ./$(f_debug) ]; then rm -rf ./$(f_debug); fi
-# 	@mkdir $(f_debug)
-# 	@conan install . -s build_type=Debug --build=missing -of $(f_debug)
-# 	@cmake -S . -B $(f_debug) -D CMAKE_BUILD_TYPE=Debug -D ENABLE_TESTING=ON -D CODE_COVERAGE=ON -D USING_CONAN=ON -DCMAKE_TOOLCHAIN_FILE=$(f_debug)/build/Debug/generators/conan_toolchain.cmake
-# 	@echo ">>> Done"
-conan-debug:             ## Build debug version using Conan
+debug:             ## Build debug version using Conan
 	@echo ">>> Building *Debug* BayesNet with Conan..."
 	@rm -rf $(f_debug)            # wipe previous tree
 	@conan install . \
@@ -208,11 +201,10 @@ conan-debug:             ## Build debug version using Conan
 	       -DCMAKE_BUILD_TYPE=Debug \
 	       -DENABLE_TESTING=ON \
 	       -DCODE_COVERAGE=ON \
-	       -DUSING_CONAN=ON \
 	       -DCMAKE_TOOLCHAIN_FILE=$(f_debug)/build/Debug/generators/conan_toolchain.cmake
 	@echo ">>> Done"
 
-conan-release: ## Build release version using Conan
+release: ## Build release version using Conan
 	@echo ">>> Building Release BayesNet with Conan..."
 	@conan install . \
 	            -s build_type=Release \
@@ -222,18 +214,18 @@ conan-release: ## Build release version using Conan
 	@if [ -d ./$(f_release) ]; then rm -rf ./$(f_release); fi
 	@mkdir $(f_release)
 	@conan install . -s build_type=Release --build=missing -of $(f_release)
-	@cmake -S . -B $(f_release) -D CMAKE_BUILD_TYPE=Release -D USING_CONAN=ON -DCMAKE_TOOLCHAIN_FILE=$(f_release)/build/Release/generators/conan_toolchain.cmake
+	@cmake -S . -B $(f_release) -D CMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$(f_release)/build/Release/generators/conan_toolchain.cmake
 	@echo ">>> Done"
 
 conan-create: ## Create Conan package
 	@echo ">>> Creating Conan package..."
-	@conan create . --build=missing -tf "" --profile=release
+	@conan create . --build=missing -tf "" --profile=release -tf ""
 	@conan create . --build=missing -tf "" --profile=debug
 	@echo ">>> Done"
 
-profile ?= default
+profile ?= release
 remote ?= Cimmeria
-conan-upload: ## Upload package to Conan remote (profile=default remote=conancenter)
+conan-upload: ## Upload package to Conan remote (profile=release remote=Cimmeria)
 	@echo ">>> Uploading to Conan remote $(remote) with profile $(profile)..."
 	@conan upload bayesnet/$(grep version conanfile.py | cut -d'"' -f2) -r $(remote) --confirm
 	@echo ">>> Done"
@@ -247,43 +239,11 @@ conan-clean: ## Clean Conan cache and build folders
 
 fname = "tests/data/iris.arff"
 model = "TANLd"
-conan-sample: ## Build sample with Conan
+sample: ## Build sample with Conan
 	@echo ">>> Building Sample with Conan...";
 	@if [ -d ./sample/build ]; then rm -rf ./sample/build; fi
 	@cd sample && conan install . --output-folder=build --build=missing
 	@cd sample && cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake && \
-	cmake --build build -t bayesnet_sample
-	sample/build/bayesnet_sample $(fname) $(model)
-	@echo ">>> Done";
-
-# vcpkg package manager targets
-# =============================
-
-vcpkg-init: ## Initialize the project installing dependencies using vcpkg
-	@echo ">>> Installing dependencies with vcpkg"
-	@vcpkg install
-	@echo ">>> Done";
-
-vcpkg-debug: ## Build a debug version of the project using vcpkg
-	@echo ">>> Building Debug BayesNet with vcpkg...";
-	@if [ -d ./$(f_debug) ]; then rm -rf ./$(f_debug); fi
-	@mkdir $(f_debug); 
-	@cmake -S . -B $(f_debug) -D CMAKE_BUILD_TYPE=Debug -D ENABLE_TESTING=ON -D CODE_COVERAGE=ON -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake
-	@echo ">>> Done";
-
-vcpkg-release: ## Build a Release version of the project using vcpkg
-	@echo ">>> Building Release BayesNet with vcpkg...";
-	@if [ -d ./$(f_release) ]; then rm -rf ./$(f_release); fi
-	@mkdir $(f_release); 
-	@cmake -S . -B $(f_release) -D CMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake
-	@echo ">>> Done";
-
-fname = "tests/data/iris.arff"
-model = "TANLd"
-vcpkg-sample: ## Build sample with vcpkg
-	@echo ">>> Building Sample with vcpkg...";
-	@if [ -d ./sample/build ]; then rm -rf ./sample/build; fi
-	@cd sample && cmake -B build -S . -D CMAKE_BUILD_TYPE=Release -DUSING_VCPKG=ON -DCMAKE_TOOLCHAIN_FILE=${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake && \
 	cmake --build build -t bayesnet_sample
 	sample/build/bayesnet_sample $(fname) $(model)
 	@echo ">>> Done";
