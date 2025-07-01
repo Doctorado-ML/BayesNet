@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - *mdlp_min_length*: minimum length of a partition in MDLP algorithm to be evaluated for partition.
   - *mdlp_max_depth*: maximum level of recursion in MDLP algorithm.
 - Remove vcpkg as a dependency manager, now the library is built with Conan package manager and CMake.
+- Add `build_type` option to the sample target in the Makefile to allow building in *Debug* or *Release* mode. Default is *Debug*.
 
 ## [1.1.1] - 2025-05-20
 
