@@ -44,7 +44,7 @@ setup: ## Install dependencies for tests and coverage
 
 clean: ## Clean the project
 	@echo ">>> Cleaning the project..."
-	@if test -f CMakeCache.txt ; then echo "- Deleting CMakeCache.txt"; rm -f CMakeCache.txt; fi
+	@if test -f CMakeCache.txt ; then echo "- Deleting CMakeCache.txt"; rm -f CMakeCache.txt; fimake 
 	@for folder in $(f_release) $(f_debug) vpcpkg_installed install_test ; do \
 	if test -d "$$folder" ; then \
 		echo "- Deleting $$folder folder" ; \
@@ -58,10 +58,10 @@ clean: ## Clean the project
 # =============
 
 buildd: ## Build the debug targets
-	cmake --build $(f_debug) -t $(app_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
+	cmake --build $(f_debug) --config Debug -t $(app_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
 
 buildr: ## Build the release targets
-	cmake --build $(f_release) -t $(app_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
+	cmake --build $(f_release) --config Release -t $(app_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
 
 
 # Install targets
