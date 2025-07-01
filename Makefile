@@ -196,8 +196,7 @@ debug:             ## Build debug version using Conan
 	@conan install . \
 	            -s build_type=Debug \
 	            --build=missing \
-	            -of $(f_debug) \
-				--profile=debug
+	            -of $(f_debug) 
 	@cmake -S . -B $(f_debug) \
 	       -DCMAKE_BUILD_TYPE=Debug \
 	       -DENABLE_TESTING=ON \
@@ -210,8 +209,7 @@ release: ## Build release version using Conan
 	@conan install . \
 	            -s build_type=Release \
 	            --build=missing \
-	            -of $(f_debug) \
-				--profile=release
+	            -of $(f_debug) 
 	@if [ -d ./$(f_release) ]; then rm -rf ./$(f_release); fi
 	@mkdir $(f_release)
 	@conan install . -s build_type=Release --build=missing -of $(f_release)
