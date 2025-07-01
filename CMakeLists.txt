@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 
 project(bayesnet
-  VERSION 1.1.2
+  VERSION 1.2.0
   DESCRIPTION "Bayesian Network and basic classifiers Library."
   HOMEPAGE_URL "https://github.com/rmontanana/bayesnet"
   LANGUAGES CXX
@@ -9,11 +9,6 @@ project(bayesnet
 
 set(CMAKE_CXX_STANDARD 17)
 cmake_policy(SET CMP0135 NEW)
-
-find_package(Torch CONFIG REQUIRED)
-find_package(fimdlp CONFIG REQUIRED)
-find_package(nlohmann_json CONFIG REQUIRED)
-find_package(folding CONFIG REQUIRED)
 
 # Global CMake variables
 # ----------------------
@@ -31,16 +26,24 @@ endif()
 
 # Options
 # -------
-option(ENABLE_CLANG_TIDY "Enable to add clang tidy"              OFF)
 option(ENABLE_TESTING "Unit testing build"                       OFF)
 option(CODE_COVERAGE "Collect coverage from test library"        OFF)
-option(INSTALL_GTEST "Enable installation of googletest"         OFF)
+
+    
+find_package(Torch CONFIG REQUIRED)
+if(NOT TARGET torch::torch)
+    add_library(torch::torch INTERFACE IMPORTED GLOBAL)
+    # expose include paths and libraries that the find-module discovered
+    set_target_properties(torch::torch PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${TORCH_INCLUDE_DIRS}"
+        INTERFACE_LINK_LIBRARIES      "${TORCH_LIBRARIES}")
+endif()
+
+find_package(fimdlp CONFIG REQUIRED)
+find_package(folding CONFIG REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 add_subdirectory(config)
-
-if (ENABLE_CLANG_TIDY)
-    include(StaticAnalyzers) # clang-tidy
-endif (ENABLE_CLANG_TIDY)
 
 # Add the library
 # ---------------
@@ -52,7 +55,14 @@ include_directories(
 file(GLOB_RECURSE Sources "bayesnet/*.cc")
 
 add_library(bayesnet ${Sources})
-target_link_libraries(bayesnet fimdlp::fimdlp folding::folding "${TORCH_LIBRARIES}")
+
+target_link_libraries(bayesnet
+    nlohmann_json::nlohmann_json
+    folding::folding
+    fimdlp::fimdlp
+    torch::torch
+    arff-files::arff-files
+)
 
 # Testing
 # -------

@@ -9,11 +9,22 @@ BayesNet is a C++ library implementing Bayesian Network Classifiers. It provides
 ## Build System & Dependencies
 
 ### Dependency Management
-- Uses **vcpkg** for package management with private registry at https://github.com/rmontanana/vcpkg-stash
+The project supports **two package managers**:
+
+#### vcpkg (Default)
+- Uses vcpkg with private registry at https://github.com/rmontanana/vcpkg-stash
 - Core dependencies: libtorch, nlohmann-json, folding, fimdlp, arff-files, catch2
 - All dependencies defined in `vcpkg.json` with version overrides
 
+#### Conan (Alternative)
+- Modern C++ package manager with better dependency resolution
+- Configured via `conanfile.py` for packaging and distribution
+- Supports subset of dependencies (libtorch, nlohmann-json, catch2)
+- Custom dependencies (folding, fimdlp, arff-files) need custom Conan recipes
+
 ### Build Commands
+
+#### Using vcpkg (Default)
 ```bash
 # Initialize dependencies
 make init
@@ -37,11 +48,38 @@ make viewcoverage
 make clean
 ```
 
+#### Using Conan
+```bash
+# Install Conan first: pip install conan
+
+# Initialize dependencies
+make conan-init
+
+# Build debug version (with tests and coverage)
+make conan-debug
+make buildd
+
+# Build release version
+make conan-release
+make buildr
+
+# Create and test Conan package
+make conan-create
+
+# Upload to Conan remote
+make conan-upload remote=myremote
+
+# Clean Conan cache and builds
+make conan-clean
+```
+
 ### CMake Configuration
 - Uses CMake 3.27+ with C++17 standard
 - Debug builds automatically enable testing and coverage
 - Release builds optimize with `-Ofast`
-- Supports both static library and vcpkg package installation
+- **Automatic package manager detection**: CMake detects whether Conan or vcpkg is being used
+- Supports both static library and package manager installation
+- Conditional dependency linking based on availability
 
 ## Testing Framework
 
@@ -94,9 +132,45 @@ Sample code in `sample/` directory demonstrates library usage:
 make sample fname=tests/data/iris.arff model=TANLd
 ```
 
+## Package Distribution
+
+### Creating Conan Packages
+```bash
+# Create package locally
+make conan-create
+
+# Test package installation
+cd test_package
+conan create ..
+
+# Upload to remote repository
+make conan-upload remote=myremote profile=myprofile
+```
+
+### Using the Library
+With Conan:
+```python
+# conanfile.txt or conanfile.py
+[requires]
+bayesnet/1.1.2@user/channel
+
+[generators]
+cmake
+```
+
+With vcpkg:
+```json
+{
+  "dependencies": ["bayesnet"]
+}
+```
+
 ## Common Development Tasks
 
 - **Add new classifier**: Extend BaseClassifier, implement in appropriate subdirectory
 - **Add new test**: Update `tests/CMakeLists.txt` and create test in `tests/`
 - **Modify build**: Edit main `CMakeLists.txt` or use Makefile targets
-- **Update dependencies**: Modify `vcpkg.json` and run `make init`
+- **Update dependencies**: 
+  - vcpkg: Modify `vcpkg.json` and run `make init`
+  - Conan: Modify `conanfile.py` and run `make conan-init`
+- **Package for distribution**: Use `make conan-create` for Conan packaging

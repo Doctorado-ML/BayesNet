@@ -8,118 +8,118 @@
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=rmontanana_BayesNet&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=rmontanana_BayesNet)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Doctorado-ML/BayesNet)
 ![Gitea Last Commit](https://img.shields.io/gitea/last-commit/rmontanana/bayesnet?gitea_url=https://gitea.rmontanana.es&logo=gitea)
-[![Coverage Badge](https://img.shields.io/badge/Coverage-99,2%25-green)](https://gitea.rmontanana.es/rmontanana/BayesNet)
+[![Coverage Badge](https://img.shields.io/badge/Coverage-98,0%25-green)](https://gitea.rmontanana.es/rmontanana/BayesNet)
 [![DOI](https://zenodo.org/badge/667782806.svg)](https://doi.org/10.5281/zenodo.14210344)
 
 Bayesian Network Classifiers library
 
-## Setup
+## Using the Library
 
-### Using the vcpkg library
+### Using Conan Package Manager
 
-You can use the library with the vcpkg library manager. In your project you have to add the following files:
+You can use the library with the [Conan](https://conan.io/) package manager. In your project you need to add the following files:
 
-#### vcpkg.json
+#### conanfile.txt
 
-```json
-{
-  "name": "sample-project",
-  "version-string": "0.1.0",
-  "dependencies": [
-    "bayesnet"
-  ]
-}
-```
+```txt
+[requires]
+bayesnet/1.1.2
 
-#### vcpkg-configuration.json
-
-```json
-{
-  "registries": [
-    {
-      "kind": "git",
-      "repository": "https://github.com/rmontanana/vcpkg-stash",
-      "baseline": "393efa4e74e053b6f02c4ab03738c8fe796b28e5",
-      "packages": [
-        "folding",
-        "bayesnet",
-        "arff-files",
-        "fimdlp",
-        "libtorch-bin"
-      ]
-    }
-  ],
-  "default-registry": {
-    "kind": "git",
-    "repository": "https://github.com/microsoft/vcpkg",
-    "baseline": "760bfd0c8d7c89ec640aec4df89418b7c2745605"
-  }
-}
+[generators]
+CMakeDeps
+CMakeToolchain
 ```
 
 #### CMakeLists.txt
 
-You have to include the following lines in your `CMakeLists.txt` file:
+Include the following lines in your `CMakeLists.txt` file:
 
 ```cmake
-find_package(bayesnet CONFIG REQUIRED)
+find_package(bayesnet REQUIRED)
 
 add_executable(myapp main.cpp)
 
 target_link_libraries(myapp PRIVATE bayesnet::bayesnet)
 ```
 
-After that, you can use the `vcpkg` command to install the dependencies:
+Then install the dependencies and build your project:
 
 ```bash
-vcpkg install
+conan install . --output-folder=build --build=missing
+cmake -B build -S . -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake
+cmake --build build
 ```
 
 **Note: In the `sample` folder you can find a sample application that uses the library. You can use it as a reference to create your own application.**
 
-## Playing with the library
+## Building and Testing
 
-The dependencies are managed with [vcpkg](https://vcpkg.io/) and supported by a private vcpkg repository in [https://github.com/rmontanana/vcpkg-stash](https://github.com/rmontanana/vcpkg-stash).
+The project uses [Conan](https://conan.io/) for dependency management and provides convenient Makefile targets for common tasks.
+
+### Prerequisites
+
+- [Conan](https://conan.io/) package manager (`pip install conan`)
+- CMake 3.27+
+- C++17 compatible compiler
 
 ### Getting the code
 
 ```bash
 git clone https://github.com/doctorado-ml/bayesnet
+cd bayesnet
 ```
 
-Once you have the code, you can use the `make` command to build the project. The `Makefile` is used to manage the build process and it will automatically download and install the dependencies.
+### Build Commands
 
-### Release
+#### Release Build
 
 ```bash
-make init # Install dependencies
-make release # Build the release version
-make buildr # compile and link the release version
+make release        # Configure release build with Conan
+make buildr         # Build the release version
 ```
 
-### Debug & Tests
+#### Debug Build & Tests
 
 ```bash
-make init # Install dependencies
-make debug # Build the debug version
-make test # Run the tests
+make debug          # Configure debug build with Conan
+make buildd         # Build the debug version
+make test           # Run the tests
 ```
 
-### Coverage
+#### Coverage Analysis
 
 ```bash
-make coverage # Run the tests with coverage
-make viewcoverage # View the coverage report in the browser
+make coverage       # Run tests with coverage analysis
+make viewcoverage   # View coverage report in browser
 ```
 
-### Sample app
+#### Sample Application
 
-After building and installing the release version, you can run the sample app with the following commands:
+Run the sample application with different datasets and models:
 
 ```bash
-make sample
-make sample fname=tests/data/glass.arff
+make sample                                    # Run with default settings
+make sample fname=tests/data/glass.arff       # Use glass dataset
+make sample fname=tests/data/iris.arff model=AODE  # Use specific model
 ```
+
+### Available Makefile Targets
+
+- `debug` - Configure debug build using Conan
+- `release` - Configure release build using Conan  
+- `buildd` - Build debug targets
+- `buildr` - Build release targets
+- `test` - Run all tests (use `opt="-s"` for verbose output)
+- `coverage` - Generate test coverage report
+- `viewcoverage` - Open coverage report in browser
+- `sample` - Build and run sample application
+- `conan-create` - Create Conan package
+- `conan-upload` - Upload package to Conan remote
+- `conan-clean` - Clean Conan cache and build folders
+- `clean` - Clean all build artifacts
+- `doc` - Generate documentation
+- `diagrams` - Generate UML diagrams
+- `help` - Show all available targets
 
 ## Models
 

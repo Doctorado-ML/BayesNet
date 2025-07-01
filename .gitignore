@@ -46,3 +46,4 @@ docs/man
 docs/Doxyfile
 .cache
 vcpkg_installed
+CMakeUserPresets.json

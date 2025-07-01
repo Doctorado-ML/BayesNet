@@ -6,7 +6,7 @@
 
 #include <map>
 #include <string>
-#include <ArffFiles/ArffFiles.hpp>
+#include <ArffFiles.hpp>
 #include <fimdlp/CPPFImdlp.h>
 #include <bayesnet/classifiers/TANLd.h>
 #include <bayesnet/classifiers/KDBLd.h>
