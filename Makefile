@@ -31,6 +31,14 @@ define ClearTests
 	fi ; 
 endef
 
+define setup_target
+	@echo ">>> Setup the project for $(1)..."
+	@if [ -d $(2) ]; then rm -fr $(2); fi
+	@conan install . --build=missing -of $(2) -s build_type=$(1)
+	@cmake -S . -B $(2) -DCMAKE_TOOLCHAIN_FILE=$(2)/build/$(1)/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=$(1) -D$(3)
+	@echo ">>> Done"
+endef
+
 setup: ## Install dependencies for tests and coverage
 	@if [ "$(shell uname)" = "Darwin" ]; then \
 		brew install gcovr; \
@@ -56,6 +64,12 @@ clean: ## Clean the project
 
 # Build targets
 # =============
+
+debug: ## Setup debug version using Conan
+	@$(call setup_target,"Debug","$(f_debug)","ENABLE_TESTING=ON")
+
+release: ## Setup release version using Conan
+	@$(call setup_target,"Release","$(f_release)","ENABLE_TESTING=OFF")
 
 buildd: ## Build the debug targets
 	cmake --build $(f_debug) --config Debug -t $(app_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
@@ -160,6 +174,7 @@ doc: ## Generate documentation
 	@echo ">>> Done";
 
 diagrams: ## Create an UML class diagram & dependency of the project (diagrams/BayesNet.png)
+	@echo ">>> Creating diagrams..."
 	@which $(plantuml) || (echo ">>> Please install plantuml"; exit 1)
 	@which $(dot) || (echo ">>> Please install graphviz"; exit 1)
 	@which $(clang-uml) || (echo ">>> Please install clang-uml"; exit 1)
@@ -172,6 +187,7 @@ diagrams: ## Create an UML class diagram & dependency of the project (diagrams/B
 	$(MAKE) debug
 	cd $(f_debug) && cmake .. --graphviz=dependency.dot 
 	@$(dot) -Tsvg $(f_debug)/dependency.dot.BayesNet -o $(f_diagrams)/dependency.svg
+	@echo ">>> Done";
 
 docdir = ""
 doc-install: ## Install documentation
@@ -190,43 +206,10 @@ doc-install: ## Install documentation
 # Conan package manager targets
 # =============================
 
-debug:             ## Build debug version using Conan
-	@echo ">>> Building *Debug* BayesNet with Conan..."
-	@rm -rf $(f_debug)            # wipe previous tree
-	@conan install . \
-	            -s build_type=Debug \
-	            --build=missing \
-	            -of $(f_debug) 
-	@cmake -S . -B $(f_debug) \
-	       -DCMAKE_BUILD_TYPE=Debug \
-	       -DENABLE_TESTING=ON \
-	       -DCODE_COVERAGE=ON \
-	       -DCMAKE_TOOLCHAIN_FILE=$(f_debug)/build/Debug/generators/conan_toolchain.cmake
-	@echo ">>> Done"
-
-release: ## Build release version using Conan
-	@echo ">>> Building Release BayesNet with Conan..."
-	@conan install . \
-	            -s build_type=Release \
-	            --build=missing \
-	            -of $(f_debug) 
-	@if [ -d ./$(f_release) ]; then rm -rf ./$(f_release); fi
-	@mkdir $(f_release)
-	@conan install . -s build_type=Release --build=missing -of $(f_release)
-	@cmake -S . -B $(f_release) -D CMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=$(f_release)/build/Release/generators/conan_toolchain.cmake
-	@echo ">>> Done"
-
 conan-create: ## Create Conan package
 	@echo ">>> Creating Conan package..."
-	@conan create . --build=missing -tf "" --profile=release
-	@conan create . --build=missing -tf "" --profile=debug -o "&:enable_coverage=False" -o "&:enable_testing=False"
-	@echo ">>> Done"
-
-profile ?= release
-remote ?= Cimmeria
-conan-upload: ## Upload package to Conan remote (profile=release remote=Cimmeria)
-	@echo ">>> Uploading to Conan remote $(remote) with profile $(profile)..."
-	@conan upload bayesnet/$(grep version conanfile.py | cut -d'"' -f2) -r $(remote) --confirm
+	@conan create . --build=missing -tf "" -s:a build_type=Release
+	@conan create . --build=missing -tf "" -s:a build_type=Debug -o "&:enable_coverage=False" -o "&:enable_testing=False"
 	@echo ">>> Done"
 
 conan-clean: ## Clean Conan cache and build folders

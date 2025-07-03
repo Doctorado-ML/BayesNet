@@ -19,15 +19,17 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS          ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${TORCH_CXX_FLAGS}")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
-if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-default-inline")
-endif()
+
+
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    MESSAGE("Debug mode")
+else(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    MESSAGE("Release mode")
+endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
 
 # Options
 # -------
 option(ENABLE_TESTING "Unit testing build"                       OFF)
-option(CODE_COVERAGE "Collect coverage from test library"        OFF)
-
     
 find_package(Torch CONFIG REQUIRED)
 if(NOT TARGET torch::torch)
@@ -63,23 +65,21 @@ target_link_libraries(bayesnet
     arff-files::arff-files
 )
 
+
+
 # Testing
 # -------
-if (CMAKE_BUILD_TYPE STREQUAL "Debug")
-    MESSAGE("Debug mode")
-else(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    MESSAGE("Release mode")
-endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
 if (ENABLE_TESTING)
     MESSAGE(STATUS "Testing enabled")
     set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -fno-elide-constructors")
+    if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-default-inline")
+    endif()
     find_package(Catch2 CONFIG REQUIRED)
     find_package(arff-files CONFIG REQUIRED)
     enable_testing()
     include(CTest)
     add_subdirectory(tests)
-else(ENABLE_TESTING)
-    
 endif (ENABLE_TESTING)
 
 # Installation
