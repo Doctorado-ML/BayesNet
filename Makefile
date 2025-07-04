@@ -215,6 +215,7 @@ conan-create: ## Create Conan package
 conan-clean: ## Clean Conan cache and build folders
 	@echo ">>> Cleaning Conan cache and build folders..."
 	@conan remove "*" --confirm
+	@conan cache clean
 	@if test -d "$(f_release)" ; then rm -rf "$(f_release)"; fi
 	@if test -d "$(f_debug)" ; then rm -rf "$(f_debug)"; fi
 	@echo ">>> Done"
