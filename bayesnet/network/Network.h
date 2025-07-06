@@ -17,7 +17,8 @@ namespace bayesnet {
     class Network {
     public:
         Network();
-        explicit Network(const Network&);
+        Network(const Network& other);
+        Network& operator=(const Network& other);
         ~Network() = default;
         torch::Tensor& getSamples();
         void addNode(const std::string&);
@@ -47,6 +48,7 @@ namespace bayesnet {
         void initialize();
         std::string dump_cpt() const;
         inline std::string version() { return  { project_version.begin(), project_version.end() }; }
+        bool operator==(const Network& other) const;
     private:
         std::map<std::string, std::unique_ptr<Node>> nodes;
         bool fitted;

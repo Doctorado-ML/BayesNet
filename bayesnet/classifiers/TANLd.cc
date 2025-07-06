@@ -15,14 +15,14 @@ namespace bayesnet {
         className = className_;
         Xf = X_;
         y = y_;
-        // Fills std::vectors Xv & yv with the data from tensors X_ (discretized) & y
-        states = fit_local_discretization(y);
-        // We have discretized the input data
-        // 1st we need to fit the model to build the normal TAN structure, TAN::fit initializes the base Bayesian network
+        
+        // Use iterative local discretization instead of the two-phase approach
+        states = iterativeLocalDiscretization(y, this, dataset, features, className, states_, smoothing);
+        
+        // Final fit with converged discretization
         TAN::fit(dataset, features, className, states, smoothing);
-        states = localDiscretizationProposal(states, model);
+        
         return *this;
-
     }
     torch::Tensor TANLd::predict(torch::Tensor& X)
     {
