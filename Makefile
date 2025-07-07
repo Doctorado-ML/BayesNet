@@ -237,7 +237,7 @@ sample: ## Build sample with Conan
 	@if [ -d ./sample/build ]; then rm -rf ./sample/build; fi
 	@cd sample && conan install . --output-folder=build --build=missing -s build_type=$(build_type) -o "&:enable_coverage=False" -o "&:enable_testing=False"
 	@cd sample && cmake -B build -S . -DCMAKE_BUILD_TYPE=$(build_type) -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake && \
-	cmake --build build -t bayesnet_sample
+	cmake --build build -t bayesnet_sample --parallel $(JOBS)
 	sample/build/bayesnet_sample $(fname) $(model)
 	@echo ">>> Done";
 

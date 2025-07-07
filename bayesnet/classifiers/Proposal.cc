@@ -8,6 +8,11 @@
 #include <iostream>
 #include <cmath>
 #include <limits>
+#include "Classifier.h"
+#include "KDB.h"
+#include "TAN.h"
+#include "KDBLd.h"
+#include "TANLd.h"
 
 namespace bayesnet {
     Proposal::Proposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_) : pDataset(dataset_), pFeatures(features_), pClassName(className_)
@@ -180,7 +185,7 @@ namespace bayesnet {
     map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization(
         const torch::Tensor& y,
         Classifier* classifier,
-        const torch::Tensor& dataset,
+        torch::Tensor& dataset,
         const std::vector<std::string>& features,
         const std::string& className,
         const map<std::string, std::vector<int>>& initialStates,
@@ -196,19 +201,20 @@ namespace bayesnet {
                 << convergence_params.maxIterations << " max iterations" << std::endl;
         }
 
+        const torch::Tensor weights = torch::full({ pDataset.size(1) }, 1.0 / pDataset.size(1), torch::kDouble);
         for (int iteration = 0; iteration < convergence_params.maxIterations; ++iteration) {
             if (convergence_params.verbose) {
                 std::cout << "Iteration " << (iteration + 1) << "/" << convergence_params.maxIterations << std::endl;
             }
 
             // Phase 2: Build model with current discretization
-            classifier->fit(dataset, features, className, currentStates, smoothing);
-
+            classifier->fit(dataset, features, className, currentStates, weights, smoothing);
+            
             // Phase 3: Network-aware discretization refinement
-            currentStates = localDiscretizationProposal(currentStates, classifier->model);
+            currentStates = localDiscretizationProposal(currentStates, classifier->getModel());
 
             // Check convergence
-            if (iteration > 0 && previousModel == classifier->model) {
+            if (iteration > 0 && previousModel == classifier->getModel()) {
                 if (convergence_params.verbose) {
                     std::cout << "Converged after " << (iteration + 1) << " iterations" << std::endl;
                 }
@@ -216,7 +222,7 @@ namespace bayesnet {
             }
 
             // Update for next iteration
-            previousModel = classifier->model;
+            previousModel = classifier->getModel();
         }
 
         return currentStates;
@@ -262,7 +268,11 @@ namespace bayesnet {
     }
 
     // Explicit template instantiation for common classifier types
-    // template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<Classifier>(
-    //     const torch::Tensor&, Classifier*, const torch::Tensor&, const std::vector<std::string>&,
-    //     const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
+    template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<KDB>(
+        const torch::Tensor&, KDB*, torch::Tensor&, const std::vector<std::string>&,
+        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
+    
+    template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<TAN>(
+        const torch::Tensor&, TAN*, torch::Tensor&, const std::vector<std::string>&,
+        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
 }

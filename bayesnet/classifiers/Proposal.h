@@ -31,7 +31,7 @@ namespace bayesnet {
         map<std::string, std::vector<int>> iterativeLocalDiscretization(
             const torch::Tensor& y,
             Classifier* classifier,
-            const torch::Tensor& dataset,
+            torch::Tensor& dataset,
             const std::vector<std::string>& features,
             const std::string& className,
             const map<std::string, std::vector<int>>& initialStates,

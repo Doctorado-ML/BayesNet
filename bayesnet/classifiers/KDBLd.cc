@@ -5,6 +5,7 @@
 // ***************************************************************
 
 #include "KDBLd.h"
+#include <memory>
 
 namespace bayesnet {
     KDBLd::KDBLd(int k) : KDB(k), Proposal(dataset, features, className)
@@ -35,7 +36,7 @@ namespace bayesnet {
         y = y_;
         
         // Use iterative local discretization instead of the two-phase approach
-        states = iterativeLocalDiscretization(y, this, dataset, features, className, states_, smoothing);
+        states = iterativeLocalDiscretization(y, static_cast<KDB*>(this), dataset, features, className, states_, smoothing);
         
         // Final fit with converged discretization
         KDB::fit(dataset, features, className, states, smoothing);

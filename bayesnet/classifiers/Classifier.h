@@ -37,6 +37,7 @@ namespace bayesnet {
         std::vector<std::string> getNotes() const override { return notes; }
         std::string dump_cpt() const override;
         void setHyperparameters(const nlohmann::json& hyperparameters) override; //For classifiers that don't have hyperparameters
+        Network& getModel() { return model; }
     protected:
         bool fitted;
         unsigned int m, n; // m: number of samples, n: number of features

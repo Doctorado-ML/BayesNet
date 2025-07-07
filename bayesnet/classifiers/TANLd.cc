@@ -5,6 +5,7 @@
 // ***************************************************************
 
 #include "TANLd.h"
+#include <memory>
 
 namespace bayesnet {
     TANLd::TANLd() : TAN(), Proposal(dataset, features, className) {}
@@ -17,7 +18,7 @@ namespace bayesnet {
         y = y_;
         
         // Use iterative local discretization instead of the two-phase approach
-        states = iterativeLocalDiscretization(y, this, dataset, features, className, states_, smoothing);
+        states = iterativeLocalDiscretization(y, static_cast<TAN*>(this), dataset, features, className, states_, smoothing);
         
         // Final fit with converged discretization
         TAN::fit(dataset, features, className, states, smoothing);
