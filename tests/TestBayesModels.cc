@@ -301,17 +301,30 @@ TEST_CASE("AODE voting-proba", "[Models]")
     REQUIRE(pred_proba[67][0] == Catch::Approx(0.702184).epsilon(raw.epsilon));
     REQUIRE(clf.topological_order() == std::vector<std::string>());
 }
-TEST_CASE("SPODELd dataset", "[Models]")
+TEST_CASE("Ld models with dataset", "[Models]")
 {
     auto raw = RawDatasets("iris", false);
     auto clf = bayesnet::SPODELd(0);
-    // raw.dataset.to(torch::kFloat32);
     clf.fit(raw.dataset, raw.features, raw.className, raw.states, raw.smoothing);
     auto score = clf.score(raw.Xt, raw.yt);
     clf.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing);
     auto scoret = clf.score(raw.Xt, raw.yt);
     REQUIRE(score == Catch::Approx(0.97333f).epsilon(raw.epsilon));
     REQUIRE(scoret == Catch::Approx(0.97333f).epsilon(raw.epsilon));
+    auto clf2 = bayesnet::TANLd();
+    clf2.fit(raw.dataset, raw.features, raw.className, raw.states, raw.smoothing);
+    auto score2 = clf2.score(raw.Xt, raw.yt);
+    clf2.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing);
+    auto score2t = clf2.score(raw.Xt, raw.yt);
+    REQUIRE(score2 == Catch::Approx(0.97333f).epsilon(raw.epsilon));
+    REQUIRE(score2t == Catch::Approx(0.97333f).epsilon(raw.epsilon));
+    auto clf3 = bayesnet::KDBLd(2);
+    clf3.fit(raw.dataset, raw.features, raw.className, raw.states, raw.smoothing);
+    auto score3 = clf3.score(raw.Xt, raw.yt);
+    clf3.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing);
+    auto score3t = clf3.score(raw.Xt, raw.yt);
+    REQUIRE(score3 == Catch::Approx(0.97333f).epsilon(raw.epsilon));
+    REQUIRE(score3t == Catch::Approx(0.97333f).epsilon(raw.epsilon));
 }
 TEST_CASE("KDB with hyperparameters", "[Models]")
 {

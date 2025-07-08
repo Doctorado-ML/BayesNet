@@ -188,7 +188,8 @@ TEST_CASE("Test operator =", "[Node]")
     REQUIRE(dimensions[0] == 2); // Number of states of the node
     REQUIRE(dimensions[1] == 3); // Number of states of the first parent
     // Create a copy of the node
-    auto node_copy = node;
+    bayesnet::Node node_copy("XX");
+    node_copy = node;
     // Check that the copy has not any parents or children
     auto parents = node_copy.getParents();
     auto children = node_copy.getChildren();
