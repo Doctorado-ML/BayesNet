@@ -8,7 +8,10 @@
 #include <memory>
 
 namespace bayesnet {
-    TANLd::TANLd() : TAN(), Proposal(dataset, features, className) {}
+    TANLd::TANLd() : TAN(), Proposal(dataset, features, className)
+    {
+        validHyperparameters = validHyperparameters_ld; // Inherits the valid hyperparameters from Proposal
+    }
     TANLd& TANLd::fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
         checkInput(X_, y_);
