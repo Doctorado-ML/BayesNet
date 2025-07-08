@@ -8,7 +8,7 @@
 #include <memory>
 
 namespace bayesnet {
-    TANLd::TANLd() : TAN(), Proposal(dataset, features, className)
+    TANLd::TANLd() : TAN(), Proposal(dataset, features, className, TAN::notes)
     {
         validHyperparameters = validHyperparameters_ld; // Inherits the valid hyperparameters from Proposal
     }

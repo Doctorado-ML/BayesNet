@@ -407,14 +407,15 @@ TEST_CASE("Check proposal checkInput", "[Models]")
 {
     class testProposal : public bayesnet::Proposal {
     public:
-        testProposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_)
-            : Proposal(dataset_, features_, className_)
+        testProposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_, std::vector<std::string>& notes_)
+            : Proposal(dataset_, features_, className_, notes_)
         {
         }
         void test_X_y(const torch::Tensor& X, const torch::Tensor& y) { checkInput(X, y); }
     };
     auto raw = RawDatasets("iris", true);
-    auto clf = testProposal(raw.dataset, raw.features, raw.className);
+    std::vector<std::string> notes;
+    auto clf = testProposal(raw.dataset, raw.features, raw.className, notes);
     torch::Tensor X = torch::randint(0, 3, { 10, 4 });
     torch::Tensor y = torch::rand({ 10 });
     INFO("Check X is not float");

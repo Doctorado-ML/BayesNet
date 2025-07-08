@@ -7,7 +7,7 @@
 #include "SPODELd.h"
 
 namespace bayesnet {
-    SPODELd::SPODELd(int root) : SPODE(root), Proposal(dataset, features, className)
+    SPODELd::SPODELd(int root) : SPODE(root), Proposal(dataset, features, className, SPODE::notes)
     {
         validHyperparameters = validHyperparameters_ld; // Inherits the valid hyperparameters from Proposal
     }

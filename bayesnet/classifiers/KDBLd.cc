@@ -8,7 +8,7 @@
 #include <memory>
 
 namespace bayesnet {
-    KDBLd::KDBLd(int k) : KDB(k), Proposal(dataset, features, className)
+    KDBLd::KDBLd(int k) : KDB(k), Proposal(dataset, features, className, KDB::notes)
     {
         validHyperparameters = validHyperparameters_ld;
         validHyperparameters.push_back("k");

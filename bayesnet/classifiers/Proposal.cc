@@ -16,7 +16,7 @@
 #include "TANLd.h"
 
 namespace bayesnet {
-    Proposal::Proposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_) : pDataset(dataset_), pFeatures(features_), pClassName(className_)
+    Proposal::Proposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_, std::vector<std::string>& notes_) : pDataset(dataset_), pFeatures(features_), pClassName(className_), notes(notes_)
     {
     }
     void Proposal::setHyperparameters(nlohmann::json& hyperparameters)
@@ -215,6 +215,8 @@ namespace bayesnet {
                 if (convergence_params.verbose) {
                     std::cout << "Converged after " << (iteration + 1) << " iterations" << std::endl;
                 }
+                notes.push_back("Converged after " + std::to_string(iteration + 1) + " of "
+                    + std::to_string(convergence_params.maxIterations) + " iterations");
                 break;
             }
 

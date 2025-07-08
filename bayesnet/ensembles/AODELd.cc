@@ -7,7 +7,7 @@
 #include "AODELd.h"
 
 namespace bayesnet {
-    AODELd::AODELd(bool predict_voting) : Ensemble(predict_voting), Proposal(dataset, features, className)
+    AODELd::AODELd(bool predict_voting) : Ensemble(predict_voting), Proposal(dataset, features, className, Ensemble::notes)
     {
         validHyperparameters = validHyperparameters_ld; // Inherits the valid hyperparameters from Proposal
     }

@@ -18,7 +18,7 @@
 namespace bayesnet {
     class Proposal {
     public:
-        Proposal(torch::Tensor& pDataset, std::vector<std::string>& features_, std::string& className_);
+        Proposal(torch::Tensor& pDataset, std::vector<std::string>& features_, std::string& className_, std::vector<std::string>& notes);
         void setHyperparameters(nlohmann::json& hyperparameters_);
     protected:
         void checkInput(const torch::Tensor& X, const torch::Tensor& y);
@@ -61,6 +61,7 @@ namespace bayesnet {
         };
     private:
         std::vector<int> factorize(const std::vector<std::string>& labels_t);
+        std::vector<std::string>& notes; // Notes during fit from BaseClassifier
         torch::Tensor& pDataset; // (n+1)xm tensor
         std::vector<std::string>& pFeatures;
         std::string& pClassName;
