@@ -12,17 +12,26 @@ namespace bayesnet {
     TANLd& TANLd::fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
         checkInput(X_, y_);
-        features = features_;
-        className = className_;
         Xf = X_;
         y = y_;
-        
-        // Use iterative local discretization instead of the two-phase approach
+        return commonFit(features_, className_, states_, smoothing);
+    }
+    TANLd& TANLd::fit(torch::Tensor& dataset, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
+    {
+        if (!torch::is_floating_point(dataset)) {
+            throw std::runtime_error("Dataset must be a floating point tensor");
+        }
+        Xf = dataset.index({ torch::indexing::Slice(0, dataset.size(0) - 1), "..." }).clone();
+        y = dataset.index({ -1, "..." }).clone().to(torch::kInt32);
+        return commonFit(features_, className_, states_, smoothing);
+    }
+
+    TANLd& TANLd::commonFit(const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
+    {
+        features = features_;
+        className = className_;
         states = iterativeLocalDiscretization(y, static_cast<TAN*>(this), dataset, features, className, states_, smoothing);
-        
-        // Final fit with converged discretization
         TAN::fit(dataset, features, className, states, smoothing);
-        
         return *this;
     }
     torch::Tensor TANLd::predict(torch::Tensor& X)

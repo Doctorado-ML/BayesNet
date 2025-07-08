@@ -11,6 +11,7 @@
 #include "Classifier.h"
 #include "KDB.h"
 #include "TAN.h"
+#include "SPODE.h"
 #include "KDBLd.h"
 #include "TANLd.h"
 
@@ -18,9 +19,8 @@ namespace bayesnet {
     Proposal::Proposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_) : pDataset(dataset_), pFeatures(features_), pClassName(className_)
     {
     }
-    void Proposal::setHyperparameters(const nlohmann::json& hyperparameters_)
+    void Proposal::setHyperparameters(nlohmann::json& hyperparameters)
     {
-        auto hyperparameters = hyperparameters_;
         if (hyperparameters.contains("ld_proposed_cuts")) {
             ld_params.proposed_cuts = hyperparameters["ld_proposed_cuts"];
             hyperparameters.erase("ld_proposed_cuts");
@@ -54,9 +54,6 @@ namespace bayesnet {
         if (hyperparameters.contains("verbose_convergence")) {
             convergence_params.verbose = hyperparameters["verbose_convergence"];
             hyperparameters.erase("verbose_convergence");
-        }
-        if (!hyperparameters.empty()) {
-            throw std::invalid_argument("Invalid hyperparameters for Proposal: " + hyperparameters.dump());
         }
     }
 
@@ -209,7 +206,7 @@ namespace bayesnet {
 
             // Phase 2: Build model with current discretization
             classifier->fit(dataset, features, className, currentStates, weights, smoothing);
-            
+
             // Phase 3: Network-aware discretization refinement
             currentStates = localDiscretizationProposal(currentStates, classifier->getModel());
 
@@ -228,51 +225,15 @@ namespace bayesnet {
         return currentStates;
     }
 
-    double Proposal::computeLogLikelihood(Network& model, const torch::Tensor& dataset)
-    {
-        double logLikelihood = 0.0;
-        int n_samples = dataset.size(0);
-        int n_features = dataset.size(1);
-
-        for (int i = 0; i < n_samples; ++i) {
-            double sampleLogLikelihood = 0.0;
-
-            // Get class value for this sample
-            int classValue = dataset[i][n_features - 1].item<int>();
-
-            // Compute log-likelihood for each feature given its parents and class
-            for (const auto& node : model.getNodes()) {
-                if (node.first == model.getClassName()) {
-                    // For class node, add log P(class)
-                    auto classCounts = node.second->getCPT();
-                    double classProb = classCounts[classValue].item<double>() / dataset.size(0);
-                    sampleLogLikelihood += std::log(std::max(classProb, 1e-10));
-                } else {
-                    // For feature nodes, add log P(feature | parents, class)
-                    int featureIdx = std::distance(model.getFeatures().begin(),
-                        std::find(model.getFeatures().begin(),
-                            model.getFeatures().end(),
-                            node.first));
-                    int featureValue = dataset[i][featureIdx].item<int>();
-
-                    // Simplified probability computation - in practice would need full CPT lookup
-                    double featureProb = 0.1; // Placeholder - would compute from CPT
-                    sampleLogLikelihood += std::log(std::max(featureProb, 1e-10));
-                }
-            }
-
-            logLikelihood += sampleLogLikelihood;
-        }
-
-        return logLikelihood;
-    }
-
     // Explicit template instantiation for common classifier types
     template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<KDB>(
         const torch::Tensor&, KDB*, torch::Tensor&, const std::vector<std::string>&,
         const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
-    
+
     template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<TAN>(
         const torch::Tensor&, TAN*, torch::Tensor&, const std::vector<std::string>&,
+        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
+    template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<SPODE>(
+        const torch::Tensor&, SPODE*, torch::Tensor&, const std::vector<std::string>&,
         const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
 }

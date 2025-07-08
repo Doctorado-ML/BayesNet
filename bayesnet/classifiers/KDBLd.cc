@@ -14,33 +14,29 @@ namespace bayesnet {
         validHyperparameters.push_back("k");
         validHyperparameters.push_back("theta");
     }
-    void KDBLd::setHyperparameters(const nlohmann::json& hyperparameters_)
-    {
-        auto hyperparameters = hyperparameters_;
-        if (hyperparameters.contains("k")) {
-            k = hyperparameters["k"];
-            hyperparameters.erase("k");
-        }
-        if (hyperparameters.contains("theta")) {
-            theta = hyperparameters["theta"];
-            hyperparameters.erase("theta");
-        }
-        Proposal::setHyperparameters(hyperparameters);
-    }
     KDBLd& KDBLd::fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
         checkInput(X_, y_);
-        features = features_;
-        className = className_;
         Xf = X_;
         y = y_;
-        
-        // Use iterative local discretization instead of the two-phase approach
+        return commonFit(features_, className_, states_, smoothing);
+    }
+    KDBLd& KDBLd::fit(torch::Tensor& dataset, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
+    {
+        if (!torch::is_floating_point(dataset)) {
+            throw std::runtime_error("Dataset must be a floating point tensor");
+        }
+        Xf = dataset.index({ torch::indexing::Slice(0, dataset.size(0) - 1), "..." }).clone();
+        y = dataset.index({ -1, "..." }).clone().to(torch::kInt32);
+        return commonFit(features_, className_, states_, smoothing);
+    }
+
+    KDBLd& KDBLd::commonFit(const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
+    {
+        features = features_;
+        className = className_;
         states = iterativeLocalDiscretization(y, static_cast<KDB*>(this), dataset, features, className, states_, smoothing);
-        
-        // Final fit with converged discretization
         KDB::fit(dataset, features, className, states, smoothing);
-        
         return *this;
     }
     torch::Tensor KDBLd::predict(torch::Tensor& X)

@@ -34,12 +34,8 @@ namespace bayesnet {
     {
         features = features_;
         className = className_;
-        // Fills std::vectors Xv & yv with the data from tensors X_ (discretized) & y
-        states = fit_local_discretization(y);
-        // We have discretized the input data
-        // 1st we need to fit the model to build the normal SPODE structure, SPODE::fit initializes the base Bayesian network
+        states = iterativeLocalDiscretization(y, static_cast<SPODE*>(this), dataset, features, className, states_, smoothing);
         SPODE::fit(dataset, features, className, states, smoothing);
-        states = localDiscretizationProposal(states, model);
         return *this;
     }
     torch::Tensor SPODELd::predict(torch::Tensor& X)
