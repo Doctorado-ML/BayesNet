@@ -16,10 +16,10 @@
 #include "TestUtils.h"
 
 std::map<std::string, std::string> modules = {
-    { "mdlp", "2.1.0" },
-    { "Folding", "1.1.1" },
+    { "mdlp", "2.1.1" },
+    { "Folding", "1.1.2" },
     { "json", "3.11" },
-    { "ArffFiles", "1.2.0" }
+    { "ArffFiles", "1.2.1" }
 };
 
 TEST_CASE("MDLP", "[Modules]")
