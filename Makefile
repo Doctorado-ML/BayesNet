@@ -17,6 +17,14 @@ mansrcdir = docs/man3
 mandestdir = /usr/local/share/man
 sed_command_link = 's/e">LCOV -/e"><a href="https:\/\/rmontanana.github.io\/bayesnet">Back to manual<\/a> LCOV -/g'
 sed_command_diagram = 's/Diagram"/Diagram" width="100%" height="100%" /g'
+# Set the number of parallel jobs to the number of available processors minus 7
+CPUS := $(shell getconf _NPROCESSORS_ONLN 2>/dev/null \
+                 || nproc --all 2>/dev/null \
+                 || sysctl -n hw.ncpu)
+
+# --- Your desired job count: CPUs – 7, but never less than 1 --------------
+JOBS := $(shell n=$(CPUS); [ $${n} -gt 7 ] && echo $$((n-7)) || echo 1)
+
 
 define ClearTests
 	@for t in $(test_targets); do \
@@ -36,6 +44,7 @@ define setup_target
 	@if [ -d $(2) ]; then rm -fr $(2); fi
 	@conan install . --build=missing -of $(2) -s build_type=$(1)
 	@cmake -S . -B $(2) -DCMAKE_TOOLCHAIN_FILE=$(2)/build/$(1)/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=$(1) -D$(3)
+	@echo ">>> Will build using $(JOBS) parallel jobs"
 	@echo ">>> Done"
 endef
 
@@ -72,10 +81,10 @@ release: ## Setup release version using Conan
 	@$(call setup_target,"Release","$(f_release)","ENABLE_TESTING=OFF")
 
 buildd: ## Build the debug targets
-	cmake --build $(f_debug) --config Debug -t $(app_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
+	cmake --build $(f_debug) --config Debug -t $(app_targets) --parallel $(JOBS)
 
 buildr: ## Build the release targets
-	cmake --build $(f_release) --config Release -t $(app_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
+	cmake --build $(f_release) --config Release -t $(app_targets) --parallel $(JOBS)
 
 
 # Install targets
@@ -105,7 +114,7 @@ opt = ""
 test: ## Run tests (opt="-s") to verbose output the tests, (opt="-c='Test Maximum Spanning Tree'") to run only that section
 	@echo ">>> Running BayesNet tests...";
 	@$(MAKE) clean-test
-	@cmake --build $(f_debug) -t $(test_targets) --parallel $(CMAKE_BUILD_PARALLEL_LEVEL)
+	@cmake --build $(f_debug) -t $(test_targets) --parallel $(JOBS)
 	@for t in $(test_targets); do \
 		echo ">>> Running $$t...";\
 		if [ -f $(f_debug)/tests/$$t ]; then \
@@ -228,7 +237,7 @@ sample: ## Build sample with Conan
 	@if [ -d ./sample/build ]; then rm -rf ./sample/build; fi
 	@cd sample && conan install . --output-folder=build --build=missing -s build_type=$(build_type) -o "&:enable_coverage=False" -o "&:enable_testing=False"
 	@cd sample && cmake -B build -S . -DCMAKE_BUILD_TYPE=$(build_type) -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake && \
-	cmake --build build -t bayesnet_sample
+	cmake --build build -t bayesnet_sample --parallel $(JOBS)
 	sample/build/bayesnet_sample $(fname) $(model)
 	@echo ">>> Done";
 

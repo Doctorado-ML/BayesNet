@@ -5,14 +5,22 @@
 // ***************************************************************
 
 #include "Proposal.h"
+#include <iostream>
+#include <cmath>
+#include <limits>
+#include "Classifier.h"
+#include "KDB.h"
+#include "TAN.h"
+#include "SPODE.h"
+#include "KDBLd.h"
+#include "TANLd.h"
 
 namespace bayesnet {
-    Proposal::Proposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_) : pDataset(dataset_), pFeatures(features_), pClassName(className_)
+    Proposal::Proposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_, std::vector<std::string>& notes_) : pDataset(dataset_), pFeatures(features_), pClassName(className_), notes(notes_)
     {
     }
-    void Proposal::setHyperparameters(const nlohmann::json& hyperparameters_)
+    void Proposal::setHyperparameters(nlohmann::json& hyperparameters)
     {
-        auto hyperparameters = hyperparameters_;
         if (hyperparameters.contains("ld_proposed_cuts")) {
             ld_params.proposed_cuts = hyperparameters["ld_proposed_cuts"];
             hyperparameters.erase("ld_proposed_cuts");
@@ -38,8 +46,14 @@ namespace bayesnet {
                 throw std::invalid_argument("Invalid discretization algorithm: " + algorithm.get<std::string>());
             }
         }
-        if (!hyperparameters.empty()) {
-            throw std::invalid_argument("Invalid hyperparameters for Proposal: " + hyperparameters.dump());
+        // Convergence parameters
+        if (hyperparameters.contains("max_iterations")) {
+            convergence_params.maxIterations = hyperparameters["max_iterations"];
+            hyperparameters.erase("max_iterations");
+        }
+        if (hyperparameters.contains("verbose_convergence")) {
+            convergence_params.verbose = hyperparameters["verbose_convergence"];
+            hyperparameters.erase("verbose_convergence");
         }
     }
 
@@ -163,4 +177,65 @@ namespace bayesnet {
         }
         return yy;
     }
+
+    template<typename Classifier>
+    map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization(
+        const torch::Tensor& y,
+        Classifier* classifier,
+        torch::Tensor& dataset,
+        const std::vector<std::string>& features,
+        const std::string& className,
+        const map<std::string, std::vector<int>>& initialStates,
+        Smoothing_t smoothing
+    )
+    {
+        // Phase 1: Initial discretization (same as original)
+        auto currentStates = fit_local_discretization(y);
+        auto previousModel = Network();
+
+        if (convergence_params.verbose) {
+            std::cout << "Starting iterative local discretization with "
+                << convergence_params.maxIterations << " max iterations" << std::endl;
+        }
+
+        const torch::Tensor weights = torch::full({ pDataset.size(1) }, 1.0 / pDataset.size(1), torch::kDouble);
+        for (int iteration = 0; iteration < convergence_params.maxIterations; ++iteration) {
+            if (convergence_params.verbose) {
+                std::cout << "Iteration " << (iteration + 1) << "/" << convergence_params.maxIterations << std::endl;
+            }
+
+            // Phase 2: Build model with current discretization
+            classifier->fit(dataset, features, className, currentStates, weights, smoothing);
+
+            // Phase 3: Network-aware discretization refinement
+            currentStates = localDiscretizationProposal(currentStates, classifier->getModel());
+
+            // Check convergence
+            if (iteration > 0 && previousModel == classifier->getModel()) {
+                if (convergence_params.verbose) {
+                    std::cout << "Converged after " << (iteration + 1) << " iterations" << std::endl;
+                }
+                notes.push_back("Converged after " + std::to_string(iteration + 1) + " of "
+                    + std::to_string(convergence_params.maxIterations) + " iterations");
+                break;
+            }
+
+            // Update for next iteration
+            previousModel = classifier->getModel();
+        }
+
+        return currentStates;
+    }
+
+    // Explicit template instantiation for common classifier types
+    template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<KDB>(
+        const torch::Tensor&, KDB*, torch::Tensor&, const std::vector<std::string>&,
+        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
+
+    template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<TAN>(
+        const torch::Tensor&, TAN*, torch::Tensor&, const std::vector<std::string>&,
+        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
+    template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<SPODE>(
+        const torch::Tensor&, SPODE*, torch::Tensor&, const std::vector<std::string>&,
+        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
 }

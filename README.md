@@ -8,7 +8,7 @@
 [![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=rmontanana_BayesNet&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=rmontanana_BayesNet)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Doctorado-ML/BayesNet)
 ![Gitea Last Commit](https://img.shields.io/gitea/last-commit/rmontanana/bayesnet?gitea_url=https://gitea.rmontanana.es&logo=gitea)
-[![Coverage Badge](https://img.shields.io/badge/Coverage-98,0%25-green)](https://gitea.rmontanana.es/rmontanana/BayesNet)
+[![Coverage Badge](https://img.shields.io/badge/Coverage-99,1%25-green)](https://gitea.rmontanana.es/rmontanana/BayesNet)
 [![DOI](https://zenodo.org/badge/667782806.svg)](https://doi.org/10.5281/zenodo.14210344)
 
 Bayesian Network Classifiers library

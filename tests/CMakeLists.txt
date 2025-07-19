@@ -8,7 +8,7 @@ if(ENABLE_TESTING)
     add_executable(TestBayesNet TestBayesNetwork.cc TestBayesNode.cc TestBayesClassifier.cc TestXSPnDE.cc TestXBA2DE.cc 
         TestBayesModels.cc TestBayesMetrics.cc TestFeatureSelection.cc TestBoostAODE.cc TestXBAODE.cc TestA2DE.cc 
         TestUtils.cc TestBayesEnsemble.cc TestModulesVersions.cc TestBoostA2DE.cc TestMST.cc TestXSPODE.cc ${BayesNet_SOURCES})
-    target_link_libraries(TestBayesNet PUBLIC "${TORCH_LIBRARIES}" fimdlp::fimdlp PRIVATE Catch2::Catch2WithMain folding::folding)
+      target_link_libraries(TestBayesNet PRIVATE torch::torch fimdlp::fimdlp Catch2::Catch2WithMain folding::folding)
     add_test(NAME BayesNetworkTest COMMAND TestBayesNet)
     add_test(NAME A2DE COMMAND TestBayesNet "[A2DE]")
     add_test(NAME BoostA2DE COMMAND TestBayesNet "[BoostA2DE]")

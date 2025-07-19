@@ -13,6 +13,41 @@ namespace bayesnet {
         : name(name)
     {
     }
+    
+    Node::Node(const Node& other)
+        : name(other.name), numStates(other.numStates), dimensions(other.dimensions)
+    {
+        // Deep copy the CPT tensor
+        if (other.cpTable.defined()) {
+            cpTable = other.cpTable.clone();
+        }
+        // Note: parent and children pointers are NOT copied here
+        // They will be reconstructed by the Network copy constructor
+        // to maintain proper object relationships
+    }
+    
+    Node& Node::operator=(const Node& other)
+    {
+        if (this != &other) {
+            name = other.name;
+            numStates = other.numStates;
+            dimensions = other.dimensions;
+            
+            // Deep copy the CPT tensor
+            if (other.cpTable.defined()) {
+                cpTable = other.cpTable.clone();
+            } else {
+                cpTable = torch::Tensor();
+            }
+            
+            // Clear existing relationships
+            parents.clear();
+            children.clear();
+            // Note: parent and children pointers are NOT copied here
+            // They must be reconstructed to maintain proper object relationships
+        }
+        return *this;
+    }
     void Node::clear()
     {
         parents.clear();

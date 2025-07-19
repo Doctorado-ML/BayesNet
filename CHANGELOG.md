@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.2.0] - 2025-06-30
+## [1.2.0] - 2025-07-08
 
 ### Internal
 
@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - *ld_proposed_cuts*: number of cut points to return.
   - *mdlp_min_length*: minimum length of a partition in MDLP algorithm to be evaluated for partition.
   - *mdlp_max_depth*: maximum level of recursion in MDLP algorithm.
+  - *max_iterations*: maximum number of iterations of discretization-build model loop.
+  - *verbose_convergence*: display status messages during the convergence process.
 - Remove vcpkg as a dependency manager, now the library is built with Conan package manager and CMake.
 - Add `build_type` option to the sample target in the Makefile to allow building in *Debug* or *Release* mode. Default is *Debug*.
 

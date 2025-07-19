@@ -31,9 +31,9 @@ TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
                                                       {{"diabetes", "SPODE"}, 0.802083},
                                                       {{"diabetes", "TAN"}, 0.821615},
                                                       {{"diabetes", "AODELd"}, 0.8125f},
-                                                      {{"diabetes", "KDBLd"}, 0.80208f},
+                                                      {{"diabetes", "KDBLd"}, 0.804688f},
                                                       {{"diabetes", "SPODELd"}, 0.7890625f},
-                                                      {{"diabetes", "TANLd"}, 0.803385437f},
+                                                      {{"diabetes", "TANLd"}, 0.8125f},
                                                       {{"diabetes", "BoostAODE"}, 0.83984f},
                                                       // Ecoli
                                                       {{"ecoli", "AODE"}, 0.889881},
@@ -42,9 +42,9 @@ TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
                                                       {{"ecoli", "SPODE"}, 0.880952},
                                                       {{"ecoli", "TAN"}, 0.892857},
                                                       {{"ecoli", "AODELd"}, 0.875f},
-                                                      {{"ecoli", "KDBLd"}, 0.880952358f},
+                                                      {{"ecoli", "KDBLd"}, 0.872024f},
                                                       {{"ecoli", "SPODELd"}, 0.839285731f},
-                                                      {{"ecoli", "TANLd"}, 0.848214269f},
+                                                      {{"ecoli", "TANLd"}, 0.869047642f},
                                                       {{"ecoli", "BoostAODE"}, 0.89583f},
                                                       // Glass
                                                       {{"glass", "AODE"}, 0.79439},
@@ -53,9 +53,9 @@ TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
                                                       {{"glass", "SPODE"}, 0.775701},
                                                       {{"glass", "TAN"}, 0.827103},
                                                       {{"glass", "AODELd"}, 0.799065411f},
-                                                      {{"glass", "KDBLd"}, 0.82710278f},
+                                                      {{"glass", "KDBLd"}, 0.864485979f},
                                                       {{"glass", "SPODELd"}, 0.780373812f},
-                                                      {{"glass", "TANLd"}, 0.869158864f},
+                                                      {{"glass", "TANLd"}, 0.831775725f},
                                                       {{"glass", "BoostAODE"}, 0.84579f},
                                                       // Iris
                                                       {{"iris", "AODE"}, 0.973333},
@@ -68,29 +68,29 @@ TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
                                                       {{"iris", "SPODELd"}, 0.96f},
                                                       {{"iris", "TANLd"}, 0.97333f},
                                                       {{"iris", "BoostAODE"}, 0.98f} };
-    std::map<std::string, bayesnet::BaseClassifier*> models{ {"AODE", new bayesnet::AODE()},
-                                                             {"AODELd", new bayesnet::AODELd()},
-                                                             {"BoostAODE", new bayesnet::BoostAODE()},
-                                                             {"KDB", new bayesnet::KDB(2)},
-                                                             {"KDBLd", new bayesnet::KDBLd(2)},
-                                                             {"XSPODE", new bayesnet::XSpode(1)},
-                                                             {"SPODE", new bayesnet::SPODE(1)},
-                                                             {"SPODELd", new bayesnet::SPODELd(1)},
-                                                             {"TAN", new bayesnet::TAN()},
-                                                             {"TANLd", new bayesnet::TANLd()} };
+    std::map<std::string, std::unique_ptr<bayesnet::BaseClassifier>> models;
+    models["AODE"] = std::make_unique<bayesnet::AODE>();
+    models["AODELd"] = std::make_unique<bayesnet::AODELd>();
+    models["BoostAODE"] = std::make_unique<bayesnet::BoostAODE>();
+    models["KDB"] = std::make_unique<bayesnet::KDB>(2);
+    models["KDBLd"] = std::make_unique<bayesnet::KDBLd>(2);
+    models["XSPODE"] = std::make_unique<bayesnet::XSpode>(1);
+    models["SPODE"] = std::make_unique<bayesnet::SPODE>(1);
+    models["SPODELd"] = std::make_unique<bayesnet::SPODELd>(1);
+    models["TAN"] = std::make_unique<bayesnet::TAN>();
+    models["TANLd"] = std::make_unique<bayesnet::TANLd>();
     std::string name = GENERATE("AODE", "AODELd", "KDB", "KDBLd", "SPODE", "XSPODE", "SPODELd", "TAN", "TANLd");
-    auto clf = models[name];
+    auto clf = std::move(models[name]);
 
     SECTION("Test " + name + " classifier")
     {
         for (const std::string& file_name : { "glass", "iris", "ecoli", "diabetes" }) {
-            auto clf = models[name];
             auto discretize = name.substr(name.length() - 2) != "Ld";
             auto raw = RawDatasets(file_name, discretize);
             clf->fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing);
             auto score = clf->score(raw.Xt, raw.yt);
             // std::cout << "Classifier: " << name << " File: " << file_name << " Score: " << score << " expected = " <<
-            // scores[{file_name, name}] << std::endl;
+            //     scores[{file_name, name}] << std::endl;
             INFO("Classifier: " << name << " File: " << file_name);
             REQUIRE(score == Catch::Approx(scores[{file_name, name}]).epsilon(raw.epsilon));
             REQUIRE(clf->getStatus() == bayesnet::NORMAL);
@@ -101,7 +101,6 @@ TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
         INFO("Checking version of " << name << " classifier");
         REQUIRE(clf->getVersion() == ACTUAL_VERSION);
     }
-    delete clf;
 }
 TEST_CASE("Models features & Graph", "[Models]")
 {
@@ -133,7 +132,7 @@ TEST_CASE("Models features & Graph", "[Models]")
         clf.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing);
         REQUIRE(clf.getNumberOfNodes() == 5);
         REQUIRE(clf.getNumberOfEdges() == 7);
-        REQUIRE(clf.getNumberOfStates() == 27);
+        REQUIRE(clf.getNumberOfStates() == 26);
         REQUIRE(clf.getClassNumStates() == 3);
         REQUIRE(clf.show() == std::vector<std::string>{"class -> sepallength, sepalwidth, petallength, petalwidth, ",
             "petallength -> sepallength, ", "petalwidth -> ",
@@ -149,7 +148,6 @@ TEST_CASE("Get num features & num edges", "[Models]")
     REQUIRE(clf.getNumberOfNodes() == 5);
     REQUIRE(clf.getNumberOfEdges() == 8);
 }
-
 TEST_CASE("Model predict_proba", "[Models]")
 {
     std::string model = GENERATE("TAN", "SPODE", "BoostAODEproba", "BoostAODEvoting", "TANLd", "SPODELd", "KDBLd");
@@ -180,15 +178,15 @@ TEST_CASE("Model predict_proba", "[Models]")
                                                             {0.0284828, 0.770524, 0.200993},
                                                             {0.0213182, 0.857189, 0.121493},
                                                             {0.00868436, 0.949494, 0.0418215} });
-    auto res_prob_tanld = std::vector<std::vector<double>>({ {0.000544493, 0.995796, 0.00365992 },
-                                                            {0.000908092, 0.997268, 0.00182429 },
-                                                            {0.000908092, 0.997268, 0.00182429 },
-                                                            {0.000908092, 0.997268, 0.00182429 },
-                                                            {0.00228423, 0.994645, 0.00307078 },
-                                                            {0.00120539, 0.0666788, 0.932116 },
-                                                            {0.00361847, 0.979203, 0.017179 },
-                                                            {0.00483293, 0.985326, 0.00984064 },
-                                                            {0.000595606, 0.9977, 0.00170441 } });
+    auto res_prob_tanld = std::vector<std::vector<double>>({ {0.000597557, 0.9957, 0.00370254},
+                                                            {0.000731377, 0.997914, 0.0013544},
+                                                            {0.000731377, 0.997914, 0.0013544},
+                                                            {0.000731377, 0.997914, 0.0013544},
+                                                            {0.000838614, 0.998122, 0.00103923},
+                                                            {0.00130852, 0.0659492, 0.932742},
+                                                            {0.00365946, 0.979412, 0.0169281},
+                                                            {0.00435035, 0.986248, 0.00940212},
+                                                            {0.000583815, 0.997746, 0.00167066} });
     auto res_prob_spodeld = std::vector<std::vector<double>>({ {0.000908024, 0.993742, 0.00535024 },
                                                             {0.00187726, 0.99167, 0.00645308 },
                                                             {0.00187726, 0.99167, 0.00645308 },
@@ -216,29 +214,33 @@ TEST_CASE("Model predict_proba", "[Models]")
                                                                      {"TANLd", res_prob_tanld},
                                                                      {"SPODELd", res_prob_spodeld},
                                                                      {"KDBLd", res_prob_kdbld} };
-    std::map<std::string, bayesnet::BaseClassifier*> models{ {"TAN", new bayesnet::TAN()},
-                                                             {"SPODE", new bayesnet::SPODE(0)},
-                                                             {"BoostAODEproba", new bayesnet::BoostAODE(false)},
-                                                             {"BoostAODEvoting", new bayesnet::BoostAODE(true)},
-                                                             {"TANLd", new bayesnet::TANLd()},
-                                                             {"SPODELd", new bayesnet::SPODELd(0)},
-                                                             {"KDBLd", new bayesnet::KDBLd(2)} };
+
+    std::map<std::string, std::unique_ptr<bayesnet::BaseClassifier>> models;
+    models["TAN"] = std::make_unique<bayesnet::TAN>();
+    models["SPODE"] = std::make_unique<bayesnet::SPODE>(0);
+    models["BoostAODEproba"] = std::make_unique<bayesnet::BoostAODE>(false);
+    models["BoostAODEvoting"] = std::make_unique<bayesnet::BoostAODE>(true);
+    models["TANLd"] = std::make_unique<bayesnet::TANLd>();
+    models["SPODELd"] = std::make_unique<bayesnet::SPODELd>(0);
+    models["KDBLd"] = std::make_unique<bayesnet::KDBLd>(2);
+
     int init_index = 78;
 
     SECTION("Test " + model + " predict_proba")
     {
+        INFO("Testing " << model << " predict_proba");
         auto ld_model = model.substr(model.length() - 2) == "Ld";
         auto discretize = !ld_model;
         auto raw = RawDatasets("iris", discretize);
-        auto clf = models[model];
-        clf->fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing);
-        auto yt_pred_proba = clf->predict_proba(raw.Xt);
-        auto yt_pred = clf->predict(raw.Xt);
+        auto& clf = *models[model];
+        clf.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing);
+        auto yt_pred_proba = clf.predict_proba(raw.Xt);
+        auto yt_pred = clf.predict(raw.Xt);
         std::vector<int> y_pred;
         std::vector<std::vector<double>> y_pred_proba;
         if (!ld_model) {
-            y_pred = clf->predict(raw.Xv);
-            y_pred_proba = clf->predict_proba(raw.Xv);
+            y_pred = clf.predict(raw.Xv);
+            y_pred_proba = clf.predict_proba(raw.Xv);
             REQUIRE(y_pred.size() == y_pred_proba.size());
             REQUIRE(y_pred.size() == yt_pred.size(0));
             REQUIRE(y_pred.size() == yt_pred_proba.size(0));
@@ -267,18 +269,20 @@ TEST_CASE("Model predict_proba", "[Models]")
         } else {
             // Check predict_proba values for vectors and tensors
             auto predictedClasses = yt_pred_proba.argmax(1);
+            // std::cout << model << std::endl;
             for (int i = 0; i < 9; i++) {
                 REQUIRE(predictedClasses[i].item<int>() == yt_pred[i].item<int>());
+                // std::cout << "{";
                 for (int j = 0; j < 3; j++) {
+                    // std::cout << yt_pred_proba[i + init_index][j].item<double>() << ", ";
                     REQUIRE(res_prob[model][i][j] ==
                         Catch::Approx(yt_pred_proba[i + init_index][j].item<double>()).epsilon(raw.epsilon));
                 }
+                // std::cout << "\b\b}," << std::endl;
             }
         }
-        delete clf;
     }
 }
-
 TEST_CASE("AODE voting-proba", "[Models]")
 {
     auto raw = RawDatasets("glass", true);
@@ -297,17 +301,30 @@ TEST_CASE("AODE voting-proba", "[Models]")
     REQUIRE(pred_proba[67][0] == Catch::Approx(0.702184).epsilon(raw.epsilon));
     REQUIRE(clf.topological_order() == std::vector<std::string>());
 }
-TEST_CASE("SPODELd dataset", "[Models]")
+TEST_CASE("Ld models with dataset", "[Models]")
 {
     auto raw = RawDatasets("iris", false);
     auto clf = bayesnet::SPODELd(0);
-    // raw.dataset.to(torch::kFloat32);
     clf.fit(raw.dataset, raw.features, raw.className, raw.states, raw.smoothing);
     auto score = clf.score(raw.Xt, raw.yt);
     clf.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing);
     auto scoret = clf.score(raw.Xt, raw.yt);
     REQUIRE(score == Catch::Approx(0.97333f).epsilon(raw.epsilon));
     REQUIRE(scoret == Catch::Approx(0.97333f).epsilon(raw.epsilon));
+    auto clf2 = bayesnet::TANLd();
+    clf2.fit(raw.dataset, raw.features, raw.className, raw.states, raw.smoothing);
+    auto score2 = clf2.score(raw.Xt, raw.yt);
+    clf2.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing);
+    auto score2t = clf2.score(raw.Xt, raw.yt);
+    REQUIRE(score2 == Catch::Approx(0.97333f).epsilon(raw.epsilon));
+    REQUIRE(score2t == Catch::Approx(0.97333f).epsilon(raw.epsilon));
+    auto clf3 = bayesnet::KDBLd(2);
+    clf3.fit(raw.dataset, raw.features, raw.className, raw.states, raw.smoothing);
+    auto score3 = clf3.score(raw.Xt, raw.yt);
+    clf3.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing);
+    auto score3t = clf3.score(raw.Xt, raw.yt);
+    REQUIRE(score3 == Catch::Approx(0.97333f).epsilon(raw.epsilon));
+    REQUIRE(score3t == Catch::Approx(0.97333f).epsilon(raw.epsilon));
 }
 TEST_CASE("KDB with hyperparameters", "[Models]")
 {
@@ -324,11 +341,15 @@ TEST_CASE("KDB with hyperparameters", "[Models]")
     REQUIRE(score == Catch::Approx(0.827103).epsilon(raw.epsilon));
     REQUIRE(scoret == Catch::Approx(0.761682).epsilon(raw.epsilon));
 }
-TEST_CASE("Incorrect type of data for SPODELd", "[Models]")
+TEST_CASE("Incorrect type of data for Ld models", "[Models]")
 {
     auto raw = RawDatasets("iris", true);
-    auto clf = bayesnet::SPODELd(0);
-    REQUIRE_THROWS_AS(clf.fit(raw.dataset, raw.features, raw.className, raw.states, raw.smoothing), std::runtime_error);
+    auto clfs = bayesnet::SPODELd(0);
+    REQUIRE_THROWS_AS(clfs.fit(raw.dataset, raw.features, raw.className, raw.states, raw.smoothing), std::runtime_error);
+    auto clft = bayesnet::TANLd();
+    REQUIRE_THROWS_AS(clft.fit(raw.dataset, raw.features, raw.className, raw.states, raw.smoothing), std::runtime_error);
+    auto clfk = bayesnet::KDBLd(0);
+    REQUIRE_THROWS_AS(clfk.fit(raw.dataset, raw.features, raw.className, raw.states, raw.smoothing), std::runtime_error);
 }
 TEST_CASE("Predict, predict_proba & score without fitting", "[Models]")
 {
@@ -386,14 +407,15 @@ TEST_CASE("Check proposal checkInput", "[Models]")
 {
     class testProposal : public bayesnet::Proposal {
     public:
-        testProposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_)
-            : Proposal(dataset_, features_, className_)
+        testProposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_, std::vector<std::string>& notes_)
+            : Proposal(dataset_, features_, className_, notes_)
         {
         }
         void test_X_y(const torch::Tensor& X, const torch::Tensor& y) { checkInput(X, y); }
     };
     auto raw = RawDatasets("iris", true);
-    auto clf = testProposal(raw.dataset, raw.features, raw.className);
+    std::vector<std::string> notes;
+    auto clf = testProposal(raw.dataset, raw.features, raw.className, notes);
     torch::Tensor X = torch::randint(0, 3, { 10, 4 });
     torch::Tensor y = torch::rand({ 10 });
     INFO("Check X is not float");
@@ -427,4 +449,50 @@ TEST_CASE("Check KDB loop detection", "[Models]")
         });
     REQUIRE_NOTHROW(clf.test_add_m_edges(features, 0, S, weights));
     REQUIRE_NOTHROW(clf.test_add_m_edges(features, 1, S, weights));
+}
+TEST_CASE("Local discretization hyperparameters", "[Models]")
+{
+    auto raw = RawDatasets("iris", false);
+    auto clfs = bayesnet::SPODELd(0);
+    clfs.setHyperparameters({
+        {"max_iterations", 7},
+        {"verbose_convergence", true},
+        });
+    REQUIRE_NOTHROW(clfs.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing));
+    REQUIRE(clfs.getStatus() == bayesnet::NORMAL);
+    auto clfk = bayesnet::KDBLd(0);
+    clfk.setHyperparameters({
+        {"k", 3},
+        {"theta", 1e-4},
+        });
+    REQUIRE_NOTHROW(clfk.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing));
+    REQUIRE(clfk.getStatus() == bayesnet::NORMAL);
+    auto clfa = bayesnet::AODELd();
+    clfa.setHyperparameters({
+        {"ld_proposed_cuts", 9},
+        {"ld_algorithm", "BINQ"},
+        });
+    REQUIRE_NOTHROW(clfa.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing));
+    REQUIRE(clfa.getStatus() == bayesnet::NORMAL);
+    auto clft = bayesnet::TANLd();
+    clft.setHyperparameters({
+        {"ld_proposed_cuts", 7},
+        {"mdlp_max_depth", 5},
+        {"mdlp_min_length", 3},
+        {"ld_algorithm", "MDLP"},
+        });
+    REQUIRE_NOTHROW(clft.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing));
+    REQUIRE(clft.getStatus() == bayesnet::NORMAL);
+    clft.setHyperparameters({
+        {"ld_proposed_cuts", 9},
+        {"ld_algorithm", "BINQ"},
+        });
+    REQUIRE_NOTHROW(clft.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing));
+    REQUIRE(clft.getStatus() == bayesnet::NORMAL);
+    clft.setHyperparameters({
+        {"ld_proposed_cuts", 5},
+        {"ld_algorithm", "BINU"},
+        });
+    REQUIRE_NOTHROW(clft.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing));
+    REQUIRE(clft.getStatus() == bayesnet::NORMAL);
 }

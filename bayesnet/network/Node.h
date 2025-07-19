@@ -14,6 +14,9 @@ namespace bayesnet {
     class Node {
     public:
         explicit Node(const std::string&);
+        Node(const Node& other);
+        Node& operator=(const Node& other);
+        ~Node() = default;
         void clear();
         void addParent(Node*);
         void addChild(Node*);
