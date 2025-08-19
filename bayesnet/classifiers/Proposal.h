@@ -23,9 +23,8 @@ namespace bayesnet {
     protected:
         void checkInput(const torch::Tensor& X, const torch::Tensor& y);
         torch::Tensor prepareX(torch::Tensor& X);
-        map<std::string, std::vector<int>> localDiscretizationProposal(const map<std::string, std::vector<int>>& states, Network& model);
-        map<std::string, std::vector<int>> fit_local_discretization(const torch::Tensor& y);
-
+        // fit_local_discretization is only called by aodeld
+        map<std::string, std::vector<int>> fit_local_discretization(const torch::Tensor& y, map<std::string, std::vector<int>> states);
         // Iterative discretization method
         template<typename Classifier>
         map<std::string, std::vector<int>> iterativeLocalDiscretization(
@@ -37,18 +36,15 @@ namespace bayesnet {
             const map<std::string, std::vector<int>>& initialStates,
             const Smoothing_t smoothing
         );
-
         torch::Tensor Xf; // X continuous nxm tensor
         torch::Tensor y; // y discrete nx1 tensor
         map<std::string, std::unique_ptr<mdlp::Discretizer>> discretizers;
-
         // MDLP parameters
         struct {
             size_t min_length = 3; // Minimum length of the interval to consider it in mdlp
             float proposed_cuts = 0.0; // Proposed cuts for the Discretization algorithm
             int max_depth = std::numeric_limits<int>::max(); // Maximum depth of the MDLP tree
         } ld_params;
-
         // Convergence parameters
         struct {
             int maxIterations = 10;
@@ -60,6 +56,7 @@ namespace bayesnet {
             "max_iterations", "verbose_convergence"
         };
     private:
+        map<std::string, std::vector<int>> localDiscretizationProposal(const map<std::string, std::vector<int>>& states, Network& model);
         std::vector<int> factorize(const std::vector<std::string>& labels_t);
         std::vector<std::string>& notes; // Notes during fit from BaseClassifier
         torch::Tensor& pDataset; // (n+1)xm tensor

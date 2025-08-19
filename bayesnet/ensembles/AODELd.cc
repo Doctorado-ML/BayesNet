@@ -19,7 +19,7 @@ namespace bayesnet {
         Xf = X_;
         y = y_;
         // Fills std::vectors Xv & yv with the data from tensors X_ (discretized) & y
-        states = fit_local_discretization(y);
+        states = fit_local_discretization(y, states_);
         // We have discretized the input data
         // 1st we need to fit the model to build the normal AODE structure, Ensemble::fit  
         // calls buildModel to initialize the base models
