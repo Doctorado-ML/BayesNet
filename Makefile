@@ -25,6 +25,11 @@ CPUS := $(shell getconf _NPROCESSORS_ONLN 2>/dev/null \
 # --- Your desired job count: CPUs – 7, but never less than 1 --------------
 JOBS := $(shell n=$(CPUS); [ $${n} -gt 7 ] && echo $$((n-7)) || echo 1)
 
+# Colors for output
+GREEN = \033[0;32m
+YELLOW = \033[1;33m
+RED = \033[0;31m
+NC = \033[0m # No Color
 
 define ClearTests
 	@for t in $(test_targets); do \
@@ -48,6 +53,20 @@ define setup_target
 	@echo ">>> Done"
 endef
 
+define status_file_folder
+	@if [ -d $(1) ]; then \
+		st1=" ✅ $(GREEN)"; \
+	else \
+		st1=" ❌ $(RED)"; \
+	fi; \
+	if [ -f $(1)/libbayesnet.a ]; then \
+		st2=" ✅ $(GREEN)"; \
+	else \
+		st2=" ❌ $(RED)"; \
+	fi; \
+	printf "  $(YELLOW)$(2):$(NC) $$st1 Folder $(NC)  $$st2 Library $(NC)\n"
+endef
+
 setup: ## Install dependencies for tests and coverage
 	@if [ "$(shell uname)" = "Darwin" ]; then \
 		brew install gcovr; \
@@ -61,12 +80,12 @@ setup: ## Install dependencies for tests and coverage
 
 clean: ## Clean the project
 	@echo ">>> Cleaning the project..."
-	@if test -f CMakeCache.txt ; then echo "- Deleting CMakeCache.txt"; rm -f CMakeCache.txt; fimake 
+	@if test -f CMakeCache.txt ; then echo "- Deleting CMakeCache.txt"; rm -f CMakeCache.txt; fi
 	@for folder in $(f_release) $(f_debug) vpcpkg_installed install_test ; do \
-	if test -d "$$folder" ; then \
-		echo "- Deleting $$folder folder" ; \
-		rm -rf "$$folder"; \
-	fi; \
+		if test -d "$$folder" ; then \
+			echo "- Deleting $$folder folder" ; \
+			rm -rf "$$folder"; \
+		fi; \
 	done
 	@$(MAKE) clean-test
 	@echo ">>> Done";
@@ -241,9 +260,24 @@ sample: ## Build sample with Conan
 	sample/build/bayesnet_sample $(fname) $(model)
 	@echo ">>> Done";
 
+info: ## Show project information
+	@version=$$(grep -A1 "project(bayesnet" CMakeLists.txt | grep "VERSION" | sed 's/.*VERSION \([0-9.]*\).*/\1/'); \
+	printf "$(GREEN)BayesNet Library: $(YELLOW)ver. $$version$(NC)\n"
+	@echo ""
+	@printf "$(GREEN)Project folders:$(NC)\n"
+	$(call status_file_folder, $(f_release), "Build\ Release")
+	$(call status_file_folder, $(f_debug), "Build\ Debug\ \ ")
+	@echo ""
+	@printf "$(GREEN)Build commands:$(NC)\n"
+	@printf "   $(YELLOW)make release && make buildr$(NC) - Build library for release\n"
+	@printf "   $(YELLOW)make debug && make buildd$(NC)   - Build library for debug\n"
+	@printf "   $(YELLOW)make test$(NC) - Run tests\n"
+	@printf "   $(YELLOW)Usage:$(NC) make help\n"
+	@echo ""
+	@printf "   $(YELLOW)Parallel Jobs:   $(GREEN)$(JOBS)$(NC)\n"
+
 # Help target
 # ===========
-
 help: ## Show help message
 	@IFS=$$'\n' ; \
 	help_lines=(`fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/\\$$//' | sed -e 's/##/:/'`); \
