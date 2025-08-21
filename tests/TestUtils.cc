@@ -213,6 +213,8 @@ void RawDatasets::loadDataset(const std::string& name, bool class_last)
             if (!is_numeric.at(i)) {
                 states[features[i]] = std::vector<int>(maxValues[features[i]]);
                 iota(begin(states.at(features[i])), end(states.at(features[i])), 0);
+            } else {
+                states[features[i]] = std::vector<int>();
             }
         }
         yt = torch::tensor(yv, torch::kInt32);

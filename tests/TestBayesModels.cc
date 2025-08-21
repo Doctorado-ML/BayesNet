@@ -531,6 +531,11 @@ TEST_CASE("Test Dataset Loading", "[Datasets]")
         }
         std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
     }
+    auto features = dataset.features;
+    std::cout << "States:" << std::endl;
+    for (int i = 0; i < 14; i++) {
+        std::cout << i << " has " << dataset.states.at(features[i]).size() << " states." << std::endl;
+    }
     dataset = RawDatasets("adult", false);
     std::cout << "Dataset adult raw " << std::endl;
     for (int sample = 0; sample < max_sample; sample++) {
@@ -539,4 +544,10 @@ TEST_CASE("Test Dataset Loading", "[Datasets]")
         }
         std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
     }
+    std::cout << "States:" << std::endl;
+    for (int i = 0; i < 14; i++) {
+        std::cout << i << " has " << dataset.states.at(features[i]).size() << " states." << std::endl;
+    }
+    auto clf = bayesnet::TANLd();
+    clf.fit(dataset.Xt, dataset.yt, dataset.features, dataset.className, dataset.states, dataset.smoothing);
 }

@@ -1,4 +1,4 @@
-adult;class;[0,2,4,11,12,13]
+adult;class;[0,2,4,10,11,12]
 balance-scale;class; all
 breast-w;Class; all
 diabetes;class; all
