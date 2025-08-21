@@ -1,0 +1,27 @@
+adult;class;[0,2,4,11,12,13]
+balance-scale;class; all
+breast-w;Class; all
+diabetes;class; all
+ecoli;class; all
+glass;Type; all
+hayes-roth;class; none
+heart-statlog;class; [0,3,4,7,9,11]
+ionosphere;class; all
+iris;class; all
+kdd_JapaneseVowels;speaker; all
+letter;class; all
+liver-disorders;selector; all
+mfeat-factors;class; all
+mfeat-fourier;class; all
+mfeat-karhunen;class; all
+mfeat-morphological;class; all
+mfeat-zernike;class; all
+optdigits;class; all
+page-blocks;class; all
+pendigits;class; all
+segment;class; all
+sonar;Class; all
+spambase;class; all
+vehicle;Class; all
+waveform-5000;class; all
+wine;class; all

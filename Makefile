@@ -34,7 +34,7 @@ NC = \033[0m # No Color
 define ClearTests
 	@for t in $(test_targets); do \
 		if [ -f $(f_debug)/tests/$$t ]; then \
-			echo ">>> Cleaning $$t..." ; \
+			echo ">>> Removing $$t..." ; \
 			rm -f $(f_debug)/tests/$$t ; \
 		fi ; \
 	done
@@ -99,11 +99,12 @@ debug: ## Setup debug version using Conan
 release: ## Setup release version using Conan
 	@$(call setup_target,"Release","$(f_release)","ENABLE_TESTING=OFF")
 
-buildd: ## Build the debug targets
-	cmake --build $(f_debug) --config Debug -t $(app_targets) --parallel $(JOBS)
+buildd: ## Build the debug && test targets
+	@cmake --build $(f_debug) --config Debug -t $(app_targets) --parallel $(JOBS)
+	@cmake --build $(f_debug) -t $(test_targets) --parallel $(JOBS)
 
 buildr: ## Build the release targets
-	cmake --build $(f_release) --config Release -t $(app_targets) --parallel $(JOBS)
+	@cmake --build $(f_release) --config Release -t $(app_targets) --parallel $(JOBS)
 
 
 # Install targets

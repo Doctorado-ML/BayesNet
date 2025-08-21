@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Fixed an issue with local discretization that was discretizing all features wether they were numeric or categorical.
+- Fix testutils to return states for all features:
+  - An empty vector is now returned for numeric features.
+  - Categorical features now return their unique states.
 
 ## [1.2.1] - 2025-07-19
 

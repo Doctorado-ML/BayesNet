@@ -20,7 +20,7 @@
 #include "bayesnet/ensembles/AODELd.h"
 #include "bayesnet/ensembles/BoostAODE.h"
 
-const std::string ACTUAL_VERSION = "1.2.1";
+const std::string ACTUAL_VERSION = "1.2.2";
 
 TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
 {
@@ -495,4 +495,48 @@ TEST_CASE("Local discretization hyperparameters", "[Models]")
         });
     REQUIRE_NOTHROW(clft.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing));
     REQUIRE(clft.getStatus() == bayesnet::NORMAL);
+}
+TEST_CASE("Test Dataset Loading", "[Datasets]")
+{
+    int max_sample = 4;
+    // Test loading a dataset
+    RawDatasets dataset("iris", true);
+    REQUIRE(dataset.Xt.size(0) == 4);
+    REQUIRE(dataset.Xt.size(1) == 150);
+    REQUIRE(dataset.yt.size(0) == 150);
+    std::cout << "Dataset iris discretized " << std::endl;
+    for (int sample = 0; sample < max_sample; sample++) {
+        for (int feature = 0; feature < 4; feature++) {
+            std::cout << dataset.Xt[feature][sample].item<int>() << " ";
+        }
+        std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
+    }
+    dataset = RawDatasets("iris", false);
+    std::cout << "Dataset iris raw " << std::endl;
+    for (int sample = 0; sample < max_sample; sample++) {
+        for (int feature = 0; feature < 4; feature++) {
+            std::cout << dataset.Xt[feature][sample].item<float>() << " ";
+        }
+        std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
+    }
+    // Test loading a dataset
+    dataset = RawDatasets("adult", true);
+    REQUIRE(dataset.Xt.size(0) == 14);
+    REQUIRE(dataset.Xt.size(1) == 45222);
+    REQUIRE(dataset.yt.size(0) == 45222);
+    std::cout << "Dataset adult discretized " << std::endl;
+    for (int sample = 0; sample < max_sample; sample++) {
+        for (int feature = 0; feature < 14; feature++) {
+            std::cout << dataset.Xt[feature][sample].item<int>() << " ";
+        }
+        std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
+    }
+    dataset = RawDatasets("adult", false);
+    std::cout << "Dataset adult raw " << std::endl;
+    for (int sample = 0; sample < max_sample; sample++) {
+        for (int feature = 0; feature < 14; feature++) {
+            std::cout << dataset.Xt[feature][sample].item<float>() << " ";
+        }
+        std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
+    }
 }
