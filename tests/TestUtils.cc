@@ -78,7 +78,7 @@ RawDatasets::RawDatasets(const std::string& file_name, bool discretize_, int num
         std::cout << to_string();
 }
 
-map<std::string, int> RawDatasets::discretizeDataset(std::vector<mdlp::samples_t>& X, const std::vector<bool>& is_numeric)
+map<std::string, int> RawDatasets::discretizeDataset(std::vector<mdlp::samples_t>& X)
 {
     map<std::string, int> maxes;
     auto fimdlp = mdlp::CPPFImdlp();
@@ -175,8 +175,9 @@ void RawDatasets::loadDataset(const std::string& name, bool class_last)
     className = handler.getClassName();
     auto attributes = handler.getAttributes();
     transform(attributes.begin(), attributes.end(), back_inserter(features), [](const auto& pair) { return pair.first; });
+    is_numeric.clear();
+    is_numeric.reserve(features.size());
     auto numericFeaturesIdx = catalog.at(name);
-    std::vector<bool> is_numeric;
     if (numericFeaturesIdx.empty()) {
         // no numeric features
         is_numeric.assign(features.size(), false);
@@ -195,7 +196,7 @@ void RawDatasets::loadDataset(const std::string& name, bool class_last)
         }
     }
     // Discretize Dataset
-    auto maxValues = discretizeDataset(X, is_numeric);
+    auto maxValues = discretizeDataset(X);
     maxValues[className] = *max_element(yv.begin(), yv.end()) + 1;
     if (discretize) {
         // discretize the tensor as well

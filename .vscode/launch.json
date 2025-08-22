@@ -16,7 +16,7 @@
             "name": "test",
             "program": "${workspaceFolder}/build_Debug/tests/TestBayesNet",
             "args": [
-                "[XBAODE]"
+                "Test Dataset Loading"
             ],
             "cwd": "${workspaceFolder}/build_Debug/tests"
         },

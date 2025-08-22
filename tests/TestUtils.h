@@ -27,6 +27,7 @@ public:
     std::vector<double> weightsv;
     std::vector<string> features;
     std::string className;
+    std::vector<bool> is_numeric; // indicates whether each feature is numeric
     map<std::string, std::vector<int>> states;
     //catalog holds the mapping between dataset names and their corresponding indices of numeric features (-1) means all are numeric 
     //and an empty vector means none are numeric
@@ -89,7 +90,7 @@ private:
         }
         return result;
     }
-    map<std::string, int> discretizeDataset(std::vector<mdlp::samples_t>& X, const std::vector<bool>& is_numeric);
+    map<std::string, int> discretizeDataset(std::vector<mdlp::samples_t>& X);
     void loadDataset(const std::string& name, bool class_last);
     map<std::string, std::vector<int>> loadCatalog();
 };

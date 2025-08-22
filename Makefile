@@ -21,8 +21,6 @@ sed_command_diagram = 's/Diagram"/Diagram" width="100%" height="100%" /g'
 CPUS := $(shell getconf _NPROCESSORS_ONLN 2>/dev/null \
                  || nproc --all 2>/dev/null \
                  || sysctl -n hw.ncpu)
-
-# --- Your desired job count: CPUs – 7, but never less than 1 --------------
 JOBS := $(shell n=$(CPUS); [ $${n} -gt 7 ] && echo $$((n-7)) || echo 1)
 
 # Colors for output
