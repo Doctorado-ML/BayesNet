@@ -37,6 +37,7 @@ namespace bayesnet {
         className = className_;
         states = iterativeLocalDiscretization(y, static_cast<KDB*>(this), dataset, features, className, states_, smoothing);
         KDB::fit(dataset, features, className, states, smoothing);
+        fitted = true;
         return *this;
     }
     torch::Tensor KDBLd::predict(torch::Tensor& X)

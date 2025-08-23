@@ -520,34 +520,35 @@ TEST_CASE("Test Dataset Loading", "[Datasets]")
         std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
     }
     // Test loading a dataset
-    dataset = RawDatasets("adult", true);
-    REQUIRE(dataset.Xt.size(0) == 14);
-    REQUIRE(dataset.Xt.size(1) == 45222);
-    REQUIRE(dataset.yt.size(0) == 45222);
-    std::cout << "Dataset adult discretized " << std::endl;
+    dataset = RawDatasets("heart-statlog", true);
+    REQUIRE(dataset.Xt.size(0) == 13);
+    REQUIRE(dataset.Xt.size(1) == 270);
+    REQUIRE(dataset.yt.size(0) == 270);
+    std::cout << "Dataset heart-statlog discretized " << std::endl;
     for (int sample = 0; sample < max_sample; sample++) {
-        for (int feature = 0; feature < 14; feature++) {
+        for (int feature = 0; feature < 13; feature++) {
             std::cout << dataset.Xt[feature][sample].item<int>() << " ";
         }
         std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
     }
     auto features = dataset.features;
     std::cout << "States:" << std::endl;
-    for (int i = 0; i < 14; i++) {
+    for (int i = 0; i < 13; i++) {
         std::cout << i << " has " << dataset.states.at(features[i]).size() << " states." << std::endl;
     }
-    dataset = RawDatasets("adult", false);
-    std::cout << "Dataset adult raw " << std::endl;
+    dataset = RawDatasets("heart-statlog", false);
+    std::cout << "Dataset heart-statlog raw " << std::endl;
     for (int sample = 0; sample < max_sample; sample++) {
-        for (int feature = 0; feature < 14; feature++) {
+        for (int feature = 0; feature < 13; feature++) {
             std::cout << dataset.Xt[feature][sample].item<float>() << " ";
         }
         std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
     }
     std::cout << "States:" << std::endl;
-    for (int i = 0; i < 14; i++) {
+    for (int i = 0; i < 13; i++) {
         std::cout << i << " has " << dataset.states.at(features[i]).size() << " states." << std::endl;
     }
     auto clf = bayesnet::TANLd();
     clf.fit(dataset.Xt, dataset.yt, dataset.features, dataset.className, dataset.states, dataset.smoothing);
+    std::cout << "Score: " << clf.score(dataset.Xt, dataset.yt) << std::endl;
 }

@@ -61,6 +61,7 @@ namespace bayesnet {
         std::vector<std::string>& notes; // Notes during fit from BaseClassifier
         torch::Tensor& pDataset; // (n+1)xm tensor
         std::vector<std::string>& pFeatures;
+        std::vector<bool> wasNumeric;
         std::string& pClassName;
         enum class discretization_t {
             MDLP,

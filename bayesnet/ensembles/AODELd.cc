@@ -24,6 +24,7 @@ namespace bayesnet {
         // 1st we need to fit the model to build the normal AODE structure, Ensemble::fit  
         // calls buildModel to initialize the base models
         Ensemble::fit(dataset, features, className, states, smoothing);
+        fitted = true;
         return *this;
 
     }
