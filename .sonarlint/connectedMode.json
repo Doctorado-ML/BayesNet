@@ -1,4 +1,5 @@
 {
     "sonarCloudOrganization": "rmontanana",
-    "projectKey": "rmontanana_BayesNet"
+    "projectKey": "rmontanana_BayesNet",
+    "region": "EU"
 }

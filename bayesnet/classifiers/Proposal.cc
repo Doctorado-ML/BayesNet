@@ -101,6 +101,9 @@ namespace bayesnet {
             auto xvf_ptr = Xf.index({ index }).data_ptr<float>();
             auto xvf = std::vector<mdlp::precision_t>(xvf_ptr, xvf_ptr + Xf.size(1));
             discretizers[feature]->fit(xvf, yxv);
+            // Enables the discretizer in predict time, because now we have a discretizer fitted for this feature, 
+            // either it was a numeric feature in the beginning or not 
+            wasNumeric[index] = true;
         }
         if (upgrade) {
             // Discretize again X (only the affected indices) with the new fitted discretizers
