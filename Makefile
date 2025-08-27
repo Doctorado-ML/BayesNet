@@ -104,6 +104,9 @@ buildd: ## Build the debug && test targets
 buildr: ## Build the release targets
 	@cmake --build $(f_release) --config Release -t $(app_targets) --parallel $(JOBS)
 
+buildt: ## Build the test targets
+	@cmake --build $(f_debug) --config Debug -t $(test_targets) --parallel $(JOBS)
+
 
 # Install targets
 # ===============
@@ -270,7 +273,8 @@ info: ## Show project information
 	@printf "$(GREEN)Build commands:$(NC)\n"
 	@printf "   $(YELLOW)make release && make buildr$(NC) - Build library for release\n"
 	@printf "   $(YELLOW)make debug && make buildd$(NC)   - Build library for debug\n"
-	@printf "   $(YELLOW)make test$(NC) - Run tests\n"
+	@printf "   $(YELLOW)make buildt$(NC)                 - Build the test targets\n"
+	@printf "   $(YELLOW)make test$(NC)                   - Build & Run tests\n"
 	@printf "   $(YELLOW)Usage:$(NC) make help\n"
 	@echo ""
 	@printf "   $(YELLOW)Parallel Jobs:   $(GREEN)$(JOBS)$(NC)\n"

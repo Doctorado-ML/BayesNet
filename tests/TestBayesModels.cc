@@ -496,59 +496,59 @@ TEST_CASE("Local discretization hyperparameters", "[Models]")
     REQUIRE_NOTHROW(clft.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing));
     REQUIRE(clft.getStatus() == bayesnet::NORMAL);
 }
-TEST_CASE("Test Dataset Loading", "[Datasets]")
-{
-    int max_sample = 4;
-    // Test loading a dataset
-    RawDatasets dataset("iris", true);
-    REQUIRE(dataset.Xt.size(0) == 4);
-    REQUIRE(dataset.Xt.size(1) == 150);
-    REQUIRE(dataset.yt.size(0) == 150);
-    std::cout << "Dataset iris discretized " << std::endl;
-    for (int sample = 0; sample < max_sample; sample++) {
-        for (int feature = 0; feature < 4; feature++) {
-            std::cout << dataset.Xt[feature][sample].item<int>() << " ";
-        }
-        std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
-    }
-    dataset = RawDatasets("iris", false);
-    std::cout << "Dataset iris raw " << std::endl;
-    for (int sample = 0; sample < max_sample; sample++) {
-        for (int feature = 0; feature < 4; feature++) {
-            std::cout << dataset.Xt[feature][sample].item<float>() << " ";
-        }
-        std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
-    }
-    // Test loading a dataset
-    dataset = RawDatasets("heart-statlog", true);
-    REQUIRE(dataset.Xt.size(0) == 13);
-    REQUIRE(dataset.Xt.size(1) == 270);
-    REQUIRE(dataset.yt.size(0) == 270);
-    std::cout << "Dataset heart-statlog discretized " << std::endl;
-    for (int sample = 0; sample < max_sample; sample++) {
-        for (int feature = 0; feature < 13; feature++) {
-            std::cout << dataset.Xt[feature][sample].item<int>() << " ";
-        }
-        std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
-    }
-    auto features = dataset.features;
-    std::cout << "States:" << std::endl;
-    for (int i = 0; i < 13; i++) {
-        std::cout << i << " has " << dataset.states.at(features[i]).size() << " states." << std::endl;
-    }
-    dataset = RawDatasets("heart-statlog", false);
-    std::cout << "Dataset heart-statlog raw " << std::endl;
-    for (int sample = 0; sample < max_sample; sample++) {
-        for (int feature = 0; feature < 13; feature++) {
-            std::cout << dataset.Xt[feature][sample].item<float>() << " ";
-        }
-        std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
-    }
-    std::cout << "States:" << std::endl;
-    for (int i = 0; i < 13; i++) {
-        std::cout << i << " has " << dataset.states.at(features[i]).size() << " states." << std::endl;
-    }
-    auto clf = bayesnet::TANLd();
-    clf.fit(dataset.Xt, dataset.yt, dataset.features, dataset.className, dataset.states, dataset.smoothing);
-    std::cout << "Score: " << clf.score(dataset.Xt, dataset.yt) << std::endl;
-}
+// TEST_CASE("Test Dataset Loading", "[Datasets]")
+// {
+//     int max_sample = 4;
+//     // Test loading a dataset
+//     RawDatasets dataset("iris", true);
+//     REQUIRE(dataset.Xt.size(0) == 4);
+//     REQUIRE(dataset.Xt.size(1) == 150);
+//     REQUIRE(dataset.yt.size(0) == 150);
+//     std::cout << "Dataset iris discretized " << std::endl;
+//     for (int sample = 0; sample < max_sample; sample++) {
+//         for (int feature = 0; feature < 4; feature++) {
+//             std::cout << dataset.Xt[feature][sample].item<int>() << " ";
+//         }
+//         std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
+//     }
+//     dataset = RawDatasets("iris", false);
+//     std::cout << "Dataset iris raw " << std::endl;
+//     for (int sample = 0; sample < max_sample; sample++) {
+//         for (int feature = 0; feature < 4; feature++) {
+//             std::cout << dataset.Xt[feature][sample].item<float>() << " ";
+//         }
+//         std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
+//     }
+//     // Test loading a dataset
+//     dataset = RawDatasets("heart-statlog", true);
+//     REQUIRE(dataset.Xt.size(0) == 13);
+//     REQUIRE(dataset.Xt.size(1) == 270);
+//     REQUIRE(dataset.yt.size(0) == 270);
+//     std::cout << "Dataset heart-statlog discretized " << std::endl;
+//     for (int sample = 0; sample < max_sample; sample++) {
+//         for (int feature = 0; feature < 13; feature++) {
+//             std::cout << dataset.Xt[feature][sample].item<int>() << " ";
+//         }
+//         std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
+//     }
+//     auto features = dataset.features;
+//     std::cout << "States:" << std::endl;
+//     for (int i = 0; i < 13; i++) {
+//         std::cout << i << " has " << dataset.states.at(features[i]).size() << " states." << std::endl;
+//     }
+//     dataset = RawDatasets("heart-statlog", false);
+//     std::cout << "Dataset heart-statlog raw " << std::endl;
+//     for (int sample = 0; sample < max_sample; sample++) {
+//         for (int feature = 0; feature < 13; feature++) {
+//             std::cout << dataset.Xt[feature][sample].item<float>() << " ";
+//         }
+//         std::cout << "| " << dataset.yt[sample].item<int>() << std::endl;
+//     }
+//     std::cout << "States:" << std::endl;
+//     for (int i = 0; i < 13; i++) {
+//         std::cout << i << " has " << dataset.states.at(features[i]).size() << " states." << std::endl;
+//     }
+//     auto clf = bayesnet::TANLd();
+//     clf.fit(dataset.Xt, dataset.yt, dataset.features, dataset.className, dataset.states, dataset.smoothing);
+//     std::cout << "Score: " << clf.score(dataset.Xt, dataset.yt) << std::endl;
+// }

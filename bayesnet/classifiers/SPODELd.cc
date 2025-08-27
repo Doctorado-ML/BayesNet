@@ -29,6 +29,20 @@ namespace bayesnet {
         y = dataset.index({ -1, "..." }).clone().to(torch::kInt32);
         return commonFit(features_, className_, states_, smoothing);
     }
+    // This method is used by AODELd to pass an already discretized dataset to continue with the process
+    SPODELd& SPODELd::fit_disc(torch::Tensor& Xf_, torch::Tensor& dataset_, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing, const std::vector<bool> wasNumeric_)
+    {
+        Xf = Xf_;
+        wasNumeric = wasNumeric_;
+        dataset = dataset_;
+        features = features_;
+        className = className_;
+        states = iterativeLocalDiscretization(y, static_cast<SPODE*>(this), dataset, features, className, states_, smoothing, true);
+        SPODE::fit(dataset, features, className, states, smoothing);
+        fitted = true;
+        return *this;
+    }
+
 
     SPODELd& SPODELd::commonFit(const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {

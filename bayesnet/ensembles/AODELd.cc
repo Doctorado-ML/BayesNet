@@ -18,12 +18,19 @@ namespace bayesnet {
         className = className_;
         Xf = X_;
         y = y_;
+        states = states_;
         // Fills std::vectors Xv & yv with the data from tensors X_ (discretized) & y
-        states = fit_local_discretization(y, states_);
+        //states = fit_local_discretization(y, states_);
         // We have discretized the input data
         // 1st we need to fit the model to build the normal AODE structure, Ensemble::fit  
-        // calls buildModel to initialize the base models
-        Ensemble::fit(dataset, features, className, states, smoothing);
+        // calls buildModel to initialize the base models and the trainModel, both overloaded
+        // Ensemble::fit(dataset, features, className, states, smoothing);
+        m = Xf.size(1);
+        n = features.size();
+        model.initialize();
+        const torch::Tensor weights = torch::full({ Xf.size(1) }, 1.0 / m, torch::kDouble);
+        buildModel(weights);
+        trainModel(weights, smoothing);
         fitted = true;
         return *this;
 
@@ -41,7 +48,9 @@ namespace bayesnet {
     void AODELd::trainModel(const torch::Tensor& weights, const Smoothing_t smoothing)
     {
         for (const auto& model : models) {
+            // model->fit(dataset, features, className, states, smoothing);
             model->fit(Xf, y, features, className, states, smoothing);
+            //static_cast<SPODELd*>(model.get())->fit_disc(Xf, pDataset, features, className, states, smoothing, wasNumeric);
         }
     }
     std::vector<std::string> AODELd::graph(const std::string& name) const

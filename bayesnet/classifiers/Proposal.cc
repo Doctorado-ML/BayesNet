@@ -79,8 +79,9 @@ namespace bayesnet {
         for (auto feature : order) {
             auto nodeParents = nodes[feature]->getParents();
             if (nodeParents.size() < 2) continue; // Only has class as parent
-            upgrade = true;
             int index = find(pFeatures.begin(), pFeatures.end(), feature) - pFeatures.begin();
+            if (!wasNumeric[index]) continue; // Only discretize numeric features
+            upgrade = true;
             indicesToReDiscretize.push_back(index); // We need to re-discretize this feature
             std::vector<std::string> parents;
             transform(nodeParents.begin(), nodeParents.end(), back_inserter(parents), [](const auto& p) { return p->getName(); });
@@ -101,9 +102,6 @@ namespace bayesnet {
             auto xvf_ptr = Xf.index({ index }).data_ptr<float>();
             auto xvf = std::vector<mdlp::precision_t>(xvf_ptr, xvf_ptr + Xf.size(1));
             discretizers[feature]->fit(xvf, yxv);
-            // Enables the discretizer in predict time, because now we have a discretizer fitted for this feature, 
-            // either it was a numeric feature in the beginning or not 
-            wasNumeric[index] = true;
         }
         if (upgrade) {
             // Discretize again X (only the affected indices) with the new fitted discretizers
@@ -203,11 +201,18 @@ namespace bayesnet {
         const std::vector<std::string>& features,
         const std::string& className,
         const map<std::string, std::vector<int>>& initialStates,
-        Smoothing_t smoothing
+        Smoothing_t smoothing,
+        bool alreadyDiscretized
     )
     {
         // Phase 1: Initial discretization (same as original)
-        auto currentStates = fit_local_discretization(y, initialStates);
+        map<std::string, std::vector<int>> currentStates;
+        if (alreadyDiscretized) {
+            // Only ADOELd shall discretize the dataset to save time to all spodes
+            currentStates = initialStates;
+        } else {
+            currentStates = fit_local_discretization(y, initialStates);
+        }
         auto previousModel = Network();
 
         if (convergence_params.verbose) {
@@ -247,12 +252,12 @@ namespace bayesnet {
     // Explicit template instantiation for common classifier types
     template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<KDB>(
         const torch::Tensor&, KDB*, torch::Tensor&, const std::vector<std::string>&,
-        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
+        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t, bool);
 
     template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<TAN>(
         const torch::Tensor&, TAN*, torch::Tensor&, const std::vector<std::string>&,
-        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
+        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t, bool);
     template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<SPODE>(
         const torch::Tensor&, SPODE*, torch::Tensor&, const std::vector<std::string>&,
-        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
+        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t, bool);
 }
