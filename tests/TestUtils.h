@@ -27,7 +27,11 @@ public:
     std::vector<double> weightsv;
     std::vector<string> features;
     std::string className;
+    std::vector<bool> is_numeric; // indicates whether each feature is numeric
     map<std::string, std::vector<int>> states;
+    //catalog holds the mapping between dataset names and their corresponding indices of numeric features (-1) means all are numeric 
+    //and an empty vector means none are numeric
+    map<std::string, std::vector<int>> catalog;
     int nSamples, classNumStates;
     double epsilon = 1e-5;
     bool discretize;
@@ -65,8 +69,30 @@ private:
             + "classNumStates: " + std::to_string(classNumStates) + "\n"
             + "states: " + states_ + "\n";
     }
+    std::string trim(const std::string& str)
+    {
+        std::string result = str;
+        result.erase(result.begin(), std::find_if(result.begin(), result.end(), [](int ch) {
+            return !std::isspace(ch);
+            }));
+        result.erase(std::find_if(result.rbegin(), result.rend(), [](int ch) {
+            return !std::isspace(ch);
+            }).base(), result.end());
+        return result;
+    }
+    std::vector<std::string> split(const std::string& text, char delimiter)
+    {
+        std::vector<std::string> result;
+        std::stringstream ss(text);
+        std::string token;
+        while (std::getline(ss, token, delimiter)) {
+            result.push_back(trim(token));
+        }
+        return result;
+    }
     map<std::string, int> discretizeDataset(std::vector<mdlp::samples_t>& X);
     void loadDataset(const std::string& name, bool class_last);
+    map<std::string, std::vector<int>> loadCatalog();
 };
 
 #endif //TEST_UTILS_H

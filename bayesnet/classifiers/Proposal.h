@@ -34,7 +34,8 @@ namespace bayesnet {
             const std::vector<std::string>& features,
             const std::string& className,
             const map<std::string, std::vector<int>>& initialStates,
-            const Smoothing_t smoothing
+            const Smoothing_t smoothing,
+            bool alreadyDiscretized = false
         );
         torch::Tensor Xf; // X continuous nxm tensor
         torch::Tensor y; // y discrete nx1 tensor
@@ -55,11 +56,12 @@ namespace bayesnet {
             "ld_algorithm", "ld_proposed_cuts", "mdlp_min_length", "mdlp_max_depth",
             "max_iterations", "verbose_convergence"
         };
+        torch::Tensor& pDataset; // (n+1)xm tensor, needs to be passed to spodes in fit_disc
+        std::vector<bool> wasNumeric; //needs to be passed to spodes in fit_disc
     private:
         map<std::string, std::vector<int>> localDiscretizationProposal(const map<std::string, std::vector<int>>& states, Network& model);
         std::vector<int> factorize(const std::vector<std::string>& labels_t);
         std::vector<std::string>& notes; // Notes during fit from BaseClassifier
-        torch::Tensor& pDataset; // (n+1)xm tensor
         std::vector<std::string>& pFeatures;
         std::string& pClassName;
         enum class discretization_t {

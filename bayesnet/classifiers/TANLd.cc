@@ -35,6 +35,7 @@ namespace bayesnet {
         className = className_;
         states = iterativeLocalDiscretization(y, static_cast<TAN*>(this), dataset, features, className, states_, smoothing);
         TAN::fit(dataset, features, className, states, smoothing);
+        fitted = true;
         return *this;
     }
     torch::Tensor TANLd::predict(torch::Tensor& X)

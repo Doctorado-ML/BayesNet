@@ -79,8 +79,9 @@ namespace bayesnet {
         for (auto feature : order) {
             auto nodeParents = nodes[feature]->getParents();
             if (nodeParents.size() < 2) continue; // Only has class as parent
-            upgrade = true;
             int index = find(pFeatures.begin(), pFeatures.end(), feature) - pFeatures.begin();
+            if (!wasNumeric[index]) continue; // Only discretize numeric features
+            upgrade = true;
             indicesToReDiscretize.push_back(index); // We need to re-discretize this feature
             std::vector<std::string> parents;
             transform(nodeParents.begin(), nodeParents.end(), back_inserter(parents), [](const auto& p) { return p->getName(); });
@@ -128,24 +129,27 @@ namespace bayesnet {
         auto yv = std::vector<int>(y.data_ptr<int>(), y.data_ptr<int>() + y.size(0));
         // discretize input data by feature(row)
         std::unique_ptr<mdlp::Discretizer> discretizer;
+        wasNumeric.resize(pFeatures.size());
         for (auto i = 0; i < pFeatures.size(); ++i) {
             auto Xt_ptr = Xf.index({ i }).data_ptr<float>();
             auto Xt = std::vector<float>(Xt_ptr, Xt_ptr + Xf.size(1));
+            if (discretizationType == discretization_t::BINQ) {
+                discretizer = std::make_unique<mdlp::BinDisc>(ld_params.proposed_cuts, mdlp::strategy_t::QUANTILE);
+            } else if (discretizationType == discretization_t::BINU) {
+                discretizer = std::make_unique<mdlp::BinDisc>(ld_params.proposed_cuts, mdlp::strategy_t::UNIFORM);
+            } else { // Default is MDLP
+                discretizer = std::make_unique<mdlp::CPPFImdlp>(ld_params.min_length, ld_params.max_depth, ld_params.proposed_cuts);
+            }
             if (states[pFeatures[i]].empty()) {
                 // If the feature is numeric, we discretize it
-                if (discretizationType == discretization_t::BINQ) {
-                    discretizer = std::make_unique<mdlp::BinDisc>(ld_params.proposed_cuts, mdlp::strategy_t::QUANTILE);
-                } else if (discretizationType == discretization_t::BINU) {
-                    discretizer = std::make_unique<mdlp::BinDisc>(ld_params.proposed_cuts, mdlp::strategy_t::UNIFORM);
-                } else { // Default is MDLP
-                    discretizer = std::make_unique<mdlp::CPPFImdlp>(ld_params.min_length, ld_params.max_depth, ld_params.proposed_cuts);
-                }
                 pDataset.index_put_({ i, "..." }, torch::tensor(discretizer->fit_transform(Xt, yv)));
                 int n_states = discretizer->getCutPoints().size() + 1;
                 auto xStates = std::vector<int>(n_states);
                 iota(xStates.begin(), xStates.end(), 0);
                 states[pFeatures[i]] = xStates;
+                wasNumeric[i] = true;
             } else {
+                wasNumeric[i] = false;
                 // If the feature is categorical, we just copy it
                 pDataset.index_put_({ i, "..." }, Xf[i].to(torch::kInt32));
             }
@@ -163,8 +167,13 @@ namespace bayesnet {
         auto Xtd = torch::zeros_like(X, torch::kInt32);
         for (int i = 0; i < X.size(0); ++i) {
             auto Xt = std::vector<float>(X[i].data_ptr<float>(), X[i].data_ptr<float>() + X.size(1));
-            auto Xd = discretizers[pFeatures[i]]->transform(Xt);
-            Xtd.index_put_({ i }, torch::tensor(Xd, torch::kInt32));
+            std::vector<int> Xd;
+            if (wasNumeric[i]) {
+                auto Xd = discretizers[pFeatures[i]]->transform(Xt);
+                Xtd.index_put_({ i }, torch::tensor(Xd, torch::kInt32));
+            } else {
+                Xtd.index_put_({ i }, Xf[i].to(torch::kInt32));
+            }
         }
         return Xtd;
     }
@@ -192,11 +201,18 @@ namespace bayesnet {
         const std::vector<std::string>& features,
         const std::string& className,
         const map<std::string, std::vector<int>>& initialStates,
-        Smoothing_t smoothing
+        Smoothing_t smoothing,
+        bool alreadyDiscretized
     )
     {
         // Phase 1: Initial discretization (same as original)
-        auto currentStates = fit_local_discretization(y, initialStates);
+        map<std::string, std::vector<int>> currentStates;
+        if (alreadyDiscretized) {
+            // Only ADOELd shall discretize the dataset to save time to all spodes
+            currentStates = initialStates;
+        } else {
+            currentStates = fit_local_discretization(y, initialStates);
+        }
         auto previousModel = Network();
 
         if (convergence_params.verbose) {
@@ -236,12 +252,12 @@ namespace bayesnet {
     // Explicit template instantiation for common classifier types
     template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<KDB>(
         const torch::Tensor&, KDB*, torch::Tensor&, const std::vector<std::string>&,
-        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
+        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t, bool);
 
     template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<TAN>(
         const torch::Tensor&, TAN*, torch::Tensor&, const std::vector<std::string>&,
-        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
+        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t, bool);
     template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<SPODE>(
         const torch::Tensor&, SPODE*, torch::Tensor&, const std::vector<std::string>&,
-        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t);
+        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t, bool);
 }

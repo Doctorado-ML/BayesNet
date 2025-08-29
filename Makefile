@@ -21,8 +21,6 @@ sed_command_diagram = 's/Diagram"/Diagram" width="100%" height="100%" /g'
 CPUS := $(shell getconf _NPROCESSORS_ONLN 2>/dev/null \
                  || nproc --all 2>/dev/null \
                  || sysctl -n hw.ncpu)
-
-# --- Your desired job count: CPUs – 7, but never less than 1 --------------
 JOBS := $(shell n=$(CPUS); [ $${n} -gt 7 ] && echo $$((n-7)) || echo 1)
 
 # Colors for output
@@ -34,7 +32,7 @@ NC = \033[0m # No Color
 define ClearTests
 	@for t in $(test_targets); do \
 		if [ -f $(f_debug)/tests/$$t ]; then \
-			echo ">>> Cleaning $$t..." ; \
+			echo ">>> Removing $$t..." ; \
 			rm -f $(f_debug)/tests/$$t ; \
 		fi ; \
 	done
@@ -99,11 +97,15 @@ debug: ## Setup debug version using Conan
 release: ## Setup release version using Conan
 	@$(call setup_target,"Release","$(f_release)","ENABLE_TESTING=OFF")
 
-buildd: ## Build the debug targets
-	cmake --build $(f_debug) --config Debug -t $(app_targets) --parallel $(JOBS)
+buildd: ## Build the debug && test targets
+	@cmake --build $(f_debug) --config Debug -t $(app_targets) --parallel $(JOBS)
+	@cmake --build $(f_debug) -t $(test_targets) --parallel $(JOBS)
 
 buildr: ## Build the release targets
-	cmake --build $(f_release) --config Release -t $(app_targets) --parallel $(JOBS)
+	@cmake --build $(f_release) --config Release -t $(app_targets) --parallel $(JOBS)
+
+buildt: ## Build the test targets
+	@cmake --build $(f_debug) --config Debug -t $(test_targets) --parallel $(JOBS)
 
 
 # Install targets
@@ -271,7 +273,8 @@ info: ## Show project information
 	@printf "$(GREEN)Build commands:$(NC)\n"
 	@printf "   $(YELLOW)make release && make buildr$(NC) - Build library for release\n"
 	@printf "   $(YELLOW)make debug && make buildd$(NC)   - Build library for debug\n"
-	@printf "   $(YELLOW)make test$(NC) - Run tests\n"
+	@printf "   $(YELLOW)make buildt$(NC)                 - Build the test targets\n"
+	@printf "   $(YELLOW)make test$(NC)                   - Build & Run tests\n"
 	@printf "   $(YELLOW)Usage:$(NC) make help\n"
 	@echo ""
 	@printf "   $(YELLOW)Parallel Jobs:   $(GREEN)$(JOBS)$(NC)\n"

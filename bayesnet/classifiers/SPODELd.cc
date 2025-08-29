@@ -29,13 +29,13 @@ namespace bayesnet {
         y = dataset.index({ -1, "..." }).clone().to(torch::kInt32);
         return commonFit(features_, className_, states_, smoothing);
     }
-
     SPODELd& SPODELd::commonFit(const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
         features = features_;
         className = className_;
         states = iterativeLocalDiscretization(y, static_cast<SPODE*>(this), dataset, features, className, states_, smoothing);
         SPODE::fit(dataset, features, className, states, smoothing);
+        fitted = true;
         return *this;
     }
     torch::Tensor SPODELd::predict(torch::Tensor& X)
