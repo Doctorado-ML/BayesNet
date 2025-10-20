@@ -95,7 +95,7 @@ namespace bayesnet {
             std::vector<std::string> yJoinParents(Xf.size(1));
             for (auto idx : indices) {
                 for (int i = 0; i < Xf.size(1); ++i) {
-                    yJoinParents[i] += to_string(pDataset.index({ idx, i }).item<int>());
+                    yJoinParents[i] += "$" + to_string(pDataset.index({ idx, i }).item<int>());
                 }
             }
             auto yxv = factorize(yJoinParents);

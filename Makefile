@@ -67,11 +67,9 @@ endef
 
 setup: ## Install dependencies for tests and coverage
 	@if [ "$(shell uname)" = "Darwin" ]; then \
-		brew install gcovr; \
 		brew install lcov; \
 	fi
 	@if [ "$(shell uname)" = "Linux" ]; then \
-		pip install gcovr; \
 		sudo dnf install lcov;\
 	fi
 	@echo "* You should install plantuml & graphviz for the diagrams"

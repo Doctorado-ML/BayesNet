@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 
 project(bayesnet
-  VERSION 1.2.2
+  VERSION 1.2.3
   DESCRIPTION "Bayesian Network and basic classifiers Library."
   HOMEPAGE_URL "https://github.com/rmontanana/bayesnet"
   LANGUAGES CXX
