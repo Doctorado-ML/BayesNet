@@ -186,7 +186,6 @@ namespace bayesnet {
         for (const std::string& label : labels_t) {
             if (labelMap.find(label) == labelMap.end()) {
                 labelMap[label] = i++;
-                bool allDigits = std::all_of(label.begin(), label.end(), ::isdigit);
             }
             yy.push_back(labelMap[label]);
         }
