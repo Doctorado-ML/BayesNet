@@ -59,6 +59,8 @@ namespace bayesnet {
         torch::Tensor& pDataset; // (n+1)xm tensor, needs to be passed to spodes in fit_disc
         std::vector<bool> wasNumeric; //needs to be passed to spodes in fit_disc
     private:
+        template<typename Classifier>
+        double compute_score(Classifier* classifier, const torch::Tensor& X, const torch::Tensor& y);
         map<std::string, std::vector<int>> localDiscretizationProposal(const map<std::string, std::vector<int>>& states, Network& model);
         std::vector<int> factorize(const std::vector<std::string>& labels_t);
         std::vector<std::string>& notes; // Notes during fit from BaseClassifier
@@ -69,6 +71,7 @@ namespace bayesnet {
             BINQ,
             BINU
         } discretizationType = discretization_t::MDLP; // Default discretization type
+        std::string prefix = "";
     };
 }
 

@@ -1,0 +1,4 @@
+Feature: sepallength Cuts: 4.3 5.45 5.75 7.9 
+Feature: sepalwidth Cuts: 2 2.75 2.85 2.95 3.05 3.35 4.4 
+Feature: petallength Cuts: 1 2.45 4.75 5.05 6.9 
+Feature: petalwidth Cuts: 0.1 0.8 1.75 2.5 

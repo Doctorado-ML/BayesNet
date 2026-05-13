@@ -14,10 +14,16 @@
 #include "SPODE.h"
 #include "KDBLd.h"
 #include "TANLd.h"
+#include <fstream>
 
 namespace bayesnet {
     Proposal::Proposal(torch::Tensor& dataset_, std::vector<std::string>& features_, std::string& className_, std::vector<std::string>& notes_) : pDataset(dataset_), pFeatures(features_), pClassName(className_), notes(notes_)
     {
+        // Generate a string prefix of 5 random characters to use in the filenames of the dumped CPTs and graphs to avoid overwriting files from different runs
+        static const char alphanum[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        for (int i = 0; i < 5; ++i) {
+            prefix += alphanum[rand() % (sizeof(alphanum) - 1)];
+        }
     }
     void Proposal::setHyperparameters(nlohmann::json& hyperparameters)
     {
@@ -129,6 +135,11 @@ namespace bayesnet {
         auto yv = std::vector<int>(y.data_ptr<int>(), y.data_ptr<int>() + y.size(0));
         // discretize input data by feature(row)
         std::unique_ptr<mdlp::Discretizer> discretizer;
+        auto filename = prefix + "_initial_cuts.txt";
+        std::ofstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "Unable to open file " << filename << " for writing initial cuts" << std::endl;
+        }
         wasNumeric.resize(pFeatures.size());
         for (auto i = 0; i < pFeatures.size(); ++i) {
             auto Xt_ptr = Xf.index({ i }).data_ptr<float>();
@@ -154,7 +165,14 @@ namespace bayesnet {
                 pDataset.index_put_({ i, "..." }, Xf[i].to(torch::kInt32));
             }
             discretizers[pFeatures[i]] = std::move(discretizer);
+            auto cuts = discretizers[pFeatures[i]]->getCutPoints();
+            file << "Feature: " << pFeatures[i] << " Cuts: ";
+            for (const auto& cut : cuts) {
+                file << cut << " ";
+            }
+            file << std::endl;
         }
+        file.close();
         int n_classes = torch::max(y).item<int>() + 1;
         auto yStates = std::vector<int>(n_classes);
         iota(yStates.begin(), yStates.end(), 0);
@@ -162,6 +180,7 @@ namespace bayesnet {
         pDataset.index_put_({ n, "..." }, y);
         return states;
     }
+
     torch::Tensor Proposal::prepareX(torch::Tensor& X)
     {
         auto Xtd = torch::zeros_like(X, torch::kInt32);
@@ -193,6 +212,13 @@ namespace bayesnet {
     }
 
     template<typename Classifier>
+    double Proposal::compute_score(Classifier* classifier, const torch::Tensor& X, const torch::Tensor& y)
+    {
+        auto predictions = classifier->getModel().predict(X);
+        auto correct = (predictions == y).sum().template item<int>();
+        return static_cast<double>(correct) / X.size(1);
+    }
+    template<typename Classifier>
     map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization(
         const torch::Tensor& y,
         Classifier* classifier,
@@ -219,7 +245,33 @@ namespace bayesnet {
                 << convergence_params.maxIterations << " max iterations" << std::endl;
         }
 
+        auto filename = prefix + "_features.txt";
+        std::ofstream file(filename);
+        if (file.is_open()) {
+            file << "Features: " << std::endl;
+            int i = 0;
+            for (const auto& feature : features) {
+                file << i++ << ": " << feature << std::endl;
+            }
+            file.close();
+        } else {
+            std::cerr << "Unable to open file " << filename << " for writing features" << std::endl;
+        }
+
         const torch::Tensor weights = torch::full({ pDataset.size(1) }, 1.0 / pDataset.size(1), torch::kDouble);
+
+        classifier->fit(dataset, features, className, currentStates, weights, smoothing);
+        filename = prefix + "_score_initial.txt";
+        file.open(filename);
+        if (file.is_open()) {
+            auto score = compute_score(classifier, dataset.index({ torch::indexing::Slice(0, dataset.size(0) - 1), "..." }), dataset.index({ -1, "..." }));
+            file << "Score initial: " << score << std::endl;
+            file.close();
+        } else {
+            std::cerr << "Unable to open file " << filename << " for writing score" << std::endl;
+        }
+
+
         for (int iteration = 0; iteration < convergence_params.maxIterations; ++iteration) {
             if (convergence_params.verbose) {
                 std::cout << "Iteration " << (iteration + 1) << "/" << convergence_params.maxIterations << std::endl;
@@ -231,6 +283,53 @@ namespace bayesnet {
             // Phase 3: Network-aware discretization refinement
             currentStates = localDiscretizationProposal(currentStates, classifier->getModel());
 
+            // Dump cpt to file for debugging purposes, can be removed later
+            // Open a file to write the cpt of the model after each iteration
+            filename = prefix + "_score_iteration_" + std::to_string(iteration + 1) + ".txt";
+            file.open(filename);
+            if (file.is_open()) {
+                auto score = compute_score(classifier, dataset.index({ torch::indexing::Slice(0, dataset.size(0) - 1), "..." }), dataset.index({ -1, "..." }));
+                file << "Score iteration " << (iteration + 1) << ": " << score << std::endl;
+                file.close();
+            } else {
+                std::cerr << "Unable to open file " << filename << " for writing score" << std::endl;
+            }
+            filename = prefix + "_cuts_iteration_" + std::to_string(iteration + 1) + ".txt";
+            file.open(filename);
+            if (file.is_open()) {
+                for (const auto& node : features) {
+                    auto cuts = discretizers[node]->getCutPoints();
+                    file << "Feature: " << node << " Cuts: ";
+                    for (const auto& cut : cuts) {
+                        file << cut << " ";
+                    }
+                    file << std::endl;
+                }
+                file.close();
+            } else {
+                std::cerr << "Unable to open file " << filename << " for writing initial cuts" << std::endl;
+            }
+            filename = prefix + "_cpt_iteration_" + std::to_string(iteration + 1) + ".txt";
+            file.open(filename);
+            if (file.is_open()) {
+                file << classifier->getModel().dump_cpt();
+                file.close();
+            } else {
+                std::cerr << "Unable to open file " << filename << " for writing CPT" << std::endl;
+
+            }
+            filename = prefix + "_graph_iteration_" + std::to_string(iteration + 1) + ".txt";
+            file.open(filename);
+            if (file.is_open()) {
+                auto graph = classifier->graph("Iteration " + std::to_string(iteration + 1));
+                for (const auto& line : graph) {
+                    file << line << std::endl;
+                }
+                file.close();
+            } else {
+                std::cerr << "Unable to open file " << filename << " for writing graph" << std::endl;
+            }
+
             // Check convergence
             if (iteration > 0 && previousModel == classifier->getModel()) {
                 if (convergence_params.verbose) {
@@ -240,7 +339,6 @@ namespace bayesnet {
                     + std::to_string(convergence_params.maxIterations) + " iterations");
                 break;
             }
-
             // Update for next iteration
             previousModel = classifier->getModel();
         }

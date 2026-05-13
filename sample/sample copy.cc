@@ -69,7 +69,25 @@ std::tuple<torch::Tensor, torch::Tensor, std::vector<std::string>, std::string> 
 
 int main(int argc, char* argv[])
 {
-    
+    if (argc < 3) {
+        std::cerr << "Usage: " << argv[0] << " <arff_file_name> <model>" << std::endl;
+        return 1;
+    }
+    std::string file_name = argv[1];
+    std::string model_name = argv[2];
+    std::map<std::string, bayesnet::Classifier*> models{ {"TANLd", new bayesnet::TANLd()}, {"KDBLd", new bayesnet::KDBLd(2)}, {"AODELd", new bayesnet::AODELd() }
+    };
+    if (models.find(model_name) == models.end()) {
+        std::cerr << "Model not found: " << model_name << std::endl;
+        std::cerr << "Available models: ";
+        for (const auto& model : models) {
+            std::cerr << model.first << " ";
+        }
+        std::cerr << std::endl;
+        return 1;
+    }
+    auto clf = models[model_name];
+    std::cout << "Library version: " << clf->getVersion() << std::endl;
     // auto [X, y, features, className, states] = loadDataset(file_name, true);
     auto [Xt, yt, features, className] = loadArff(file_name, true);
     std::map<std::string, std::vector<int>> states;

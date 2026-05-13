@@ -1,0 +1,26 @@
+digraph BayesNet {
+label=<BayesNet Iteration 2>
+fontsize=30
+fontcolor=blue
+labelloc=t
+layout=circo
+
+"class" [shape=circle, fontcolor=red, fillcolor=lightblue, style=filled ] 
+
+"class" -> "sepallength"
+"class" -> "sepalwidth"
+"class" -> "petallength"
+"class" -> "petalwidth"
+"petallength" [shape=circle] 
+
+"petallength" -> "sepallength"
+"petalwidth" [shape=circle] 
+
+"sepallength" [shape=circle] 
+
+"sepallength" -> "sepalwidth"
+"sepalwidth" [shape=circle] 
+
+"sepalwidth" -> "petalwidth"
+}
+
