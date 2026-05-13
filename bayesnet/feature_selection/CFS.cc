@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 // ***************************************************************
 
+#include <algorithm>
 #include <limits>
 #include "bayesnet/utils/bayesnetUtils.h"
 #include "CFS.h"
@@ -47,29 +48,18 @@ namespace bayesnet {
         if (selectedFeatures.size() == maxFeatures || featureOrder.size() == 0) {
             return false;
         }
-        if (selectedScores.size() >= 5) {
+        if (selectedScores.size() > 5) {
             /*
             "To prevent the best first search from exploring the entire
             feature subset search space, a stopping criterion is imposed.
             The search will terminate if five consecutive fully expanded
             subsets show no improvement over the current best subset."
-            as stated in Mark A.Hall Thesis
+            as stated in Mark A. Hall Thesis
             */
-            double item_ant = std::numeric_limits<double>::lowest();
-            int num = 0;
-            std::vector<double> lastFive(selectedScores.end() - 5, selectedScores.end());
-            for (auto item : lastFive) {
-                if (item_ant == std::numeric_limits<double>::lowest()) {
-                    item_ant = item;
-                }
-                if (item > item_ant) {
-                    break;
-                } else {
-                    num++;
-                    item_ant = item;
-                }
-            }
-            if (num == 5) {
+            const auto lastFiveBegin = selectedScores.end() - 5;
+            const double bestBefore = *std::max_element(selectedScores.begin(), lastFiveBegin);
+            const double bestLastFive = *std::max_element(lastFiveBegin, selectedScores.end());
+            if (bestLastFive <= bestBefore) {
                 return false;
             }
         }
