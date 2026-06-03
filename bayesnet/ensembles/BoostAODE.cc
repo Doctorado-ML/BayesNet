@@ -44,7 +44,7 @@ namespace bayesnet {
         // Algorithm based on the adaboost algorithm for classification
         // as explained in Ensemble methods (Zhi-Hua Zhou, 2012)
         fitted = true;
-        double alpha_t = 0;
+        double alpha_t = weightless ? 1.0 : 0.0;
         torch::Tensor weights_ = torch::full({ m }, 1.0 / m, torch::kFloat64);
         bool finished = false;
         std::vector<int> featuresUsed;
@@ -52,7 +52,9 @@ namespace bayesnet {
         if (selectFeatures) {
             featuresUsed = initializeModels(smoothing);
             auto ypred = predict(X_train);
-            std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
+            if (!weightless) {
+                std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
+            }
             // Update significance of the models
             for (int i = 0; i < n_models; ++i) {
                 significanceModels.push_back(alpha_t);
@@ -86,13 +88,14 @@ namespace bayesnet {
             int k = bisection ? pow(2, tolerance) : 1;
             int counter = 0; // The model counter of the current pack
             // VLOG_SCOPE_F(1, "counter=%d k=%d featureSelection.size: %zu", counter, k, featureSelection.size());
+
             while (counter++ < k && featureSelection.size() > 0) {
                 auto feature = featureSelection[0];
                 featureSelection.erase(featureSelection.begin());
                 std::unique_ptr<Classifier> model;
                 model = std::make_unique<SPODE>(feature);
                 model->fit(dataset, features, className, states, weights_, smoothing);
-                alpha_t = 0.0;
+                alpha_t = weightless ? 1.0 : 0.0;
                 if (!block_update) {
                     torch::Tensor ypred;
                     if (alpha_block) {
@@ -102,7 +105,7 @@ namespace bayesnet {
                         // Add the model to the ensemble
                         n_models++;
                         models.push_back(std::move(model));
-                        significanceModels.push_back(1);
+                        significanceModels.push_back(1.0);
                         // Compute the prediction
                         ypred = predict(X_train);
                         // Remove the model from the ensemble
@@ -114,7 +117,9 @@ namespace bayesnet {
                         ypred = model->predict(X_train);
                     }
                     // Step 3.1: Compute the classifier amout of say
-                    std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
+                    if (!weightless) {
+                        std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
+                    }
                 }
                 // Step 3.4: Store classifier and its accuracy to weigh its future vote
                 numItemsPack++;
@@ -124,7 +129,7 @@ namespace bayesnet {
                 n_models++;
                 // VLOG_SCOPE_F(2, "finished: %d numItemsPack: %d n_models: %d featuresUsed: %zu", finished, numItemsPack, n_models, featuresUsed.size());
             }
-            if (block_update) {
+            if (block_update && !weightless) {
                 std::tie(weights_, alpha_t, finished) = update_weights_block(k, y_train, weights_);
             }
             if (convergence && !finished) {

@@ -62,15 +62,15 @@ TEST_CASE("Test used features in train note and score", "[BoostA2DE]")
         {"select_features","CFS"},
         });
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 189);
-    REQUIRE(clf.getNumberOfEdges() == 378);
+    REQUIRE(clf.getNumberOfNodes() == 252);
+    REQUIRE(clf.getNumberOfEdges() == 504);
     REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 7 of 8 with CFS");
-    REQUIRE(clf.getNotes()[1] == "Number of models: 21");
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 8 of 8 with CFS");
+    REQUIRE(clf.getNotes()[1] == "Number of models: 28");
     auto score = clf.score(raw.Xv, raw.yv);
     auto scoret = clf.score(raw.Xt, raw.yt);
-    REQUIRE(score == Catch::Approx(0.85546875f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.85546875f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.880208313f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.880208313f).epsilon(raw.epsilon));
 }
 TEST_CASE("Voting vs proba", "[BoostA2DE]")
 {

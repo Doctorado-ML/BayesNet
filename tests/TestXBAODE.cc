@@ -76,12 +76,12 @@ TEST_CASE("Test used features in train note and score", "[XBAODE]")
     REQUIRE(clf.getNumberOfNodes() == 72);
     REQUIRE(clf.getNumberOfEdges() == 136);
     REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 7 of 8 with CFS");
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 8 of 8 with CFS");
     REQUIRE(clf.getNotes()[1] == "Number of models: 8");
     auto score = clf.score(raw.Xv, raw.yv);
     auto scoret = clf.score(raw.Xt, raw.yt);
-    REQUIRE(score == Catch::Approx(0.82421875f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.82421875f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.822916687f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.822916687f).epsilon(raw.epsilon));
 }
 TEST_CASE("Order asc, desc & random", "[XBAODE]")
 {

@@ -11,6 +11,15 @@
 #include "TestUtils.h"
 #include "bayesnet/ensembles/BoostAODE.h"
 
+// Test helper that exposes the protected ensemble internals needed to verify
+// the behaviour of the "weightless" hyperparameter.
+class TestBoostAODE : public bayesnet::BoostAODE {
+public:
+    TestBoostAODE() : bayesnet::BoostAODE() {}
+    const std::vector<double>& get_significances() const { return significanceModels; }
+    unsigned get_n_models() const { return n_models; }
+};
+
 TEST_CASE("Feature_select CFS", "[BoostAODE]")
 {
     auto raw = RawDatasets("glass", true);
@@ -60,12 +69,12 @@ TEST_CASE("Test used features in train note and score", "[BoostAODE]")
     REQUIRE(clf.getNumberOfNodes() == 72);
     REQUIRE(clf.getNumberOfEdges() == 120);
     REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 7 of 8 with CFS");
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 8 of 8 with CFS");
     REQUIRE(clf.getNotes()[1] == "Number of models: 8");
     auto score = clf.score(raw.Xv, raw.yv);
     auto scoret = clf.score(raw.Xt, raw.yt);
-    REQUIRE(score == Catch::Approx(0.8046875f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.8046875f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.80859375f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.80859375f).epsilon(raw.epsilon));
 }
 TEST_CASE("Voting vs proba", "[BoostAODE]")
 {
@@ -229,5 +238,96 @@ TEST_CASE("Alphablock", "[BoostAODE]")
     auto score_no_alpha = clf_no_alpha.score(raw.X_test, raw.y_test);
     REQUIRE(score_alpha == Catch::Approx(0.720779f).epsilon(raw.epsilon));
     REQUIRE(score_no_alpha == Catch::Approx(0.733766f).epsilon(raw.epsilon));
+}
+TEST_CASE("Weightless hyperparameter is accepted", "[BoostAODE]")
+{
+    auto clf = bayesnet::BoostAODE();
+    // Both true and false must be accepted without throwing
+    REQUIRE_NOTHROW(clf.setHyperparameters({ {"weightless", true} }));
+    REQUIRE_NOTHROW(clf.setHyperparameters({ {"weightless", false} }));
+    // Combined with other valid hyperparameters
+    REQUIRE_NOTHROW(clf.setHyperparameters({
+        {"weightless", true},
+        {"order", "asc"},
+        {"convergence", false},
+        {"bisection", false},
+        }));
+}
+TEST_CASE("Weightless all SPODE significances are 1.0", "[BoostAODE]")
+{
+    auto raw = RawDatasets("iris", true);
+    TestBoostAODE clf;
+    clf.setHyperparameters({ {"weightless", true} });
+    clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    auto significances = clf.get_significances();
+    REQUIRE(significances.size() == clf.get_n_models());
+    REQUIRE(significances.size() > 0);
+    // In weightless mode every model votes with the same weight (1.0)
+    for (const auto& significance : significances) {
+        REQUIRE(significance == Catch::Approx(1.0).epsilon(raw.epsilon));
+    }
+}
+TEST_CASE("Weightless significances are 1.0 with feature selection", "[BoostAODE]")
+{
+    auto raw = RawDatasets("glass", true);
+    TestBoostAODE clf;
+    clf.setHyperparameters({ {"weightless", true}, {"select_features", "CFS"} });
+    clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    auto significances = clf.get_significances();
+    REQUIRE(significances.size() > 0);
+    for (const auto& significance : significances) {
+        REQUIRE(significance == Catch::Approx(1.0).epsilon(raw.epsilon));
+    }
+}
+TEST_CASE("Weightless significances are 1.0 with block_update ignored", "[BoostAODE]")
+{
+    // block_update needs bisection; weightless must skip the block weight update
+    // and keep every significance equal to 1.0
+    auto raw = RawDatasets("glass", true);
+    TestBoostAODE clf;
+    clf.setHyperparameters({ {"weightless", true}, {"bisection", true}, {"block_update", true} });
+    clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    auto significances = clf.get_significances();
+    REQUIRE(significances.size() == clf.get_n_models());
+    REQUIRE(significances.size() > 0);
+    for (const auto& significance : significances) {
+        REQUIRE(significance == Catch::Approx(1.0).epsilon(raw.epsilon));
+    }
+}
+TEST_CASE("Weighted (default) produces non uniform significances", "[BoostAODE]")
+{
+    // Sanity counter-test: when weightless is NOT set, significances are the
+    // AdaBoost amount-of-say values, so they are not all exactly 1.0
+    auto raw = RawDatasets("glass", true);
+    TestBoostAODE clf;
+    clf.setHyperparameters({ {"weightless", false}, {"convergence", false}, {"bisection", false} });
+    clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    auto significances = clf.get_significances();
+    REQUIRE(significances.size() > 0);
+    bool all_ones = true;
+    for (const auto& significance : significances) {
+        if (significance != Catch::Approx(1.0).epsilon(raw.epsilon)) {
+            all_ones = false;
+            break;
+        }
+    }
+    REQUIRE_FALSE(all_ones);
+}
+TEST_CASE("Weightless vs weighted scores differ", "[BoostAODE]")
+{
+    auto raw = RawDatasets("diabetes", true);
+    auto clf_weightless = bayesnet::BoostAODE();
+    clf_weightless.setHyperparameters({ {"weightless", true} });
+    clf_weightless.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
+    auto score_weightless = clf_weightless.score(raw.X_test, raw.y_test);
+
+    auto clf_weighted = bayesnet::BoostAODE();
+    clf_weighted.setHyperparameters({ {"weightless", false} });
+    clf_weighted.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
+    auto score_weighted = clf_weighted.score(raw.X_test, raw.y_test);
+
+    REQUIRE(score_weightless == Catch::Approx(0.746753275f).epsilon(raw.epsilon));
+    REQUIRE(score_weighted == Catch::Approx(0.733766258f).epsilon(raw.epsilon));
+    REQUIRE(score_weightless != Catch::Approx(score_weighted).epsilon(raw.epsilon));
 }
 

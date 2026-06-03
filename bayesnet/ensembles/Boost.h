@@ -43,6 +43,7 @@ namespace bayesnet {
         // Hyperparameters
         bool bisection = true; // if true, use bisection stratety to add k models at once to the ensemble
         int maxTolerance = 3;
+        bool weightless = false; // if true, don't use weights for samples or SPODEs, don't use weights at all
         std::string order_algorithm = Orders.DESC; // order to process the KBest features asc, desc, rand
         bool convergence = true; //if true, stop when the model does not improve
         bool convergence_best = false; // wether to keep the best accuracy to the moment or the last accuracy as prior accuracy

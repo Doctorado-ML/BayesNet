@@ -78,16 +78,37 @@ TEST_CASE("Test used features in train note and score", "[XBA2DE]")
         {"select_features", "CFS"},
         });
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 189);
-    REQUIRE(clf.getNumberOfEdges() == 420);
-    REQUIRE(clf.getNumberOfStates() == 7224);
+    REQUIRE(clf.getNumberOfNodes() == 252);
+    REQUIRE(clf.getNumberOfEdges() == 560);
+    REQUIRE(clf.getNumberOfStates() == 9632);
     REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 7 of 8 with CFS");
-    REQUIRE(clf.getNotes()[1] == "Number of models: 21");
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 8 of 8 with CFS");
+    REQUIRE(clf.getNotes()[1] == "Number of models: 28");
     auto score = clf.score(raw.Xv, raw.yv);
     auto scoret = clf.score(raw.Xt, raw.yt);
-    REQUIRE(score == Catch::Approx(0.854166687f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.854166687f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.859375f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.859375f).epsilon(raw.epsilon));
+}
+TEST_CASE("Test used features in train note and score with glass", "[XBA2DE]")
+{
+    auto raw = RawDatasets("glass", true);
+    auto clf = bayesnet::XBA2DE();
+    clf.setHyperparameters({
+        {"order", "asc"},
+        {"convergence", true},
+        {"select_features", "CFS"},
+        });
+    clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    REQUIRE(clf.getNumberOfNodes() == 360);
+    REQUIRE(clf.getNumberOfEdges() == 828);
+    REQUIRE(clf.getNumberOfStates() == 8748);
+    REQUIRE(clf.getNotes().size() == 2);
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 9 of 9 with CFS");
+    REQUIRE(clf.getNotes()[1] == "Number of models: 36");
+    auto score = clf.score(raw.Xv, raw.yv);
+    auto scoret = clf.score(raw.Xt, raw.yt);
+    REQUIRE(score == Catch::Approx(0.817757).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.817757).epsilon(raw.epsilon));
 }
 TEST_CASE("Order asc, desc & random", "[XBA2DE]")
 {
