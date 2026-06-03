@@ -57,7 +57,7 @@ namespace bayesnet {
             }
             // Update significance of the models
             for (int i = 0; i < n_models; ++i) {
-                significanceModels.push_back(alpha_t);
+                significanceModels[i] = alpha_t;
             }
             // VLOG_SCOPE_F(1, "SelectFeatures. alpha_t: %f n_models: %d", alpha_t, n_models);
             if (finished) {
