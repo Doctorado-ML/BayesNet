@@ -9,7 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the `weightless` hyperparameter to BoostAODE. When enabled, the Boost ensemble never updates instance weights and every SPODE votes with the same significance (1.0), effectively disabling the AdaBoost reweighting.
 - Local discretization implementation review reports.
+
+### Fixed
+
+- Correct the model significance update in BoostAODE when feature selection was used.
+- Improve the stopping criterion in the CFS feature selection algorithm.
 
 ### Internal
 
