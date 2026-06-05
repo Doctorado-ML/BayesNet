@@ -10,23 +10,23 @@
 #include <random>
 #include <tuple>
 
-namespace bayesnet
-{
+
+namespace bayesnet {
     XBAODE::XBAODE() : Boost(false) {}
     std::vector<int> XBAODE::initializeModels(const Smoothing_t smoothing)
     {
-        torch::Tensor weights_ = torch::full({m}, 1.0 / m, torch::kFloat64);
+        torch::Tensor weights_ = torch::full({ m }, 1.0 / m, torch::kFloat64);
         std::vector<int> featuresSelected = featureSelection(weights_);
-        for (const int &feature : featuresSelected) {
+        for (const int& feature : featuresSelected) {
             std::unique_ptr<Classifier> model = std::make_unique<XSpode>(feature);
             model->fit(dataset, features, className, states, weights_, smoothing);
             add_model(std::move(model), 1.0);
         }
         notes.push_back("Used features in initialization: " + std::to_string(featuresSelected.size()) + " of " +
-                        std::to_string(features.size()) + " with " + select_features_algorithm);
+            std::to_string(features.size()) + " with " + select_features_algorithm);
         return featuresSelected;
     }
-    void XBAODE::trainModel(const torch::Tensor &weights, const bayesnet::Smoothing_t smoothing)
+    void XBAODE::trainModel(const torch::Tensor& weights, const bayesnet::Smoothing_t smoothing)
     {
         X_train_ = TensorUtils::to_matrix(X_train);
         y_train_ = TensorUtils::to_vector<int>(y_train);
@@ -35,8 +35,8 @@ namespace bayesnet
             y_test_ = TensorUtils::to_vector<int>(y_test);
         }
         fitted = true;
-        double alpha_t;
-        torch::Tensor weights_ = torch::full({m}, 1.0 / m, torch::kFloat64);
+        double alpha_t = weightless ? 1.0 : 0.0;
+        torch::Tensor weights_ = torch::full({ m }, 1.0 / m, torch::kFloat64);
         bool finished = false;
         std::vector<int> featuresUsed;
         n_models = 0;
@@ -44,12 +44,14 @@ namespace bayesnet
             featuresUsed = initializeModels(smoothing);
             auto ypred = predict(X_train_);
             auto ypred_t = torch::tensor(ypred);
-            std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred_t, weights_);
+            if (!weightless) {
+                std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred_t, weights_);
+            }
             // Update significance of the models
-            for (const int &feature : featuresUsed) {
+            for (const int& feature : featuresUsed) {
                 significanceModels.pop_back();
             }
-            for (const int &feature : featuresUsed) {
+            for (const int& feature : featuresUsed) {
                 significanceModels.push_back(alpha_t);
             }
             // VLOG_SCOPE_F(1, "SelectFeatures. alpha_t: %f n_models: %d", alpha_t,
@@ -69,7 +71,7 @@ namespace bayesnet
         // validation error is not decreasing
         // run out of features
         bool ascending = order_algorithm == bayesnet::Orders.ASC;
-        std::mt19937 g{173};
+        std::mt19937 g{ 173 };
         while (!finished) {
             // Step 1: Build ranking with mutual information
             auto featureSelection = metrics.SelectKBestWeighted(weights_, ascending, n); // Get all the features sorted
@@ -78,16 +80,17 @@ namespace bayesnet
             }
             // Remove used features
             featureSelection.erase(remove_if(featureSelection.begin(), featureSelection.end(),
-                                             [&](auto x) {
-                                                 return std::find(featuresUsed.begin(), featuresUsed.end(), x) !=
-                                                        featuresUsed.end();
-                                             }),
-                                   featureSelection.end());
+                [&](auto x) {
+                    return std::find(featuresUsed.begin(), featuresUsed.end(), x) !=
+                        featuresUsed.end();
+                }),
+                featureSelection.end());
             int k = bisection ? pow(2, tolerance) : 1;
             int counter = 0; // The model counter of the current pack
             // VLOG_SCOPE_F(1, "counter=%d k=%d featureSelection.size: %zu", counter, k,
             // featureSelection.size());
             while (counter++ < k && featureSelection.size() > 0) {
+                alpha_t = weightless ? 1.0 : 0.0;
                 auto feature = featureSelection[0];
                 featureSelection.erase(featureSelection.begin());
                 std::unique_ptr<Classifier> model;
@@ -95,10 +98,10 @@ namespace bayesnet
                 model->fit(dataset, features, className, states, weights_, smoothing);
                 /*dynamic_cast<XSpode*>(model.get())->fitx(X_train, y_train, weights_,
                  * smoothing); // using exclusive XSpode fit method*/
-                // DEBUG
-                /*std::cout << dynamic_cast<XSpode*>(model.get())->to_string() <<
-                 * std::endl;*/
-                // DEBUG
+                 // DEBUG
+                 /*std::cout << dynamic_cast<XSpode*>(model.get())->to_string() <<
+                  * std::endl;*/
+                  // DEBUG
                 std::vector<int> ypred;
                 if (alpha_block) {
                     //
@@ -116,7 +119,9 @@ namespace bayesnet
                 }
                 // Step 3.1: Compute the classifier amout of say
                 auto ypred_t = torch::tensor(ypred);
-                std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred_t, weights_);
+                if (!weightless) {
+                    std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred_t, weights_);
+                }
                 // Step 3.4: Store classifier and its accuracy to weigh its future vote
                 numItemsPack++;
                 featuresUsed.push_back(feature);
@@ -175,7 +180,7 @@ namespace bayesnet
         }
         if (featuresUsed.size() != features.size()) {
             notes.push_back("Used features in train: " + std::to_string(featuresUsed.size()) + " of " +
-                            std::to_string(features.size()));
+                std::to_string(features.size()));
             status = bayesnet::WARNING;
         }
         notes.push_back("Number of models: " + std::to_string(n_models));
