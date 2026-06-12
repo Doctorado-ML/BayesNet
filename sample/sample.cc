@@ -4,117 +4,179 @@
 // SPDX-License-Identifier: MIT
 // ***************************************************************
 
+#include <algorithm>
+#include <functional>
+#include <iostream>
 #include <map>
+#include <memory>
+#include <numeric>
 #include <string>
+#include <tuple>
+#include <vector>
+
 #include <ArffFiles.hpp>
 #include <fimdlp/CPPFImdlp.h>
-#include <bayesnet/classifiers/TANLd.h>
-#include <bayesnet/classifiers/KDBLd.h>
-#include <bayesnet/ensembles/AODELd.h>
+#include <torch/torch.h>
 
-torch::Tensor matrix2tensor(const std::vector<std::vector<float>>& matrix)
+#include <bayesnet/BaseClassifier.h>
+#include <bayesnet/classifiers/TAN.h>
+#include <bayesnet/classifiers/TANLd.h>
+#include <bayesnet/classifiers/KDB.h>
+#include <bayesnet/classifiers/KDBLd.h>
+#include <bayesnet/classifiers/SPODE.h>
+#include <bayesnet/classifiers/SPODELd.h>
+#include <bayesnet/ensembles/AODE.h>
+#include <bayesnet/ensembles/AODELd.h>
+#include <bayesnet/ensembles/BoostAODE.h>
+
+using ModelFactory = std::function<std::unique_ptr<bayesnet::BaseClassifier>()>;
+
+static const std::map<std::string, ModelFactory>& available_models()
 {
-    auto tensor = torch::empty({ static_cast<int>(matrix.size()), static_cast<int>(matrix[0].size()) }, torch::kFloat32);
-    for (int i = 0; i < matrix.size(); ++i) {
-        tensor.index_put_({ i, "..." }, torch::tensor(matrix[i], torch::kFloat32));
+    static const std::map<std::string, ModelFactory> models{
+        {"TAN",       [] { return std::make_unique<bayesnet::TAN>(); }},
+        {"KDB",       [] { return std::make_unique<bayesnet::KDB>(2); }},
+        {"SPODE",     [] { return std::make_unique<bayesnet::SPODE>(0); }},
+        {"AODE",      [] { return std::make_unique<bayesnet::AODE>(); }},
+        {"BoostAODE", [] { return std::make_unique<bayesnet::BoostAODE>(); }},
+        {"TANLd",     [] { return std::make_unique<bayesnet::TANLd>(); }},
+        {"KDBLd",     [] { return std::make_unique<bayesnet::KDBLd>(2); }},
+        {"SPODELd",   [] { return std::make_unique<bayesnet::SPODELd>(0); }},
+        {"AODELd",    [] { return std::make_unique<bayesnet::AODELd>(); }},
+    };
+    return models;
+}
+
+static bool is_local_discretization_model(const std::string& name)
+{
+    return name.size() >= 2 && name.compare(name.size() - 2, 2, "Ld") == 0;
+}
+
+static torch::Tensor matrix_to_tensor(const std::vector<std::vector<float>>& matrix)
+{
+    const auto rows = static_cast<long>(matrix.size());
+    const auto cols = static_cast<long>(matrix.front().size());
+    auto tensor = torch::empty({ rows, cols }, torch::kFloat32);
+    for (long i = 0; i < rows; ++i) {
+        tensor[i] = torch::tensor(matrix[i], torch::kFloat32);
     }
     return tensor;
 }
 
-std::vector<mdlp::labels_t> discretizeDataset(std::vector<mdlp::samples_t>& X, mdlp::labels_t& y)
-{
-    std::vector<mdlp::labels_t> Xd;
-    auto fimdlp = mdlp::CPPFImdlp();
-    for (int i = 0; i < X.size(); i++) {
-        fimdlp.fit(X[i], y);
-        mdlp::labels_t& xd = fimdlp.transform(X[i]);
-        Xd.push_back(xd);
-    }
-    return Xd;
-}
-std::tuple<torch::Tensor, torch::Tensor, std::vector<std::string>, std::string> loadArff(const std::string& name, bool class_last)
-{
-    auto handler = ArffFiles();
-    handler.load(name, class_last);
-    // Get Dataset X, y
-    std::vector<mdlp::samples_t> X = handler.getX();
-    mdlp::labels_t y = handler.getY();
+struct ContinuousDataset {
+    torch::Tensor X;                          // [n_features, n_samples] float
+    torch::Tensor y;                          // [n_samples] int32
     std::vector<std::string> features;
-    auto attributes = handler.getAttributes();
-    transform(attributes.begin(), attributes.end(), back_inserter(features), [](const auto& pair) { return pair.first; });
-    auto Xt = matrix2tensor(X);
-    auto yt = torch::tensor(y, torch::kInt32);
-    return { Xt, yt, features, handler.getClassName() };
+    std::string className;
+    std::map<std::string, std::vector<int>> states;
+};
+
+static ContinuousDataset load_arff(const std::string& path, bool class_last = true)
+{
+    ArffFiles handler;
+    handler.load(path, class_last);
+    auto X = handler.getX();
+    auto y = handler.getY();
+    std::vector<std::string> features;
+    for (const auto& attribute : handler.getAttributes()) {
+        features.push_back(attribute.first);
+    }
+    // Ld classifiers expect: an empty entry per (numeric) feature and the class states pre-filled
+    std::map<std::string, std::vector<int>> states;
+    for (const auto& feature : features) {
+        states[feature] = std::vector<int>{};
+    }
+    const auto n_classes = *std::max_element(y.begin(), y.end()) + 1;
+    states[handler.getClassName()] = std::vector<int>(n_classes);
+    std::iota(states[handler.getClassName()].begin(), states[handler.getClassName()].end(), 0);
+    return { matrix_to_tensor(X), torch::tensor(y, torch::kInt32), std::move(features), handler.getClassName(), std::move(states) };
 }
-// tuple<torch::Tensor, torch::Tensor, std::vector<std::string>, std::string, map<std::string, std::vector<int>>> loadDataset(const std::string& name, bool class_last)
-// {
-//     auto [X, y, features, className] = loadArff(name, class_last);
-//     // Discretize the dataset
-//     torch::Tensor Xd;
-//     auto states = map<std::string, std::vector<int>>();
-//     // Fill the class states
-//     states[className] = std::vector<int>(*max_element(y.begin(), y.end()) + 1);
-//     iota(begin(states.at(className)), end(states.at(className)), 0);
-//     auto Xr = discretizeDataset(X, y);
-//     Xd = torch::zeros({ static_cast<int>(Xr.size()), static_cast<int>(Xr[0].size()) }, torch::kInt32);
-//     for (int i = 0; i < features.size(); ++i) {
-//         states[features[i]] = std::vector<int>(*max_element(Xr[i].begin(), Xr[i].end()) + 1);
-//         auto item = states.at(features[i]);
-//         iota(begin(item), end(item), 0);
-//         Xd.index_put_({ i, "..." }, torch::tensor(Xr[i], torch::kInt32));
-//     }
-//     auto yt = torch::tensor(y, torch::kInt32);
-//     return { Xd, yt, features, className, states };
-// }
+
+struct DiscreteDataset {
+    std::vector<std::vector<int>> X;          // [n_features][n_samples]
+    std::vector<int> y;
+    std::vector<std::string> features;
+    std::string className;
+    std::map<std::string, std::vector<int>> states;
+};
+
+static DiscreteDataset discretize_arff(const std::string& path, bool class_last = true)
+{
+    ArffFiles handler;
+    handler.load(path, class_last);
+    auto X = handler.getX();
+    auto y = handler.getY();
+
+    std::vector<std::string> features;
+    for (const auto& attribute : handler.getAttributes()) {
+        features.push_back(attribute.first);
+    }
+
+    std::vector<std::vector<int>> Xd;
+    Xd.reserve(X.size());
+    mdlp::CPPFImdlp discretizer;
+    for (auto& column : X) {
+        discretizer.fit(column, y);
+        Xd.push_back(discretizer.transform(column));
+    }
+
+    std::map<std::string, std::vector<int>> states;
+    for (size_t i = 0; i < features.size(); ++i) {
+        const auto n_states = *std::max_element(Xd[i].begin(), Xd[i].end()) + 1;
+        states[features[i]] = std::vector<int>(n_states);
+        std::iota(states[features[i]].begin(), states[features[i]].end(), 0);
+    }
+    const auto n_classes = *std::max_element(y.begin(), y.end()) + 1;
+    states[handler.getClassName()] = std::vector<int>(n_classes);
+    std::iota(states[handler.getClassName()].begin(), states[handler.getClassName()].end(), 0);
+
+    return { std::move(Xd), std::move(y), std::move(features), handler.getClassName(), std::move(states) };
+}
+
+static void print_usage(const char* program)
+{
+    std::cerr << "Usage: " << program << " <arff_file> <model>\n\n";
+    std::cerr << "Available models:\n";
+    for (const auto& entry : available_models()) {
+        std::cerr << "  - " << entry.first << "\n";
+    }
+}
 
 int main(int argc, char* argv[])
 {
     if (argc < 3) {
-        std::cerr << "Usage: " << argv[0] << " <arff_file_name> <model>" << std::endl;
+        print_usage(argv[0]);
         return 1;
     }
-    std::string file_name = argv[1];
-    std::string model_name = argv[2];
-    std::map<std::string, bayesnet::Classifier*> models{ {"TANLd", new bayesnet::TANLd()}, {"KDBLd", new bayesnet::KDBLd(2)}, {"AODELd", new bayesnet::AODELd() }
-    };
-    if (models.find(model_name) == models.end()) {
-        std::cerr << "Model not found: " << model_name << std::endl;
-        std::cerr << "Available models: ";
-        for (const auto& model : models) {
-            std::cerr << model.first << " ";
-        }
-        std::cerr << std::endl;
+    const std::string file_name = argv[1];
+    const std::string model_name = argv[2];
+
+    const auto& models = available_models();
+    auto it = models.find(model_name);
+    if (it == models.end()) {
+        std::cerr << "Model not found: " << model_name << "\n\n";
+        print_usage(argv[0]);
         return 1;
     }
-    auto clf = models[model_name];
-    std::cout << "Library version: " << clf->getVersion() << std::endl;
-    // auto [X, y, features, className, states] = loadDataset(file_name, true);
-    auto [Xt, yt, features, className] = loadArff(file_name, true);
-    std::map<std::string, std::vector<int>> states;
-    // int m = Xt.size(1);
-    // auto weights = torch::full({ m }, 1 / m, torch::kDouble);
-    // auto dataset = buildDataset(Xv, yv);
-    // try {
-    //     auto yresized = torch::transpose(y.view({ y.size(0), 1 }), 0, 1);
-    //     dataset = torch::cat({ X, yresized }, 0);
-    // }
-    // catch (const std::exception& e) {
-    //     std::stringstream oss;
-    //     oss << "* Error in X and y dimensions *\n";
-    //     oss << "X dimensions: " << dataset.sizes() << "\n";
-    //     oss << "y dimensions: " << y.sizes();
-    //     throw std::runtime_error(oss.str());
-    // }
-    clf->fit(Xt, yt, features, className, states, bayesnet::Smoothing_t::ORIGINAL);
-    auto total = yt.size(0);
-    auto y_proba = clf->predict_proba(Xt);
-    auto y_pred = y_proba.argmax(1);
-    auto accuracy_value = (y_pred == yt).sum().item<float>() / total;
-    auto score = clf->score(Xt, yt);
-    std::cout << "File: " << file_name << " Model: " << model_name << " score: " << score << " Computed accuracy: " << accuracy_value << std::endl;
-    for (const auto clf : models) {
-        delete clf.second;
+
+    auto clf = it->second();
+    std::cout << "BayesNet library version: " << clf->getVersion() << "\n";
+    std::cout << "Dataset: " << file_name << "\n";
+    std::cout << "Model:   " << model_name << "\n";
+
+    float score = 0.0f;
+    if (is_local_discretization_model(model_name)) {
+        // Ld models take continuous tensors directly and discretize internally
+        auto data = load_arff(file_name);
+        clf->fit(data.X, data.y, data.features, data.className, data.states, bayesnet::Smoothing_t::ORIGINAL);
+        score = clf->score(data.X, data.y);
+    } else {
+        // Discrete classifiers need the dataset to be discretized beforehand
+        auto data = discretize_arff(file_name);
+        clf->fit(data.X, data.y, data.features, data.className, data.states, bayesnet::Smoothing_t::ORIGINAL);
+        score = clf->score(data.X, data.y);
     }
+
+    std::cout << "Score:   " << score << std::endl;
     return 0;
 }
-
