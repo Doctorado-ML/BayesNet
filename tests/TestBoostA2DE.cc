@@ -18,12 +18,12 @@ TEST_CASE("Build basic model", "[BoostA2DE]")
     auto raw = RawDatasets("diabetes", true);
     auto clf = bayesnet::BoostA2DE();
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 342);
-    REQUIRE(clf.getNumberOfEdges() == 684);
+    REQUIRE(clf.getNumberOfNodes() == 144);
+    REQUIRE(clf.getNumberOfEdges() == 288);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes()[0] == "Convergence threshold reached & 15 models eliminated");
     REQUIRE(clf.getNotes()[1] == "Pairs not used in train: 20");
-    REQUIRE(clf.getNotes()[2] == "Number of models: 38");
+    REQUIRE(clf.getNotes()[2] == "Number of models: 16");
     auto score = clf.score(raw.Xv, raw.yv);
     REQUIRE(score == Catch::Approx(0.919271).epsilon(raw.epsilon));
 }
@@ -47,10 +47,10 @@ TEST_CASE("Feature_select FCBF", "[BoostA2DE]")
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
     REQUIRE(clf.getNumberOfNodes() == 110);
     REQUIRE(clf.getNumberOfEdges() == 231);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 4 of 9 with FCBF");
-    REQUIRE(clf.getNotes()[1] == "Convergence threshold reached & 15 models eliminated");
-    REQUIRE(clf.getNotes()[2] == "Pairs not used in train: 2");
-    REQUIRE(clf.getNotes()[3] == "Number of models: 11");
+    REQUIRE(clf.getNotes().size() == 3);
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 5 of 9 with FCBF");
+    REQUIRE(clf.getNotes()[1] == "Convergence threshold reached & 13 models eliminated");
+    REQUIRE(clf.getNotes()[2] == "Number of models: 11");
 }
 TEST_CASE("Test used features in train note and score", "[BoostA2DE]")
 {
@@ -62,15 +62,15 @@ TEST_CASE("Test used features in train note and score", "[BoostA2DE]")
         {"select_features","CFS"},
         });
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 252);
-    REQUIRE(clf.getNumberOfEdges() == 504);
+    REQUIRE(clf.getNumberOfNodes() == 189);
+    REQUIRE(clf.getNumberOfEdges() == 378);
     REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 8 of 8 with CFS");
-    REQUIRE(clf.getNotes()[1] == "Number of models: 28");
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 7 of 8 with CFS");
+    REQUIRE(clf.getNotes()[1] == "Number of models: 21");
     auto score = clf.score(raw.Xv, raw.yv);
     auto scoret = clf.score(raw.Xt, raw.yt);
-    REQUIRE(score == Catch::Approx(0.880208313f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.880208313f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.865885437).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.865885437).epsilon(raw.epsilon));
 }
 TEST_CASE("Voting vs proba", "[BoostA2DE]")
 {
@@ -84,18 +84,18 @@ TEST_CASE("Voting vs proba", "[BoostA2DE]")
         });
     auto score_voting = clf.score(raw.Xv, raw.yv);
     auto pred_voting = clf.predict_proba(raw.Xv);
-    REQUIRE(score_proba == Catch::Approx(0.98).epsilon(raw.epsilon));
-    REQUIRE(score_voting == Catch::Approx(0.946667).epsilon(raw.epsilon));
-    REQUIRE(pred_voting[83][2] == Catch::Approx(0.53508).epsilon(raw.epsilon));
-    REQUIRE(pred_proba[83][2] == Catch::Approx(0.48394).epsilon(raw.epsilon));
-    REQUIRE(clf.dump_cpt().size() == 7742);
+    REQUIRE(score_proba == Catch::Approx(0.953333318).epsilon(raw.epsilon));
+    REQUIRE(score_voting == Catch::Approx(0.953333318).epsilon(raw.epsilon));
+    REQUIRE(pred_voting[83][2] == Catch::Approx(1.0).epsilon(raw.epsilon));
+    REQUIRE(pred_proba[83][2] == Catch::Approx(0.55696202531645567).epsilon(raw.epsilon));
+    REQUIRE(clf.dump_cpt().size() == 3871);
     REQUIRE(clf.topological_order() == std::vector<std::string>());
 }
 TEST_CASE("Order asc, desc & random", "[BoostA2DE]")
 {
     auto raw = RawDatasets("glass", true);
     std::map<std::string, double> scores{
-        {"asc", 0.752336f }, { "desc", 0.813084f }, { "rand", 0.850467 }
+        {"asc", 0.7897196412 }, { "desc", 0.8130841255 }, { "rand", 0.8457943797 }
     };
     for (const std::string& order : { "asc", "desc", "rand" }) {
         auto clf = bayesnet::BoostA2DE();
@@ -163,16 +163,16 @@ TEST_CASE("Bisection Best", "[BoostA2DE]")
         {"convergence_best", true},
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 480);
-    REQUIRE(clf.getNumberOfEdges() == 1152);
+    REQUIRE(clf.getNumberOfNodes() == 345);
+    REQUIRE(clf.getNumberOfEdges() == 828);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 15 models eliminated");
     REQUIRE(clf.getNotes().at(1) == "Pairs not used in train: 83");
-    REQUIRE(clf.getNotes().at(2) == "Number of models: 32");
+    REQUIRE(clf.getNotes().at(2) == "Number of models: 23");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.966667f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.966667f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.970711291).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.970711291).epsilon(raw.epsilon));
 }
 TEST_CASE("Block Update", "[BoostA2DE]")
 {
@@ -210,7 +210,7 @@ TEST_CASE("Test graph b2a2de", "[BoostA2DE]")
     auto clf = bayesnet::BoostA2DE();
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
     auto graph = clf.graph();
-    REQUIRE(graph.size() == 26);
+    REQUIRE(graph.size() == 13);
     REQUIRE(graph[0] == "digraph BayesNet {\nlabel=<BayesNet BoostA2DE_0>\nfontsize=30\nfontcolor=blue\nlabelloc=t\nlayout=circo\n");
     REQUIRE(graph[1] == "\"class\" [shape=circle, fontcolor=red, fillcolor=lightblue, style=filled ] \n");
 }

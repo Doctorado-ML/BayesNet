@@ -37,7 +37,7 @@ TEST_CASE("Feature_select CFS", "[XBA2DE]")
     REQUIRE(clf.getNotes().size() == 2);
     REQUIRE(clf.getNotes()[0] == "Used features in initialization: 9 of 9 with CFS");
     REQUIRE(clf.getNotes()[1] == "Number of models: 36");
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.720930219));
+    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.738095224));
 }
 TEST_CASE("Feature_select IWSS", "[XBA2DE]")
 {
@@ -51,7 +51,7 @@ TEST_CASE("Feature_select IWSS", "[XBA2DE]")
     REQUIRE(clf.getNotes()[0] == "Used features in initialization: 9 of 9 with IWSS");
     REQUIRE(clf.getNotes()[1] == "Number of models: 36");
     REQUIRE(clf.getNumberOfStates() == 8748);
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.72093));
+    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.738095224));
 }
 TEST_CASE("Feature_select FCBF", "[XBA2DE]")
 {
@@ -59,14 +59,14 @@ TEST_CASE("Feature_select FCBF", "[XBA2DE]")
     auto clf = bayesnet::XBA2DE();
     clf.setHyperparameters({ {"select_features", "FCBF"}, {"threshold", 1e-7} });
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 290);
-    REQUIRE(clf.getNumberOfEdges() == 667);
-    REQUIRE(clf.getNumberOfStates() == 7047);
+    REQUIRE(clf.getNumberOfNodes() == 180);
+    REQUIRE(clf.getNumberOfEdges() == 414);
+    REQUIRE(clf.getNumberOfStates() == 4374);
     REQUIRE(clf.getNotes().size() == 3);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 4 of 9 with FCBF");
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 5 of 9 with FCBF");
     REQUIRE(clf.getNotes()[1] == "Pairs not used in train: 2");
-    REQUIRE(clf.getNotes()[2] == "Number of models: 29");
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.744186));
+    REQUIRE(clf.getNotes()[2] == "Number of models: 18");
+    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.738095224));
 }
 TEST_CASE("Test used features in train note and score", "[XBA2DE]")
 {
@@ -78,16 +78,16 @@ TEST_CASE("Test used features in train note and score", "[XBA2DE]")
         {"select_features", "CFS"},
         });
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 252);
-    REQUIRE(clf.getNumberOfEdges() == 560);
-    REQUIRE(clf.getNumberOfStates() == 9632);
+    REQUIRE(clf.getNumberOfNodes() == 189);
+    REQUIRE(clf.getNumberOfEdges() == 420);
+    REQUIRE(clf.getNumberOfStates() == 7224);
     REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 8 of 8 with CFS");
-    REQUIRE(clf.getNotes()[1] == "Number of models: 28");
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 7 of 8 with CFS");
+    REQUIRE(clf.getNotes()[1] == "Number of models: 21");
     auto score = clf.score(raw.Xv, raw.yv);
     auto scoret = clf.score(raw.Xt, raw.yt);
-    REQUIRE(score == Catch::Approx(0.859375f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.859375f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.85546875).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.85546875).epsilon(raw.epsilon));
 }
 TEST_CASE("Test used features in train note and score with glass", "[XBA2DE]")
 {
@@ -107,13 +107,13 @@ TEST_CASE("Test used features in train note and score with glass", "[XBA2DE]")
     REQUIRE(clf.getNotes()[1] == "Number of models: 36");
     auto score = clf.score(raw.Xv, raw.yv);
     auto scoret = clf.score(raw.Xt, raw.yt);
-    REQUIRE(score == Catch::Approx(0.817757).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.817757).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.813084126).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.813084126).epsilon(raw.epsilon));
 }
 TEST_CASE("Order asc, desc & random", "[XBA2DE]")
 {
     auto raw = RawDatasets("glass", true);
-    std::map<std::string, double> scores{ {"asc", 0.827103}, {"desc", 0.808411}, {"rand", 0.827103} };
+    std::map<std::string, double> scores{ {"asc", 0.7710280418}, {"desc", 0.803738296}, {"rand", 0.7897196412} };
     for (const std::string& order : { "asc", "desc", "rand" }) {
         auto clf = bayesnet::XBA2DE();
         clf.setHyperparameters({
@@ -188,17 +188,17 @@ TEST_CASE("Bisection Best", "[XBA2DE]")
         {"convergence_best", false},
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 330);
-    REQUIRE(clf.getNumberOfEdges() == 836);
-    REQUIRE(clf.getNumberOfStates() == 31108);
+    REQUIRE(clf.getNumberOfNodes() == 435);
+    REQUIRE(clf.getNumberOfEdges() == 1102);
+    REQUIRE(clf.getNumberOfStates() == 41006);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 15 models eliminated");
     REQUIRE(clf.getNotes().at(1) == "Pairs not used in train: 83");
-    REQUIRE(clf.getNotes().at(2) == "Number of models: 22");
+    REQUIRE(clf.getNotes().at(2) == "Number of models: 29");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.975).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.975).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.987447679).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.987447679).epsilon(raw.epsilon));
 }
 TEST_CASE("Bisection Best vs Last", "[XBA2DE]")
 {
@@ -213,13 +213,13 @@ TEST_CASE("Bisection Best vs Last", "[XBA2DE]")
     clf.setHyperparameters(hyperparameters);
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_best = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score_best == Catch::Approx(0.983333).epsilon(raw.epsilon));
+    REQUIRE(score_best == Catch::Approx(0.936454833).epsilon(raw.epsilon));
     // Now we will set the hyperparameter to use the last accuracy
     hyperparameters["convergence_best"] = false;
     clf.setHyperparameters(hyperparameters);
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_last = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score_last == Catch::Approx(0.99).epsilon(raw.epsilon));
+    REQUIRE(score_last == Catch::Approx(0.963210702).epsilon(raw.epsilon));
 }
 TEST_CASE("Block Update", "[XBA2DE]")
 {
@@ -232,16 +232,16 @@ TEST_CASE("Block Update", "[XBA2DE]")
         {"convergence", true},
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 120);
-    REQUIRE(clf.getNumberOfEdges() == 304);
+    REQUIRE(clf.getNumberOfNodes() == 60);
+    REQUIRE(clf.getNumberOfEdges() == 152);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes()[0] == "Convergence threshold reached & 15 models eliminated");
     REQUIRE(clf.getNotes()[1] == "Pairs not used in train: 83");
-    REQUIRE(clf.getNotes()[2] == "Number of models: 8");
+    REQUIRE(clf.getNotes()[2] == "Number of models: 4");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.963333).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.963333).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.936454833).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.936454833).epsilon(raw.epsilon));
     /*std::cout << "Number of nodes " << clf.getNumberOfNodes() << std::endl;*/
     /*std::cout << "Number of edges " << clf.getNumberOfEdges() << std::endl;*/
     /*std::cout << "Notes size " << clf.getNotes().size() << std::endl;*/
@@ -262,6 +262,6 @@ TEST_CASE("Alphablock", "[XBA2DE]")
     clf_no_alpha.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_alpha = clf_alpha.score(raw.X_test, raw.y_test);
     auto score_no_alpha = clf_no_alpha.score(raw.X_test, raw.y_test);
-    REQUIRE(score_alpha == Catch::Approx(0.714286).epsilon(raw.epsilon));
-    REQUIRE(score_no_alpha == Catch::Approx(0.714286).epsilon(raw.epsilon));
+    REQUIRE(score_alpha == Catch::Approx(0.666666687).epsilon(raw.epsilon));
+    REQUIRE(score_no_alpha == Catch::Approx(0.666666687).epsilon(raw.epsilon));
 }

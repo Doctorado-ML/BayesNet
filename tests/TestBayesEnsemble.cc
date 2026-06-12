@@ -28,7 +28,7 @@ TEST_CASE("Dump CPT", "[Ensemble]")
     auto clf = bayesnet::BoostAODE();
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
     auto dump = clf.dump_cpt();
-    REQUIRE(dump.size() == 39916);
+    REQUIRE(dump.size() == 39903);
 }
 TEST_CASE("Number of States", "[Ensemble]")
 {

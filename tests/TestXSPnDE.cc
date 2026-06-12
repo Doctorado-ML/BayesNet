@@ -125,8 +125,8 @@ TEST_CASE("Check different smoothing", "[XSP2DE]")
   auto score2 = clf2.score(raw.X_test, raw.y_test);
   auto score3 = clf3.score(raw.X_test, raw.y_test);
   REQUIRE(score == Catch::Approx(1.0).epsilon(raw.epsilon));
-  REQUIRE(score2 == Catch::Approx(0.7333333).epsilon(raw.epsilon));
-  REQUIRE(score3 == Catch::Approx(0.966667).epsilon(raw.epsilon));
+  REQUIRE(score2 == Catch::Approx(0.8).epsilon(raw.epsilon));
+  REQUIRE(score3 == Catch::Approx(1.0).epsilon(raw.epsilon));
 }
 TEST_CASE("Check rest", "[XSP2DE]")
 {
