@@ -1,9 +1,10 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: viewcoverage coverage setup help install uninstall diagrams buildr buildd test clean updatebadge doc doc-install init clean-test debug release conan-create conan-upload conan-clean sample
+.PHONY: viewcoverage coverage setup help install uninstall diagrams buildr buildd test clean updatebadge doc doc-install init clean-test debug release conan-create conan-upload conan-clean sample asan test-asan golden
 
 f_release = build_Release
 f_debug = build_Debug
+f_asan = build_Asan
 f_diagrams = diagrams
 app_targets = bayesnet
 test_targets = TestBayesNet
@@ -77,7 +78,7 @@ setup: ## Install dependencies for tests and coverage
 clean: ## Clean the project
 	@echo ">>> Cleaning the project..."
 	@if test -f CMakeCache.txt ; then echo "- Deleting CMakeCache.txt"; rm -f CMakeCache.txt; fi
-	@for folder in $(f_release) $(f_debug) vpcpkg_installed install_test ; do \
+	@for folder in $(f_release) $(f_debug) $(f_asan) vpcpkg_installed install_test ; do \
 		if test -d "$$folder" ; then \
 			echo "- Deleting $$folder folder" ; \
 			rm -rf "$$folder"; \
@@ -128,6 +129,22 @@ clean-test: ## Clean the tests info
 	@echo ">>> Cleaning Debug BayesNet tests...";
 	$(call ClearTests)
 	@echo ">>> Done";
+
+asan: ## Setup debug version with address & undefined sanitizers using Conan
+	@$(call setup_target,"Debug","$(f_asan)","ENABLE_TESTING=ON -DENABLE_SANITIZERS=ON")
+
+test-asan: ## Build & run tests with sanitizers (run "make asan" first)
+	@echo ">>> Running BayesNet tests with sanitizers...";
+	@if [ ! -d $(f_asan) ]; then echo ">>> Run 'make asan' first"; exit 1; fi
+	@cmake --build $(f_asan) --config Debug -t $(test_targets) --parallel $(JOBS)
+	@cd $(f_asan)/tests && ./TestBayesNet $(opt)
+	@echo ">>> Done";
+
+golden: ## Regenerate golden regression files (tests/data/golden) - only when a behaviour change is intentional!
+	@echo ">>> Regenerating golden files...";
+	@cmake --build $(f_debug) --config Debug -t $(test_targets) --parallel $(JOBS)
+	@cd $(f_debug)/tests && GOLDEN_GENERATE=1 ./TestBayesNet "[Golden]"
+	@echo ">>> Done. Review the diff in tests/data/golden before committing.";
 
 opt = ""
 test: ## Run tests (opt="-s") to verbose output the tests, (opt="-c='Test Maximum Spanning Tree'") to run only that section

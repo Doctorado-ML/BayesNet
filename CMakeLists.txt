@@ -30,6 +30,13 @@ endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
 # Options
 # -------
 option(ENABLE_TESTING "Unit testing build"                       OFF)
+option(ENABLE_SANITIZERS "Build with address & undefined sanitizers" OFF)
+
+if (ENABLE_SANITIZERS)
+    MESSAGE(STATUS "Sanitizers enabled (address, undefined)")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address,undefined -fno-omit-frame-pointer")
+    add_link_options(-fsanitize=address,undefined)
+endif (ENABLE_SANITIZERS)
     
 find_package(Torch CONFIG REQUIRED)
 if(NOT TARGET torch::torch)

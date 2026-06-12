@@ -5,9 +5,9 @@ if(ENABLE_TESTING)
         ${nlohmann_json_INCLUDE_DIRS}
     )
     file(GLOB_RECURSE BayesNet_SOURCES "${bayesnet_SOURCE_DIR}/bayesnet/*.cc")
-    add_executable(TestBayesNet TestBayesNetwork.cc TestBayesNode.cc TestBayesClassifier.cc TestXSPnDE.cc TestXBA2DE.cc 
-        TestBayesModels.cc TestBayesMetrics.cc TestFeatureSelection.cc TestBoostAODE.cc TestXBAODE.cc TestA2DE.cc 
-        TestUtils.cc TestBayesEnsemble.cc TestModulesVersions.cc TestBoostA2DE.cc TestMST.cc TestXSPODE.cc ${BayesNet_SOURCES})
+    add_executable(TestBayesNet TestBayesNetwork.cc TestBayesNode.cc TestBayesClassifier.cc TestXSPnDE.cc TestXBA2DE.cc
+        TestBayesModels.cc TestBayesMetrics.cc TestFeatureSelection.cc TestBoostAODE.cc TestXBAODE.cc TestA2DE.cc
+        TestUtils.cc TestBayesEnsemble.cc TestModulesVersions.cc TestBoostA2DE.cc TestMST.cc TestXSPODE.cc TestGolden.cc ${BayesNet_SOURCES})
       target_link_libraries(TestBayesNet PRIVATE torch::torch fimdlp::fimdlp Catch2::Catch2WithMain folding::folding)
     add_test(NAME BayesNetworkTest COMMAND TestBayesNet)
     add_test(NAME A2DE COMMAND TestBayesNet "[A2DE]")
@@ -26,4 +26,5 @@ if(ENABLE_TESTING)
     add_test(NAME Network COMMAND TestBayesNet "[Network]")
     add_test(NAME Node COMMAND TestBayesNet "[Node]")
     add_test(NAME MST COMMAND TestBayesNet "[MST]")
+    add_test(NAME Golden COMMAND TestBayesNet "[Golden]")
 endif(ENABLE_TESTING)

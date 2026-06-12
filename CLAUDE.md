@@ -99,6 +99,8 @@ make conan-clean
 - A2DE, BoostA2DE, BoostAODE, XSPODE, XSPnDE, XBAODE, XBA2DE
 - Classifier, Ensemble, FeatureSelection, Metrics, Models
 - Network, Node, MST, Modules
+- Golden (regression safety net for the 2.0 refactoring, see `tests/README.md`;
+  regenerate reference files only on intentional behaviour changes with `make golden`)
 
 ## Code Architecture
 
