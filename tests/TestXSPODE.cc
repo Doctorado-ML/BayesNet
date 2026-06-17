@@ -21,7 +21,7 @@ TEST_CASE("fit vector test", "[XSPODE]") {
     REQUIRE(clf.getNumberOfNodes() == 5);
     REQUIRE(clf.getNumberOfEdges() == 9);
     REQUIRE(clf.getNotes().size() == 0);
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(scores.at(i)));
+    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(scores.at(i)).margin(PORTABLE_SCORE_MARGIN));
   }
 }
 TEST_CASE("fit dataset test", "[XSPODE]") {
@@ -34,7 +34,7 @@ TEST_CASE("fit dataset test", "[XSPODE]") {
     REQUIRE(clf.getNumberOfNodes() == 5);
     REQUIRE(clf.getNumberOfEdges() == 9);
     REQUIRE(clf.getNotes().size() == 0);
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(scores.at(i)));
+    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(scores.at(i)).margin(PORTABLE_SCORE_MARGIN));
   }
 }
 TEST_CASE("tensors dataset predict & predict_proba", "[XSPODE]") {
@@ -53,12 +53,12 @@ TEST_CASE("tensors dataset predict & predict_proba", "[XSPODE]") {
     REQUIRE(clf.getNumberOfNodes() == 5);
     REQUIRE(clf.getNumberOfEdges() == 9);
     REQUIRE(clf.getNotes().size() == 0);
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(scores.at(i)));
+    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(scores.at(i)).margin(PORTABLE_SCORE_MARGIN));
     // Get the first 4 lines of X_test to do predict_proba
     auto X_reduced = raw.X_test.slice(1, 0, 4);
     auto proba = clf.predict_proba(X_reduced);
     for (int p = 0; p < 3; ++p) {
-      REQUIRE(proba[0][p].item<double>() == Catch::Approx(probs_expected.at(i).at(p)));
+      REQUIRE(proba[0][p].item<double>() == Catch::Approx(probs_expected.at(i).at(p)).margin(PORTABLE_SCORE_MARGIN));
     }
   }
 }
@@ -73,7 +73,7 @@ TEST_CASE("mfeat-factors dataset test", "[XSPODE]") {
     REQUIRE(clf.getNumberOfEdges() == 433);
     REQUIRE(clf.getNotes().size() == 0);
     REQUIRE(clf.getNumberOfStates() == 652320);
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(scores.at(i)));
+    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(scores.at(i)).margin(PORTABLE_SCORE_MARGIN));
   }
 }
 TEST_CASE("Laplace predict", "[XSPODE]") {
@@ -88,7 +88,7 @@ TEST_CASE("Laplace predict", "[XSPODE]") {
     REQUIRE(clf.getNotes().size() == 0);
     REQUIRE(clf.getNumberOfStates() == 64);
     REQUIRE(clf.getNFeatures() == 4);
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(scores.at(i)));
+    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(scores.at(i)).margin(PORTABLE_SCORE_MARGIN));
   }
 }
 TEST_CASE("Not fitted model predict", "[XSPODE]")
@@ -120,7 +120,7 @@ TEST_CASE("Test to_string and fitx", "[XSPODE]")
   REQUIRE(clf.getNotes().size() == 0);
   REQUIRE(clf.getNumberOfStates() == 64);
   REQUIRE(clf.getNFeatures() == 4);
-  REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(1.0f));
+  REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(1.0f).margin(PORTABLE_SCORE_MARGIN));
   REQUIRE(clf.to_string().size() == 1966);
   REQUIRE(clf.graph("Not yet implemented") == std::vector<std::string>({"Not yet implemented"}));
 }

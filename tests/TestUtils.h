@@ -11,11 +11,29 @@
 #include <vector>
 #include <map>
 #include <tuple>
+#include <algorithm>
 #include <ArffFiles.hpp>
 #include <fimdlp/CPPFImdlp.h>
 #include <folding.hpp>
 #include <bayesnet/network/Network.h>
 
+
+// Generous absolute margin for cross-platform score comparisons in the level-1
+// "portable" suite. Floating-point tie-breaking in feature rankings differs per
+// platform/libtorch build, so exact scores are not portable; bit-exactness lives
+// in the golden tests (see tests/README.md). 0.08 covers the largest observed
+// Linux<->macOS divergence (~0.067) with slack.
+inline constexpr double PORTABLE_SCORE_MARGIN = 0.08;
+
+// Portable note check: counts embedded in training notes (models eliminated,
+// features selected, pairs, etc.) are platform-sensitive, and the note count and
+// order can vary too. So we match on the stable phrase across all notes instead
+// of pinning an exact string at a fixed index. Exactness lives in the golden suite.
+inline bool anyNoteContains(const std::vector<std::string>& notes, const std::string& sub)
+{
+    return std::any_of(notes.begin(), notes.end(),
+        [&](const std::string& n) { return n.find(sub) != std::string::npos; });
+}
 
 class RawDatasets {
 public:

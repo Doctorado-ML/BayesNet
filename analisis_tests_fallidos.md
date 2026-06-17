@@ -79,3 +79,20 @@ Con la aprobación del usuario ("haz todos los cambios necesarios"):
 - Si en el futuro un golden falla tras un cambio de dependencias (no de
   código), la causa probable es esta misma deriva: regenerar con `make
   golden` en commit separado documentando la versión de la dependencia.
+
+## 6. Addendum — re-anclaje a Linux (Fase 0)
+
+El entorno de referencia se ha cambiado de macOS arm64 a **Linux**, que es la
+plataforma de trabajo nativa habitual. En consecuencia:
+
+- Los `golden_*.json` se regeneraron en Linux (deterministas, idénticos byte a
+  byte entre ejecuciones). El nivel golden es ahora exacto sobre Linux.
+- Se confirmó que el desempate **no** procede de empates exactos en `argsort`
+  (un comparador estable por índice no cambia ningún valor en estos datasets),
+  sino de que la propia información mutua difiere por coma flotante entre
+  libtorch de cada plataforma. Por eso **no se tocó código de producción**.
+- Se adoptó la arquitectura de dos niveles recomendada en §5: la suite
+  cotidiana (`make test`) pasó a ser **portable** (tolerancia/rangos/invariantes,
+  ver `tests/README.md`) y la exactitud quedó confinada al nivel golden.
+  Resultado: suite verde en Linux sin valores específicos de plataforma en el
+  nivel 1.
