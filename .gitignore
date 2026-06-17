@@ -47,3 +47,8 @@ docs/Doxyfile
 .cache
 vcpkg_installed
 CMakeUserPresets.json
+
+# Node / npm (not part of this C++ project)
+node_modules/
+package.json
+package-lock.json
