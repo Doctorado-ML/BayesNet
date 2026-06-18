@@ -64,6 +64,19 @@ namespace {
     {
         return std::getenv("GOLDEN_GENERATE") != nullptr;
     }
+    // The golden layer is exact and anchored to the reference environment (Linux).
+    // On other platforms, floating-point divergence in libtorch's mutual-information
+    // computation changes feature-selection tie-breaks and makes exact comparison
+    // meaningless (see tests/README.md). There the portable level-1 suite is the
+    // functional check, so the golden comparisons are skipped (not failed).
+    bool on_reference_platform()
+    {
+#if defined(__linux__)
+        return true;
+#else
+        return false;
+#endif
+    }
 
     struct GoldenModel {
         std::function<std::unique_ptr<bayesnet::BaseClassifier>()> make;
@@ -166,6 +179,9 @@ namespace {
 
 TEST_CASE("Golden regression with default hyperparameters", "[Golden]")
 {
+    if (!generate_mode() && !on_reference_platform())
+        SKIP("Golden checks run only on the Linux reference environment; the "
+             "portable level-1 suite is the functional check on this platform.");
     std::string name = GENERATE("TAN", "KDB", "SPODE", "SPnDE", "XSPODE", "XSP2DE",
         "AODE", "A2DE", "BoostAODE", "BoostA2DE", "XBAODE", "XBA2DE",
         "TANLd", "KDBLd", "SPODELd", "AODELd");
@@ -203,6 +219,9 @@ TEST_CASE("Golden regression with default hyperparameters", "[Golden]")
 
 TEST_CASE("Golden regression of boosting hyperparameters", "[Golden]")
 {
+    if (!generate_mode() && !on_reference_platform())
+        SKIP("Golden checks run only on the Linux reference environment; the "
+             "portable level-1 suite is the functional check on this platform.");
     // AODE-family ensembles use diabetes (8 features), A2DE-family use glass
     // (9 features, fewer samples) to keep the runtime reasonable.
     std::string name = GENERATE("BoostAODE", "XBAODE", "BoostA2DE", "XBA2DE");

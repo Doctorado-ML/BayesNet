@@ -71,6 +71,12 @@ están anclados al **entorno de referencia: Linux** (la generación es
 determinista; dos ejecuciones producen ficheros idénticos byte a byte).
 Cualquier comparación golden debe hacerse en ese entorno.
 
+Fuera de Linux la comparación golden se **omite** (Catch2 `SKIP`) en lugar de
+fallar: la divergencia de coma flotante entre plataformas la haría roja sin
+aportar información. Así `make test` queda verde en cualquier máquina, mientras
+que en Linux los golden sí se ejecutan como parte de la suite. La generación
+(`GOLDEN_GENERATE=1`) no se omite, pero debe hacerse siempre en Linux.
+
 ### Regenerar los golden
 
 ```bash
