@@ -54,4 +54,9 @@ RUN chown -R vscode:vscode /opt/miniconda
 
 USER vscode
 RUN conda init
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r
 RUN conda install -y -c conda-forge yaml pytorch
+RUN pip install conan 
+RUN conan remote add Cimmeria https://conan.rmontanana.es/artifactory/api/conan/Cimmeria
+RUN conan profile detect
