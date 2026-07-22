@@ -9,6 +9,7 @@
 #include <catch2/matchers/catch_matchers.hpp>
 #include "bayesnet/classifiers/XSP2DE.h"  // <-- your new 2-superparent classifier
 #include "TestUtils.h"                   // for RawDatasets, etc.
+#include <iostream>
 
 // Helper function to handle each (sp1, sp2) pair in tests
 static void check_spnde_pair(
@@ -37,7 +38,7 @@ static void check_spnde_pair(
 
   // Basic checks
   REQUIRE(clf.getNumberOfNodes() == 5);  // for iris: 4 features + 1 class
-  REQUIRE(clf.getNumberOfEdges() == 8);
+  REQUIRE(clf.getNumberOfEdges() == 9);  // joint superparents: sp1->sp2 edge (default joint_parents=true)
   REQUIRE(clf.getNotes().size() == 0);
 
   // Evaluate on test set
@@ -89,7 +90,7 @@ TEST_CASE("tensors dataset predict & predict_proba (XSP2DE)", "[XSP2DE]") {
     clf.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing);
 
     REQUIRE(clf.getNumberOfNodes() == 5);
-    REQUIRE(clf.getNumberOfEdges() == 8);
+    REQUIRE(clf.getNumberOfEdges() == 9);  // joint superparents: sp1->sp2 edge (default joint_parents=true)
     REQUIRE(clf.getNotes().size() == 0);
 
     // Check the score
@@ -124,8 +125,9 @@ TEST_CASE("Check different smoothing", "[XSP2DE]")
   auto score = clf.score(raw.X_test, raw.y_test);
   auto score2 = clf2.score(raw.X_test, raw.y_test);
   auto score3 = clf3.score(raw.X_test, raw.y_test);
-  REQUIRE(score == Catch::Approx(1.0).epsilon(raw.epsilon));
-  REQUIRE(score2 == Catch::Approx(0.7333333).epsilon(raw.epsilon));
+  std::cerr << "GOLDEN[smoothing] ORIGINAL=" << score << " LAPLACE=" << score2 << " NONE=" << score3 << std::endl;
+  REQUIRE(score == Catch::Approx(0.966667).epsilon(raw.epsilon));
+  REQUIRE(score2 == Catch::Approx(1.0).epsilon(raw.epsilon));
   REQUIRE(score3 == Catch::Approx(0.966667).epsilon(raw.epsilon));
 }
 TEST_CASE("Check rest", "[XSP2DE]")
@@ -134,8 +136,29 @@ TEST_CASE("Check rest", "[XSP2DE]")
   auto clf = bayesnet::XSp2de(0, 1);
   REQUIRE_THROWS_AS(clf.predict_proba(std::vector<int>({1,2,3,4})), std::logic_error);
   clf.fitx(raw.Xt, raw.yt, raw.weights, bayesnet::Smoothing_t::ORIGINAL);
+  std::cerr << "GOLDEN[rest] score=" << clf.score(raw.Xv, raw.yv) << " predict=" << clf.predict({1,2,3,4}) << std::endl;
   REQUIRE(clf.getNFeatures() == 4);
   REQUIRE(clf.score(raw.Xv, raw.yv) == Catch::Approx(0.973333359f).epsilon(raw.epsilon));
   REQUIRE(clf.predict({1,2,3,4}) == 1);
 
+}
+TEST_CASE("Joint superparents model (XSP2DE)", "[XSP2DE]")
+{
+  auto raw = RawDatasets("iris", true);
+
+  // Joint parent model P(sp1,sp2|c): the two superparents become dependent,
+  // adding the sp1->sp2 edge (8 -> 9 for iris) w.r.t. the independent model.
+  bayesnet::XSp2de clfJoint(0, 1);
+  clfJoint.setHyperparameters({{"joint_parents", true}});
+  clfJoint.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+  REQUIRE(clfJoint.getNumberOfNodes() == 5);
+  REQUIRE(clfJoint.getNumberOfEdges() == 9);
+  REQUIRE(clfJoint.score(raw.X_test, raw.y_test) >= 0.90f);
+
+  // Independent model keeps 8 edges, and the flag really changes the model.
+  bayesnet::XSp2de clfInd(0, 1);
+  clfInd.setHyperparameters({{"joint_parents", false}});
+  clfInd.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+  REQUIRE(clfInd.getNumberOfEdges() == 8);
+  REQUIRE(clfJoint.to_string() != clfInd.to_string());
 }

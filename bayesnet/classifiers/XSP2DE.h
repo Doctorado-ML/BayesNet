@@ -54,12 +54,19 @@ class XSp2de : public Classifier {
     int statesClass_;
     double alpha_;
     double initializer_;
+    // If true, model the two superparents jointly P(sp1,sp2|c) (classic A2DE),
+    // instead of as independent factors P(sp1|c)*P(sp2|c). This is the parent
+    // layer where BoostA2DE departs from BoostAODE.
+    bool jointParents_;
 
     std::vector<int> states_;
     std::vector<double> classCounts_;
     std::vector<double> classPriors_;
     std::vector<double> sp1FeatureCounts_, sp1FeatureProbs_;
     std::vector<double> sp2FeatureCounts_, sp2FeatureProbs_;
+    // Joint superparents: p(sp1Val, sp2Val | c). Block layout
+    // (sp1Val*states_[sp2]+sp2Val)*statesClass_ + c.
+    std::vector<double> spPairCounts_, spPairProbs_;
     // childOffsets_[f] will be the offset into childCounts_ for feature f.
     // If f is either superParent1 or superParent2, childOffsets_[f] = -1
     std::vector<int> childOffsets_;

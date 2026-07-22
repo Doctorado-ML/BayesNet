@@ -25,10 +25,11 @@ XSp2de::XSp2de(int spIndex1, int spIndex2)
   , statesClass_{0}
   , alpha_{1.0}
   , initializer_{1.0}
+  , jointParents_{true}
   , semaphore_{ CountingSemaphore::getInstance() }
   , Classifier(Network())
 {
-  validHyperparameters = { "parent1", "parent2" };
+  validHyperparameters = { "parent1", "parent2", "joint_parents" };
 }
 
 // --------------------------------------
@@ -44,6 +45,10 @@ void XSp2de::setHyperparameters(const nlohmann::json &hyperparameters_)
   if (hyperparameters.contains("parent2")) {
     superParent2_ = hyperparameters["parent2"];
     hyperparameters.erase("parent2");
+  }
+  if (hyperparameters.contains("joint_parents")) {
+    jointParents_ = hyperparameters["joint_parents"];
+    hyperparameters.erase("joint_parents");
   }
   // Hand off anything else to base Classifier
   Classifier::setHyperparameters(hyperparameters);
@@ -95,6 +100,9 @@ void XSp2de::buildModel(const torch::Tensor &weights)
 
   // For sp2 -> p(sp2Val| c)
   sp2FeatureCounts_.resize(states_[superParent2_] * statesClass_, 0.0);
+
+  // Joint superparents -> p(sp1Val, sp2Val | c)
+  spPairCounts_.resize(states_[superParent1_] * states_[superParent2_] * statesClass_, 0.0);
 
   // For child features, we store p(childVal | c, sp1Val, sp2Val).
   // childCounts_ will hold raw counts. We’ll gather them in one big vector.
@@ -176,6 +184,9 @@ void XSp2de::addSample(const std::vector<int> &instance, double weight)
   // p(sp2|c)
   sp2FeatureCounts_[sp2Val * statesClass_ + c] += weight;
 
+  // p(sp1,sp2|c) joint superparents
+  spPairCounts_[(sp1Val * states_[superParent2_] + sp2Val) * statesClass_ + c] += weight;
+
   // p(childVal| c, sp1Val, sp2Val)
   for (int f = 0; f < nFeatures_; f++) {
     if (f == superParent1_ || f == superParent2_)
@@ -245,8 +256,22 @@ void XSp2de::computeProbabilities()
     for (int c = 0; c < statesClass_; c++) {
       double denom = classCounts_[c] + alpha_ * sp2Card;
       double num = sp2FeatureCounts_[spVal * statesClass_ + c] + alpha_;
-      sp2FeatureProbs_[spVal * statesClass_ + c] = 
+      sp2FeatureProbs_[spVal * statesClass_ + c] =
          (denom <= 0.0 ? 0.0 : num / denom);
+    }
+  }
+
+  // p(sp1Val, sp2Val | c) joint superparents
+  spPairProbs_.resize(spPairCounts_.size());
+  int pairCard = sp1Card * sp2Card;
+  for (int v1 = 0; v1 < sp1Card; v1++) {
+    for (int v2 = 0; v2 < sp2Card; v2++) {
+      for (int c = 0; c < statesClass_; c++) {
+        int idx = (v1 * sp2Card + v2) * statesClass_ + c;
+        double num = spPairCounts_[idx] + alpha_;
+        double denom = classCounts_[c] + alpha_ * pairCard;
+        spPairProbs_[idx] = (denom <= 0.0 ? 0.0 : num / denom);
+      }
     }
   }
 
@@ -315,12 +340,20 @@ std::vector<double> XSp2de::predict_proba(const std::vector<int> &instance) cons
   int sp1Val = instance[superParent1_];
   int sp2Val = instance[superParent2_];
 
-  // Start with p(c) * p(sp1Val| c) * p(sp2Val| c)
+  // Start with p(c) * p(sp1Val, sp2Val | c).
+  // jointParents_: model the two superparents jointly (classic A2DE).
+  // else: legacy behaviour, treat them as independent given c.
   for (int c = 0; c < statesClass_; c++) {
     double pC = classPriors_[c];
-    double pSp1C = sp1FeatureProbs_[sp1Val * statesClass_ + c];
-    double pSp2C = sp2FeatureProbs_[sp2Val * statesClass_ + c];
-    probs[c] = pC * pSp1C * pSp2C * initializer_;
+    double pParents;
+    if (jointParents_) {
+      pParents = spPairProbs_[(sp1Val * states_[superParent2_] + sp2Val) * statesClass_ + c];
+    } else {
+      double pSp1C = sp1FeatureProbs_[sp1Val * statesClass_ + c];
+      double pSp2C = sp2FeatureProbs_[sp2Val * statesClass_ + c];
+      pParents = pSp1C * pSp2C;
+    }
+    probs[c] = pC * pParents * initializer_;
   }
 
   // Multiply by each child feature f
@@ -506,6 +539,7 @@ std::string XSp2de::to_string() const
       << "nFeatures_    = " << nFeatures_    << "\n"
       << "superParent1_ = " << superParent1_ << "\n"
       << "superParent2_ = " << superParent2_ << "\n"
+      << "jointParents_ = " << jointParents_ << "\n"
       << "statesClass_  = " << statesClass_  << "\n\n";
 
   oss << "States: [";
@@ -558,17 +592,12 @@ int XSp2de::getNumberOfStates() const
 
 int XSp2de::getNumberOfEdges() const
 {
-  // In an SPNDE with n=2, for each feature we have edges from class, sp1, sp2. 
-  // So that’s 3*(nFeatures_) edges, minus the ones for the superparents themselves, 
-  // plus the edges from class->superparent1, class->superparent2. 
-  // For a quick approximation:
-  //   - class->sp1, class->sp2 => 2 edges
-  //   - class->child => (nFeatures -2) edges
-  //   - sp1->child, sp2->child => 2*(nFeatures -2) edges
-  // total = 2 + (nFeatures-2) + 2*(nFeatures-2) = 2 + 3*(nFeatures-2) 
-  //         = 3nFeatures - 4 (just an example).
-  // You can adapt to your liking:
-  return 3 * nFeatures_ - 4; 
+  //   - class -> each of the nFeatures nodes            => nFeatures edges
+  //   - sp1 -> child, sp2 -> child (nFeatures-2 childs) => 2*(nFeatures-2) edges
+  //   => nFeatures + 2*(nFeatures-2) = 3*nFeatures - 4
+  //   - jointParents_: one extra edge sp1 -> sp2 (the two superparents are
+  //     modelled jointly, so they are dependent given the class).
+  return 3 * nFeatures_ - 4 + (jointParents_ ? 1 : 0);
 }
 
 } // namespace bayesnet
