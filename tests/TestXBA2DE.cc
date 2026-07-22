@@ -22,15 +22,16 @@ TEST_CASE("Normal test", "[XBA2DE]")
     auto clf = bayesnet::XBA2DE();
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
     DUMP("Normal", clf); std::cerr << "GOLDEN[Normal] score=" << clf.score(raw.X_test, raw.y_test) << std::endl;
-    REQUIRE(clf.getNumberOfNodes() == 40);
-    REQUIRE(clf.getNumberOfEdges() == 72);
-    REQUIRE(clf.getNotes().size() == 2);
+    REQUIRE(clf.getNumberOfNodes() == 30);
+    REQUIRE(clf.getNumberOfEdges() == 54);
+    REQUIRE(clf.getNotes().size() == 1);
     REQUIRE(clf.getVersion() == "0.9.7");
-    REQUIRE(clf.getNotes()[0] == "Convergence threshold reached & 13 models eliminated");
-    REQUIRE(clf.getNotes()[1] == "Number of models: 8");
-    REQUIRE(clf.getNumberOfStates() == 512);
+    // iris has 4 features -> C(4,2)=6 distinct pairs; each used once (no repeat),
+    // so training stops on pair exhaustion, not convergence.
+    REQUIRE(clf.getNotes()[0] == "Number of models: 6");
+    REQUIRE(clf.getNumberOfStates() == 384);
     REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.933333f));
-    REQUIRE(clf.graph().size() == 8);
+    REQUIRE(clf.graph().size() == 6);
 }
 TEST_CASE("Feature selection seeding is rejected", "[XBA2DE]")
 {
@@ -46,7 +47,7 @@ TEST_CASE("Feature selection seeding is rejected", "[XBA2DE]")
 TEST_CASE("Order asc, desc & random", "[XBA2DE]")
 {
     auto raw = RawDatasets("glass", true);
-    std::map<std::string, double> scores{ {"asc", 0.771028}, {"desc", 0.841121}, {"rand", 0.766355} };
+    std::map<std::string, double> scores{ {"asc", 0.771028}, {"desc", 0.845794}, {"rand", 0.831776} };
     for (const std::string& order : { "asc", "desc", "rand" }) {
         auto clf = bayesnet::XBA2DE();
         clf.setHyperparameters({
@@ -98,17 +99,17 @@ TEST_CASE("Bisection Best", "[XBA2DE]")
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     DUMP("Bisection", clf); std::cerr << "GOLDEN[Bisection] score=" << clf.score(raw.X_test, raw.y_test) << std::endl;
-    REQUIRE(clf.getNumberOfNodes() == 435);
-    REQUIRE(clf.getNumberOfEdges() == 1131);
-    REQUIRE(clf.getNumberOfStates() == 41006);
+    REQUIRE(clf.getNumberOfNodes() == 360);
+    REQUIRE(clf.getNumberOfEdges() == 936);
+    REQUIRE(clf.getNumberOfStates() == 33936);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 15 models eliminated");
-    REQUIRE(clf.getNotes().at(1) == "Pairs not used in train: 83");
-    REQUIRE(clf.getNotes().at(2) == "Number of models: 29");
+    REQUIRE(clf.getNotes().at(1) == "Pairs not used in train: 52");
+    REQUIRE(clf.getNotes().at(2) == "Number of models: 24");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.9625).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.9625).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.983333).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.983333).epsilon(raw.epsilon));
 }
 TEST_CASE("Bisection Best vs Last", "[XBA2DE]")
 {
@@ -123,7 +124,7 @@ TEST_CASE("Bisection Best vs Last", "[XBA2DE]")
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_best = clf.score(raw.X_test, raw.y_test);
     std::cerr << "GOLDEN[Bisection-best] score_best=" << score_best << std::endl;
-    REQUIRE(score_best == Catch::Approx(0.98).epsilon(raw.epsilon));
+    REQUIRE(score_best == Catch::Approx(0.97).epsilon(raw.epsilon));
     // Now we will set the hyperparameter to use the last accuracy
     hyperparameters["convergence_best"] = false;
     clf.setHyperparameters(hyperparameters);

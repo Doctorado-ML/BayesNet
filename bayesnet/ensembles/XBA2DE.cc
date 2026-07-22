@@ -6,6 +6,7 @@
 
 #include <folding.hpp>
 #include <algorithm>
+#include <set>
 #include <limits.h>
 #include "XBA2DE.h"
 #include "bayesnet/classifiers/XSP2DE.h"
@@ -66,7 +67,12 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
     torch::Tensor weights_ = torch::full({m}, 1.0 / m, torch::kFloat64);
     bool finished = false;
     // XBA2DE always starts from an empty ensemble; no feature-selection seeding.
-    std::vector<int> featuresUsed;
+    // Pairs already added to the ensemble. The boosting unit here is the PAIR,
+    // not a single superparent: a pair is used at most once, but its two
+    // variables may still pair with OTHER variables (that is expected). Allowing
+    // a pair to repeat with updated weights could be a future hyperparameter.
+    std::set<std::pair<int, int>> pairsUsed;
+    std::vector<int> featuresExcluded; // XBA2DE does no feature-level exclusion
     int numItemsPack = 0; // The counter of the models inserted in the current pack
     // Variables to control the accuracy finish condition
     double priorAccuracy = 0.0;
@@ -82,10 +88,13 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
     std::vector<std::pair<int, int>> pairSelection;
     while (!finished) {
         // Step 1: Build ranking with mutual information
-        pairSelection = metrics.SelectKPairs(weights_, featuresUsed, ascending, 0, beta_); // Get all the pairs sorted by joint relevance
+        pairSelection = metrics.SelectKPairs(weights_, featuresExcluded, ascending, 0, beta_); // Get all the pairs sorted by joint relevance
         if (order_algorithm == Orders.RAND) {
             std::shuffle(pairSelection.begin(), pairSelection.end(), g);
         }
+        // Remove pairs already used (boosting without replacement of pairs).
+        pairSelection.erase(std::remove_if(pairSelection.begin(), pairSelection.end(),
+            [&](const std::pair<int, int>& p) { return pairsUsed.count(p) > 0; }), pairSelection.end());
         int k = pow(2, tolerance); // XBA2DE always uses bisection
         int counter = 0; // The model counter of the current pack
         // VLOG_SCOPE_F(1, "counter=%d k=%d featureSelection.size: %zu", counter, k, featureSelection.size());
@@ -101,6 +110,7 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
             std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
             // Step 3.4: Store classifier and its accuracy to weigh its future vote
             numItemsPack++;
+            pairsUsed.insert(feature_pair);
             models.push_back(std::move(model));
             significanceModels.push_back(alpha_t);
             n_models++;
