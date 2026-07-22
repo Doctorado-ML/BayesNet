@@ -122,13 +122,22 @@ TEST_CASE("Check different smoothing", "[XSP2DE]")
   clf2.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, bayesnet::Smoothing_t::LAPLACE);
   auto clf3 = bayesnet::XSp2de(0, 1);
   clf3.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, bayesnet::Smoothing_t::NONE);
+  auto clf4 = bayesnet::XSp2de(0, 1);
+  clf4.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, bayesnet::Smoothing_t::CESTNIK);
   auto score = clf.score(raw.X_test, raw.y_test);
   auto score2 = clf2.score(raw.X_test, raw.y_test);
   auto score3 = clf3.score(raw.X_test, raw.y_test);
-  std::cerr << "GOLDEN[smoothing] ORIGINAL=" << score << " LAPLACE=" << score2 << " NONE=" << score3 << std::endl;
+  auto score4 = clf4.score(raw.X_test, raw.y_test);
+  std::cerr << "GOLDEN[smoothing] ORIGINAL=" << score << " LAPLACE=" << score2
+            << " NONE=" << score3 << " CESTNIK=" << score4 << std::endl;
   REQUIRE(score == Catch::Approx(0.966667).epsilon(raw.epsilon));
   REQUIRE(score2 == Catch::Approx(1.0).epsilon(raw.epsilon));
   REQUIRE(score3 == Catch::Approx(0.966667).epsilon(raw.epsilon));
+  // CESTNIK is now a real m-estimate (not a silent no-op that falls back to no
+  // smoothing): it produces a genuinely smoothed model, so its score differs
+  // from the unsmoothed NONE run.
+  REQUIRE(score4 == Catch::Approx(0.866667).epsilon(raw.epsilon));
+  REQUIRE(score4 != Catch::Approx(score3).epsilon(raw.epsilon));
 }
 TEST_CASE("Check rest", "[XSP2DE]")
 {

@@ -9,6 +9,8 @@
 #include <cassert>
 #include <cmath>
 #include <limits>
+#include <algorithm>
+#include <numeric>
 #include <stdexcept>
 #include <iostream>
 #include "bayesnet/utils/TensorUtils.h"
@@ -23,8 +25,7 @@ XSp2de::XSp2de(int spIndex1, int spIndex2)
   , superParent2_{ spIndex2 }
   , nFeatures_{0}
   , statesClass_{0}
-  , alpha_{1.0}
-  , initializer_{1.0}
+  , smoothing_{bayesnet::Smoothing_t::ORIGINAL}
   , jointParents_{true}
   , semaphore_{ CountingSemaphore::getInstance() }
   , Classifier(Network())
@@ -144,20 +145,10 @@ void XSp2de::trainModel(const torch::Tensor &weights,
     addSample(instance, w);
   }
 
-  // Choose alpha based on smoothing:
-  switch (smoothing) {
-    case bayesnet::Smoothing_t::ORIGINAL:
-      alpha_ = 1.0 / m;
-      break;
-    case bayesnet::Smoothing_t::LAPLACE:
-      alpha_ = 1.0;
-      break;
-    default:
-      alpha_ = 0.0; // no smoothing
-  }
-
-  // Large initializer factor for numerical stability
-  initializer_ = std::numeric_limits<double>::max() / (nFeatures_ * nFeatures_);
+  // Store the smoothing strategy; the per-cell pseudocount is derived per table
+  // from its cardinality (see smoothingPseudocount), which is what makes CESTNIK
+  // a proper m-estimate rather than a single constant.
+  smoothing_ = smoothing;
 
   // Convert raw counts to probabilities
   computeProbabilities();
@@ -214,11 +205,35 @@ void XSp2de::addSample(const std::vector<int> &instance, double weight)
 }
 
 // --------------------------------------
+// smoothingPseudocount
+// --------------------------------------
+// Per-cell pseudocount for an additive-smoothed table  P = (count + a) / (N + a*K),
+// where K = `cardinality` is the number of states of the distributed variable.
+//   ORIGINAL : a = 1/m           (Laplace-like, m = #samples)
+//   LAPLACE  : a = 1
+//   CESTNIK  : a = 1/K           (m-estimate, m=1, uniform prior: the K
+//                                 pseudocounts sum to 1, so denom adds exactly 1)
+//   otherwise: a = 0             (no smoothing)
+double XSp2de::smoothingPseudocount(int cardinality) const
+{
+  switch (smoothing_) {
+    case bayesnet::Smoothing_t::ORIGINAL:
+      return (m > 0) ? 1.0 / m : 0.0;
+    case bayesnet::Smoothing_t::LAPLACE:
+      return 1.0;
+    case bayesnet::Smoothing_t::CESTNIK:
+      return (cardinality > 0) ? 1.0 / cardinality : 0.0;
+    default:
+      return 0.0; // no smoothing
+  }
+}
+
+// --------------------------------------
 // computeProbabilities
 // --------------------------------------
 void XSp2de::computeProbabilities()
 {
-  double totalCount = std::accumulate(classCounts_.begin(), 
+  double totalCount = std::accumulate(classCounts_.begin(),
                                       classCounts_.end(), 0.0);
 
   // classPriors_
@@ -230,21 +245,23 @@ void XSp2de::computeProbabilities()
       classPriors_[c] = unif;
     }
   } else {
+    double a = smoothingPseudocount(statesClass_);
     for (int c = 0; c < statesClass_; c++) {
-      classPriors_[c] = 
-        (classCounts_[c] + alpha_) 
-        / (totalCount + alpha_ * statesClass_);
+      classPriors_[c] =
+        (classCounts_[c] + a)
+        / (totalCount + a * statesClass_);
     }
   }
 
   // p(sp1Val| c)
   sp1FeatureProbs_.resize(sp1FeatureCounts_.size());
   int sp1Card = states_[superParent1_];
+  double aSp1 = smoothingPseudocount(sp1Card);
   for (int spVal = 0; spVal < sp1Card; spVal++) {
     for (int c = 0; c < statesClass_; c++) {
-      double denom = classCounts_[c] + alpha_ * sp1Card;
-      double num = sp1FeatureCounts_[spVal * statesClass_ + c] + alpha_;
-      sp1FeatureProbs_[spVal * statesClass_ + c] = 
+      double denom = classCounts_[c] + aSp1 * sp1Card;
+      double num = sp1FeatureCounts_[spVal * statesClass_ + c] + aSp1;
+      sp1FeatureProbs_[spVal * statesClass_ + c] =
          (denom <= 0.0 ? 0.0 : num / denom);
     }
   }
@@ -252,10 +269,11 @@ void XSp2de::computeProbabilities()
   // p(sp2Val| c)
   sp2FeatureProbs_.resize(sp2FeatureCounts_.size());
   int sp2Card = states_[superParent2_];
+  double aSp2 = smoothingPseudocount(sp2Card);
   for (int spVal = 0; spVal < sp2Card; spVal++) {
     for (int c = 0; c < statesClass_; c++) {
-      double denom = classCounts_[c] + alpha_ * sp2Card;
-      double num = sp2FeatureCounts_[spVal * statesClass_ + c] + alpha_;
+      double denom = classCounts_[c] + aSp2 * sp2Card;
+      double num = sp2FeatureCounts_[spVal * statesClass_ + c] + aSp2;
       sp2FeatureProbs_[spVal * statesClass_ + c] =
          (denom <= 0.0 ? 0.0 : num / denom);
     }
@@ -264,12 +282,13 @@ void XSp2de::computeProbabilities()
   // p(sp1Val, sp2Val | c) joint superparents
   spPairProbs_.resize(spPairCounts_.size());
   int pairCard = sp1Card * sp2Card;
+  double aPair = smoothingPseudocount(pairCard);
   for (int v1 = 0; v1 < sp1Card; v1++) {
     for (int v2 = 0; v2 < sp2Card; v2++) {
       for (int c = 0; c < statesClass_; c++) {
         int idx = (v1 * sp2Card + v2) * statesClass_ + c;
-        double num = spPairCounts_[idx] + alpha_;
-        double denom = classCounts_[c] + alpha_ * pairCard;
+        double num = spPairCounts_[idx] + aPair;
+        double denom = classCounts_[c] + aPair * pairCard;
         spPairProbs_[idx] = (denom <= 0.0 ? 0.0 : num / denom);
       }
     }
@@ -279,12 +298,13 @@ void XSp2de::computeProbabilities()
   childProbs_.resize(childCounts_.size());
   int offset = 0;
   for (int f = 0; f < nFeatures_; f++) {
-    if (f == superParent1_ || f == superParent2_) 
+    if (f == superParent1_ || f == superParent2_)
       continue;
 
     int fCard = states_[f];
     int sp1Card_ = states_[superParent1_];
     int sp2Card_ = states_[superParent2_];
+    double aChild = smoothingPseudocount(fCard);
     int childBlockSizeSp2 = sp2Card_ * fCard * statesClass_;
     int childBlockSizeF   = fCard * statesClass_;
 
@@ -293,13 +313,13 @@ void XSp2de::computeProbabilities()
       for (int sp2Val = 0; sp2Val < sp2Card_; sp2Val++) {
         for (int childVal = 0; childVal < fCard; childVal++) {
           for (int c = 0; c < statesClass_; c++) {
-            // index in childCounts_ 
-            int idx = offset 
-                    + sp1Val*childBlockSizeSp2 
-                    + sp2Val*childBlockSizeF 
-                    + childVal*statesClass_ 
+            // index in childCounts_
+            int idx = offset
+                    + sp1Val*childBlockSizeSp2
+                    + sp2Val*childBlockSizeF
+                    + childVal*statesClass_
                     + c;
-            double num = childCounts_[idx] + alpha_;
+            double num = childCounts_[idx] + aChild;
             // denominator is the count of (sp1Val,sp2Val,c) plus alpha * fCard
             // We can find that by summing childVal dimension, but we already
             // have it in childCounts_[...] or we can re-check the superparent 
@@ -317,7 +337,7 @@ void XSp2de::computeProbabilities()
                        + cv*statesClass_ + c;
               sumSp1Sp2C += childCounts_[idx2];
             }
-            double denom = sumSp1Sp2C + alpha_ * fCard;
+            double denom = sumSp1Sp2C + aChild * fCard;
             childProbs_[idx] = (denom <= 0.0 ? 0.0 : num / denom);
           }
         }
@@ -335,12 +355,16 @@ std::vector<double> XSp2de::predict_proba(const std::vector<int> &instance) cons
   if (!fitted) {
     throw std::logic_error(CLASSIFIER_NOT_FITTED);
   }
-  std::vector<double> probs(statesClass_, 0.0);
+  // Work in log-space: the naive-Bayes product of many probabilities in [0,1]
+  // underflows for high-dimensional instances (SP2DE's 4-way child tables are
+  // very sparse). Summing log-probabilities and normalizing with log-sum-exp is
+  // numerically stable and needs no magic scaling constant.
+  std::vector<double> logProbs(statesClass_, 0.0);
 
   int sp1Val = instance[superParent1_];
   int sp2Val = instance[superParent2_];
 
-  // Start with p(c) * p(sp1Val, sp2Val | c).
+  // log p(c) + log p(sp1Val, sp2Val | c).
   // jointParents_: model the two superparents jointly (classic A2DE).
   // else: legacy behaviour, treat them as independent given c.
   for (int c = 0; c < statesClass_; c++) {
@@ -353,13 +377,13 @@ std::vector<double> XSp2de::predict_proba(const std::vector<int> &instance) cons
       double pSp2C = sp2FeatureProbs_[sp2Val * statesClass_ + c];
       pParents = pSp1C * pSp2C;
     }
-    probs[c] = pC * pParents * initializer_;
+    logProbs[c] = std::log(pC) + std::log(pParents);
   }
 
-  // Multiply by each child feature f
+  // + sum over child features f of log p(x_f | c, sp1Val, sp2Val)
   int offset = 0;
   for (int f = 0; f < nFeatures_; f++) {
-    if (f == superParent1_ || f == superParent2_) 
+    if (f == superParent1_ || f == superParent2_)
       continue;
 
     int valF = instance[f];
@@ -370,18 +394,32 @@ std::vector<double> XSp2de::predict_proba(const std::vector<int> &instance) cons
     int blockSizeF   = fCard * statesClass_;
 
     // base index for childProbs_ for this child and sp1Val, sp2Val
-    int base = offset 
-             + sp1Val*blockSizeSp2 
-             + sp2Val*blockSizeF 
+    int base = offset
+             + sp1Val*blockSizeSp2
+             + sp2Val*blockSizeF
              + valF*statesClass_;
     for (int c = 0; c < statesClass_; c++) {
-      probs[c] *= childProbs_[base + c];
+      logProbs[c] += std::log(childProbs_[base + c]);
     }
     offset += (fCard * sp1Card * sp2Card * statesClass_);
   }
 
-  // Normalize
-  normalize(probs);
+  // Normalize with log-sum-exp.
+  std::vector<double> probs(statesClass_, 0.0);
+  double maxLog = *std::max_element(logProbs.begin(), logProbs.end());
+  if (!std::isfinite(maxLog)) {
+    // Every class has zero likelihood (only possible without smoothing) -> uniform.
+    std::fill(probs.begin(), probs.end(), 1.0 / static_cast<double>(statesClass_));
+    return probs;
+  }
+  double sumExp = 0.0;
+  for (int c = 0; c < statesClass_; c++) {
+    probs[c] = std::exp(logProbs[c] - maxLog);
+    sumExp += probs[c];
+  }
+  for (int c = 0; c < statesClass_; c++) {
+    probs[c] /= sumExp;
+  }
   return probs;
 }
 

@@ -47,13 +47,18 @@ class XSp2de : public Classifier {
     void addSample(const std::vector<int> &instance, double weight);
     void normalize(std::vector<double> &v) const;
     void computeProbabilities();
+    // Per-cell smoothing pseudocount for a table whose distributed variable has
+    // `cardinality` states. ORIGINAL (1/m) and LAPLACE (1) ignore cardinality;
+    // CESTNIK is the m-estimate (m=1, uniform prior) => 1/cardinality.
+    double smoothingPseudocount(int cardinality) const;
 
     int superParent1_;
     int superParent2_;
     int nFeatures_;
     int statesClass_;
-    double alpha_;
-    double initializer_;
+    // Smoothing strategy chosen at fit time; the actual per-cell pseudocount is
+    // derived from it and the table cardinality (see smoothingPseudocount).
+    bayesnet::Smoothing_t smoothing_;
     // If true, model the two superparents jointly P(sp1,sp2|c) (classic A2DE),
     // instead of as independent factors P(sp1|c)*P(sp2|c). This is the parent
     // layer where BoostA2DE departs from BoostAODE.
