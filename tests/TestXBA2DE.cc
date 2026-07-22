@@ -46,12 +46,11 @@ TEST_CASE("Feature selection seeding is rejected", "[XBA2DE]")
 TEST_CASE("Order asc, desc & random", "[XBA2DE]")
 {
     auto raw = RawDatasets("glass", true);
-    std::map<std::string, double> scores{ {"asc", 0.771028}, {"desc", 0.845794}, {"rand", 0.766355} };
+    std::map<std::string, double> scores{ {"asc", 0.771028}, {"desc", 0.841121}, {"rand", 0.766355} };
     for (const std::string& order : { "asc", "desc", "rand" }) {
         auto clf = bayesnet::XBA2DE();
         clf.setHyperparameters({
             {"order", order},
-            {"bisection", false},
             {"maxTolerance", 1},
             {"convergence", true},
             });
@@ -73,20 +72,17 @@ TEST_CASE("Oddities", "[XBA2DE]")
         {{"maxTolerance", 0}},
         {{"maxTolerance", 7}},
         {{"beta", -1.0}},
-        // Feature-selection seeding is not supported by XBA2DE.
+        // Knobs fixed in XBA2DE -> not accepted as hyperparameters (even with
+        // their fixed value, e.g. bisection=true).
         {{"select_features", "CFS"}},
         {{"select_features", "duck"}},
         {{"threshold", 0.1}},
+        {{"bisection", false}},
+        {{"bisection", true}},
+        {{"block_update", true}},
+        {{"alpha_block", true}},
     };
     for (const auto& hyper : bad_hyper.items()) {
-        INFO("XBA2DE hyper: " << hyper.value().dump());
-        REQUIRE_THROWS_AS(clf.setHyperparameters(hyper.value()), std::invalid_argument);
-    }
-    auto bad_hyper_fit2 = nlohmann::json{
-        {{"alpha_block", true}, {"block_update", true}},
-        {{"bisection", false}, {"block_update", true}},
-    };
-    for (const auto& hyper : bad_hyper_fit2.items()) {
         INFO("XBA2DE hyper: " << hyper.value().dump());
         REQUIRE_THROWS_AS(clf.setHyperparameters(hyper.value()), std::invalid_argument);
     }
@@ -96,7 +92,6 @@ TEST_CASE("Bisection Best", "[XBA2DE]")
     auto clf = bayesnet::XBA2DE();
     auto raw = RawDatasets("kdd_JapaneseVowels", true, 1200, true, false);
     clf.setHyperparameters({
-        {"bisection", true},
         {"maxTolerance", 3},
         {"convergence", true},
         {"convergence_best", false},
@@ -120,7 +115,6 @@ TEST_CASE("Bisection Best vs Last", "[XBA2DE]")
     auto raw = RawDatasets("kdd_JapaneseVowels", true, 1500, true, false);
     auto clf = bayesnet::XBA2DE();
     auto hyperparameters = nlohmann::json{
-        {"bisection", true},
         {"maxTolerance", 3},
         {"convergence", true},
         {"convergence_best", true},
@@ -137,52 +131,6 @@ TEST_CASE("Bisection Best vs Last", "[XBA2DE]")
     auto score_last = clf.score(raw.X_test, raw.y_test);
     std::cerr << "GOLDEN[Bisection-last] score_last=" << score_last << std::endl;
     REQUIRE(score_last == Catch::Approx(0.983333).epsilon(raw.epsilon));
-}
-TEST_CASE("Block Update", "[XBA2DE]")
-{
-    auto clf = bayesnet::XBA2DE();
-    auto raw = RawDatasets("kdd_JapaneseVowels", true, 1500, true, false);
-    clf.setHyperparameters({
-        {"bisection", true},
-        {"block_update", true},
-        {"maxTolerance", 3},
-        {"convergence", true},
-        });
-    clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    DUMP("BlockUpdate", clf); std::cerr << "GOLDEN[BlockUpdate] score=" << clf.score(raw.X_test, raw.y_test) << std::endl;
-    REQUIRE(clf.getNumberOfNodes() == 180);
-    REQUIRE(clf.getNumberOfEdges() == 468);
-    REQUIRE(clf.getNotes().size() == 3);
-    REQUIRE(clf.getNotes()[0] == "Convergence threshold reached & 15 models eliminated");
-    REQUIRE(clf.getNotes()[1] == "Pairs not used in train: 83");
-    REQUIRE(clf.getNotes()[2] == "Number of models: 12");
-    auto score = clf.score(raw.X_test, raw.y_test);
-    auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.966667).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.966667).epsilon(raw.epsilon));
-    /*std::cout << "Number of nodes " << clf.getNumberOfNodes() << std::endl;*/
-    /*std::cout << "Number of edges " << clf.getNumberOfEdges() << std::endl;*/
-    /*std::cout << "Notes size " << clf.getNotes().size() << std::endl;*/
-    /*for (auto note : clf.getNotes()) {*/
-    /*    std::cout << note << std::endl;*/
-    /*}*/
-    /*std::cout << "Score " << score << std::endl;*/
-}
-TEST_CASE("Alphablock", "[XBA2DE]")
-{
-    auto clf_alpha = bayesnet::XBA2DE();
-    auto clf_no_alpha = bayesnet::XBA2DE();
-    auto raw = RawDatasets("diabetes", true);
-    clf_alpha.setHyperparameters({
-        {"alpha_block", true},
-        });
-    clf_alpha.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    clf_no_alpha.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    auto score_alpha = clf_alpha.score(raw.X_test, raw.y_test);
-    auto score_no_alpha = clf_no_alpha.score(raw.X_test, raw.y_test);
-    std::cerr << "GOLDEN[Alphablock] score_alpha=" << score_alpha << " score_no_alpha=" << score_no_alpha << std::endl;
-    REQUIRE(score_alpha == Catch::Approx(0.688312).epsilon(raw.epsilon));
-    REQUIRE(score_no_alpha == Catch::Approx(0.688312).epsilon(raw.epsilon));
 }
 TEST_CASE("Beta joint-relevance criterion", "[XBA2DE]")
 {

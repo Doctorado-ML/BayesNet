@@ -14,19 +14,26 @@
 namespace bayesnet {
 
 XBA2DE::XBA2DE(bool predict_voting) : Boost(predict_voting) {
-    // XBA2DE always starts from an empty ensemble: feature-selection seeding
-    // (CFS/IWSS/FCBF) is deliberately not supported here, mirroring how the
-    // BoostAODE experiments were run. Drop those knobs, add the beta criterion.
+    // XBA2DE fixes several knobs to keep the algorithm lean, mirroring how the
+    // BoostAODE experiments were actually run: it always starts from an empty
+    // ensemble (no CFS/IWSS/FCBF seeding) and always uses plain bisection (no
+    // block_update, no alpha_block). Those hyperparameters are dropped here and
+    // the beta pair-ranking criterion is added.
     auto& vh = validHyperparameters;
-    vh.erase(std::remove_if(vh.begin(), vh.end(),
-        [](const std::string& h) { return h == "select_features" || h == "threshold"; }), vh.end());
+    vh.erase(std::remove_if(vh.begin(), vh.end(), [](const std::string& h) {
+        return h == "select_features" || h == "threshold" || h == "bisection" ||
+               h == "block_update" || h == "alpha_block";
+    }), vh.end());
     vh.push_back("beta");
 }
 void XBA2DE::setHyperparameters(const nlohmann::json& hyperparameters_) {
     auto hyperparameters = hyperparameters_;
-    if (hyperparameters.contains("select_features") || hyperparameters.contains("threshold")) {
-        throw std::invalid_argument("XBA2DE does not support feature-selection seeding; "
-            "'select_features' and 'threshold' are not valid hyperparameters");
+    // These knobs are fixed in XBA2DE (see the constructor) and therefore not
+    // accepted: empty-start (no seeding) and plain bisection are always on.
+    for (const auto& forbidden : { "select_features", "threshold", "bisection", "block_update", "alpha_block" }) {
+        if (hyperparameters.contains(forbidden)) {
+            throw std::invalid_argument(std::string("XBA2DE does not support the '") + forbidden + "' hyperparameter");
+        }
     }
     if (hyperparameters.contains("beta")) {
         beta_ = hyperparameters["beta"];
@@ -79,7 +86,7 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
         if (order_algorithm == Orders.RAND) {
             std::shuffle(pairSelection.begin(), pairSelection.end(), g);
         }
-        int k = bisection ? pow(2, tolerance) : 1;
+        int k = pow(2, tolerance); // XBA2DE always uses bisection
         int counter = 0; // The model counter of the current pack
         // VLOG_SCOPE_F(1, "counter=%d k=%d featureSelection.size: %zu", counter, k, featureSelection.size());
         while (counter++ < k && pairSelection.size() > 0) {
@@ -89,11 +96,9 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
             model = std::make_unique<XSp2de>(feature_pair.first, feature_pair.second);
             model->fit(dataset, features, className, states, weights_, smoothing);
             alpha_t = 0.0;
-            if (!block_update) {
-                auto ypred = model->predict(X_train);
-                // Step 3.1: Compute the classifier amout of say
-                std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
-            }
+            auto ypred = model->predict(X_train);
+            // Step 3.1: Compute the classifier amount of say
+            std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
             // Step 3.4: Store classifier and its accuracy to weigh its future vote
             numItemsPack++;
             models.push_back(std::move(model));
@@ -101,9 +106,6 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
             n_models++;
             // VLOG_SCOPE_F(2, "numItemsPack: %d n_models: %d featuresUsed: %zu", numItemsPack, n_models,
             // featuresUsed.size());
-        }
-        if (block_update) {
-            std::tie(weights_, alpha_t, finished) = update_weights_block(k, y_train, weights_);
         }
         if (convergence && !finished) {
             auto y_val_predict = predict(X_test);
