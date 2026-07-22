@@ -5,6 +5,7 @@
 // ***************************************************************
 
 #include <folding.hpp>
+#include <algorithm>
 #include <limits.h>
 #include "XBA2DE.h"
 #include "bayesnet/classifiers/XSP2DE.h"
@@ -13,10 +14,20 @@
 namespace bayesnet {
 
 XBA2DE::XBA2DE(bool predict_voting) : Boost(predict_voting) {
-    validHyperparameters.push_back("beta");
+    // XBA2DE always starts from an empty ensemble: feature-selection seeding
+    // (CFS/IWSS/FCBF) is deliberately not supported here, mirroring how the
+    // BoostAODE experiments were run. Drop those knobs, add the beta criterion.
+    auto& vh = validHyperparameters;
+    vh.erase(std::remove_if(vh.begin(), vh.end(),
+        [](const std::string& h) { return h == "select_features" || h == "threshold"; }), vh.end());
+    vh.push_back("beta");
 }
 void XBA2DE::setHyperparameters(const nlohmann::json& hyperparameters_) {
     auto hyperparameters = hyperparameters_;
+    if (hyperparameters.contains("select_features") || hyperparameters.contains("threshold")) {
+        throw std::invalid_argument("XBA2DE does not support feature-selection seeding; "
+            "'select_features' and 'threshold' are not valid hyperparameters");
+    }
     if (hyperparameters.contains("beta")) {
         beta_ = hyperparameters["beta"];
         if (beta_ < 0.0) {
@@ -26,25 +37,6 @@ void XBA2DE::setHyperparameters(const nlohmann::json& hyperparameters_) {
     }
     // Hand off the rest to the boosting base.
     Boost::setHyperparameters(hyperparameters);
-}
-std::vector<int> XBA2DE::initializeModels(const Smoothing_t smoothing) {
-    torch::Tensor weights_ = torch::full({m}, 1.0 / m, torch::kFloat64);
-    std::vector<int> featuresSelected = featureSelection(weights_);
-    if (featuresSelected.size() < 2) {
-        notes.push_back("No features selected in initialization");
-        status = ERROR;
-        return std::vector<int>();
-    }
-    for (int i = 0; i < featuresSelected.size() - 1; i++) {
-        for (int j = i + 1; j < featuresSelected.size(); j++) {
-            std::unique_ptr<Classifier> model = std::make_unique<XSp2de>(featuresSelected[i], featuresSelected[j]);
-            model->fit(dataset, features, className, states, weights_, smoothing);
-            add_model(std::move(model), 1.0);
-        }
-    }
-    notes.push_back("Used features in initialization: " + std::to_string(featuresSelected.size()) + " of " +
-                    std::to_string(features.size()) + " with " + select_features_algorithm);
-    return featuresSelected;
 }
 void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothing) {
     //
@@ -66,22 +58,8 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
     double alpha_t = 0;
     torch::Tensor weights_ = torch::full({m}, 1.0 / m, torch::kFloat64);
     bool finished = false;
+    // XBA2DE always starts from an empty ensemble; no feature-selection seeding.
     std::vector<int> featuresUsed;
-    if (selectFeatures) {
-        featuresUsed = initializeModels(smoothing);
-        if (featuresUsed.size() == 0) {
-            return;
-        }
-        auto ypred = predict(X_train);
-        std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
-        // Update significance of the models
-        for (int i = 0; i < n_models; ++i) {
-            significanceModels[i] = alpha_t;
-        }
-        if (finished) {
-            return;
-        }
-    }
     int numItemsPack = 0; // The counter of the models inserted in the current pack
     // Variables to control the accuracy finish condition
     double priorAccuracy = 0.0;

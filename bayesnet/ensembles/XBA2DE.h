@@ -20,7 +20,6 @@ namespace bayesnet {
     protected:
         void trainModel(const torch::Tensor& weights, const Smoothing_t smoothing) override;
     private:
-        std::vector<int> initializeModels(const Smoothing_t smoothing);
         // Pair-ranking criterion knob (joint relevance). beta=1 joint relevance
         // (default), beta=0 marginal-relevance sum, beta large pure synergy.
         double beta_ = 1.0;

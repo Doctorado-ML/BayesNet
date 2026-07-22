@@ -32,95 +32,16 @@ TEST_CASE("Normal test", "[XBA2DE]")
     REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.933333f));
     REQUIRE(clf.graph().size() == 8);
 }
-TEST_CASE("Feature_select CFS", "[XBA2DE]")
+TEST_CASE("Feature selection seeding is rejected", "[XBA2DE]")
 {
-    auto raw = RawDatasets("glass", true);
+    // XBA2DE always starts from an empty ensemble: CFS/IWSS/FCBF seeding and
+    // its companion 'threshold' are deliberately not valid hyperparameters here
+    // (mirrors how the BoostAODE experiments were run).
     auto clf = bayesnet::XBA2DE();
-    clf.setHyperparameters({ {"select_features", "CFS"} });
-    clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    DUMP("CFS", clf); std::cerr << "GOLDEN[CFS] score=" << clf.score(raw.X_test, raw.y_test) << std::endl;
-    REQUIRE(clf.getNumberOfNodes() == 360);
-    REQUIRE(clf.getNumberOfEdges() == 864);
-    REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 9 of 9 with CFS");
-    REQUIRE(clf.getNotes()[1] == "Number of models: 36");
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.697674));
-}
-TEST_CASE("Feature_select IWSS", "[XBA2DE]")
-{
-    auto raw = RawDatasets("glass", true);
-    auto clf = bayesnet::XBA2DE();
-    clf.setHyperparameters({ {"select_features", "IWSS"}, {"threshold", 0.5} });
-    clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    DUMP("IWSS", clf); std::cerr << "GOLDEN[IWSS] score=" << clf.score(raw.X_test, raw.y_test) << std::endl;
-    REQUIRE(clf.getNumberOfNodes() == 360);
-    REQUIRE(clf.getNumberOfEdges() == 864);
-    REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 9 of 9 with IWSS");
-    REQUIRE(clf.getNotes()[1] == "Number of models: 36");
-    REQUIRE(clf.getNumberOfStates() == 8748);
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.697674));
-}
-TEST_CASE("Feature_select FCBF", "[XBA2DE]")
-{
-    auto raw = RawDatasets("glass", true);
-    auto clf = bayesnet::XBA2DE();
-    clf.setHyperparameters({ {"select_features", "FCBF"}, {"threshold", 1e-7} });
-    clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    DUMP("FCBF", clf); std::cerr << "GOLDEN[FCBF] score=" << clf.score(raw.X_test, raw.y_test) << std::endl;
-    REQUIRE(clf.getNumberOfNodes() == 140);
-    REQUIRE(clf.getNumberOfEdges() == 336);
-    REQUIRE(clf.getNumberOfStates() == 3402);
-    REQUIRE(clf.getNotes().size() == 4);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 4 of 9 with FCBF");
-    REQUIRE(clf.getNotes()[1] == "Convergence threshold reached & 15 models eliminated");
-    REQUIRE(clf.getNotes()[2] == "Pairs not used in train: 2");
-    REQUIRE(clf.getNotes()[3] == "Number of models: 14");
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.744186));
-}
-TEST_CASE("Test used features in train note and score", "[XBA2DE]")
-{
-    auto raw = RawDatasets("diabetes", true);
-    auto clf = bayesnet::XBA2DE();
-    clf.setHyperparameters({
-        {"order", "asc"},
-        {"convergence", true},
-        {"select_features", "CFS"},
-        });
-    clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    auto score = clf.score(raw.Xv, raw.yv);
-    auto scoret = clf.score(raw.Xt, raw.yt);
-    DUMP("diabetes-CFS", clf); std::cerr << "GOLDEN[diabetes-CFS] score=" << score << " scoret=" << scoret << std::endl;
-    REQUIRE(clf.getNumberOfNodes() == 252);
-    REQUIRE(clf.getNumberOfEdges() == 588);
-    REQUIRE(clf.getNumberOfStates() == 9632);
-    REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 8 of 8 with CFS");
-    REQUIRE(clf.getNotes()[1] == "Number of models: 28");
-    REQUIRE(score == Catch::Approx(0.876302f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.876302f).epsilon(raw.epsilon));
-}
-TEST_CASE("Test used features in train note and score with glass", "[XBA2DE]")
-{
-    auto raw = RawDatasets("glass", true);
-    auto clf = bayesnet::XBA2DE();
-    clf.setHyperparameters({
-        {"order", "asc"},
-        {"convergence", true},
-        {"select_features", "CFS"},
-        });
-    clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    auto score = clf.score(raw.Xv, raw.yv);
-    auto scoret = clf.score(raw.Xt, raw.yt);
-    DUMP("glass-CFS", clf); std::cerr << "GOLDEN[glass-CFS] score=" << score << " scoret=" << scoret << std::endl;
-    REQUIRE(clf.getNumberOfNodes() == 360);
-    REQUIRE(clf.getNumberOfEdges() == 864);
-    REQUIRE(clf.getNumberOfStates() == 8748);
-    REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 9 of 9 with CFS");
-    REQUIRE(clf.getNotes()[1] == "Number of models: 36");
-    REQUIRE(score == Catch::Approx(0.813084).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.813084).epsilon(raw.epsilon));
+    REQUIRE_THROWS_AS(clf.setHyperparameters({ {"select_features", "CFS"} }), std::invalid_argument);
+    REQUIRE_THROWS_AS(clf.setHyperparameters({ {"select_features", "IWSS"}, {"threshold", 0.5} }), std::invalid_argument);
+    REQUIRE_THROWS_AS(clf.setHyperparameters({ {"select_features", "FCBF"}, {"threshold", 1e-7} }), std::invalid_argument);
+    REQUIRE_THROWS_AS(clf.setHyperparameters({ {"threshold", 0.5} }), std::invalid_argument);
 }
 TEST_CASE("Order asc, desc & random", "[XBA2DE]")
 {
@@ -149,26 +70,17 @@ TEST_CASE("Oddities", "[XBA2DE]")
     auto raw = RawDatasets("iris", true);
     auto bad_hyper = nlohmann::json{
         {{"order", "duck"}},
-        {{"select_features", "duck"}},
         {{"maxTolerance", 0}},
         {{"maxTolerance", 7}},
+        {{"beta", -1.0}},
+        // Feature-selection seeding is not supported by XBA2DE.
+        {{"select_features", "CFS"}},
+        {{"select_features", "duck"}},
+        {{"threshold", 0.1}},
     };
     for (const auto& hyper : bad_hyper.items()) {
         INFO("XBA2DE hyper: " << hyper.value().dump());
         REQUIRE_THROWS_AS(clf.setHyperparameters(hyper.value()), std::invalid_argument);
-    }
-    REQUIRE_THROWS_AS(clf.setHyperparameters({ {"maxTolerance", 0} }), std::invalid_argument);
-    auto bad_hyper_fit = nlohmann::json{
-        {{"select_features", "IWSS"}, {"threshold", -0.01}},
-        {{"select_features", "IWSS"}, {"threshold", 0.51}},
-        {{"select_features", "FCBF"}, {"threshold", 1e-8}},
-        {{"select_features", "FCBF"}, {"threshold", 1.01}},
-    };
-    for (const auto& hyper : bad_hyper_fit.items()) {
-        INFO("XBA2DE hyper: " << hyper.value().dump());
-        clf.setHyperparameters(hyper.value());
-        REQUIRE_THROWS_AS(clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing),
-            std::invalid_argument);
     }
     auto bad_hyper_fit2 = nlohmann::json{
         {{"alpha_block", true}, {"block_update", true}},
@@ -178,17 +90,6 @@ TEST_CASE("Oddities", "[XBA2DE]")
         INFO("XBA2DE hyper: " << hyper.value().dump());
         REQUIRE_THROWS_AS(clf.setHyperparameters(hyper.value()), std::invalid_argument);
     }
-    // Check not enough selected features
-    raw.Xv.pop_back();
-    raw.Xv.pop_back();
-    raw.Xv.pop_back();
-    raw.features.pop_back();
-    raw.features.pop_back();
-    raw.features.pop_back();
-    clf.setHyperparameters({ {"select_features", "CFS"}, {"alpha_block", false}, {"block_update", false} });
-    clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNotes().size() == 1);
-    REQUIRE(clf.getNotes()[0] == "No features selected in initialization");
 }
 TEST_CASE("Bisection Best", "[XBA2DE]")
 {
