@@ -19,7 +19,7 @@ namespace bayesnet {
   // --------------------------------------
   XSpode::XSpode(int spIndex)
     : superParent_{ spIndex }, nFeatures_{ 0 }, statesClass_{ 0 },
-    initializer_{ 1.0 }, semaphore_{ CountingSemaphore::getInstance() },
+    semaphore_{ CountingSemaphore::getInstance() },
     Classifier(Network())
   {
     validHyperparameters = { "parent" };
@@ -119,8 +119,6 @@ namespace bayesnet {
     // a proper m-estimate rather than a single constant (previously CESTNIK fell
     // through to no smoothing).
     smoothing_ = smoothing;
-    initializer_ = std::numeric_limits<double>::max() /
-      (nFeatures_ * nFeatures_); // for numerical stability
     // Convert raw counts to probabilities
     computeProbabilities();
   }
@@ -267,32 +265,48 @@ namespace bayesnet {
     if (!fitted) {
       throw std::logic_error(CLASSIFIER_NOT_FITTED);
     }
-    std::vector<double> probs(statesClass_, 0.0);
-    // Multiply p(c) × p(x_sp | c)
+    // Work in log-space (sum of log-probabilities + log-sum-exp normalization):
+    // numerically stable, needs no magic scaling constant, and matches XSp2de.
+    std::vector<double> logProbs(statesClass_, 0.0);
+    // log p(c) + log p(x_sp | c)
     int spVal = instance[superParent_];
     for (int c = 0; c < statesClass_; c++) {
       double pc = classPriors_[c];
       double pSpC = spFeatureProbs_[spVal * statesClass_ + c];
-      probs[c] = pc * pSpC * initializer_;
+      logProbs[c] = std::log(pc) + std::log(pSpC);
     }
 
-    // Multiply by each child’s probability p(x_child | c, x_sp)
+    // + sum over child features of log p(x_child | c, x_sp)
     for (int feature = 0; feature < nFeatures_; feature++) {
       if (feature == superParent_)
         continue; // skip sp
       int sf = instance[feature];
       int offset = childOffsets_[feature];
-      int childCard = states_[feature]; // not used directly, but for clarity
+      int childCard = states_[feature];
       // Index into childProbs_ = offset + spVal*(childCard*statesClass_) +
       // childVal*statesClass_ + c
       int base = offset + spVal * (childCard * statesClass_) + sf * statesClass_;
       for (int c = 0; c < statesClass_; c++) {
-        probs[c] *= childProbs_[base + c];
+        logProbs[c] += std::log(childProbs_[base + c]);
       }
     }
 
-    // Normalize
-    normalize(probs);
+    // Normalize with log-sum-exp.
+    std::vector<double> probs(statesClass_, 0.0);
+    double maxLog = *std::max_element(logProbs.begin(), logProbs.end());
+    if (!std::isfinite(maxLog)) {
+      // Every class has zero likelihood (only possible without smoothing) -> uniform.
+      std::fill(probs.begin(), probs.end(), 1.0 / static_cast<double>(statesClass_));
+      return probs;
+    }
+    double sumExp = 0.0;
+    for (int c = 0; c < statesClass_; c++) {
+      probs[c] = std::exp(logProbs[c] - maxLog);
+      sumExp += probs[c];
+    }
+    for (int c = 0; c < statesClass_; c++) {
+      probs[c] /= sumExp;
+    }
     return probs;
   }
   std::vector<std::vector<double>> XSpode::predict_proba(std::vector<std::vector<int>>& test_data)

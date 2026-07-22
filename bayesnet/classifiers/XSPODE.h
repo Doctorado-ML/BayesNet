@@ -75,7 +75,6 @@ namespace bayesnet {
         // Smoothing strategy chosen at fit time; the actual per-cell pseudocount
         // is derived from it and the table cardinality (see smoothingPseudocount).
         bayesnet::Smoothing_t smoothing_ = bayesnet::Smoothing_t::ORIGINAL;
-        double initializer_; // for numerical stability
         CountingSemaphore& semaphore_;
     };
 }
