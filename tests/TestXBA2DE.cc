@@ -68,14 +68,14 @@ TEST_CASE("Feature_select FCBF", "[XBA2DE]")
     clf.setHyperparameters({ {"select_features", "FCBF"}, {"threshold", 1e-7} });
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
     DUMP("FCBF", clf); std::cerr << "GOLDEN[FCBF] score=" << clf.score(raw.X_test, raw.y_test) << std::endl;
-    REQUIRE(clf.getNumberOfNodes() == 80);
-    REQUIRE(clf.getNumberOfEdges() == 192);
-    REQUIRE(clf.getNumberOfStates() == 1944);
+    REQUIRE(clf.getNumberOfNodes() == 140);
+    REQUIRE(clf.getNumberOfEdges() == 336);
+    REQUIRE(clf.getNumberOfStates() == 3402);
     REQUIRE(clf.getNotes().size() == 4);
     REQUIRE(clf.getNotes()[0] == "Used features in initialization: 4 of 9 with FCBF");
     REQUIRE(clf.getNotes()[1] == "Convergence threshold reached & 15 models eliminated");
     REQUIRE(clf.getNotes()[2] == "Pairs not used in train: 2");
-    REQUIRE(clf.getNotes()[3] == "Number of models: 8");
+    REQUIRE(clf.getNotes()[3] == "Number of models: 14");
     REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.744186));
 }
 TEST_CASE("Test used features in train note and score", "[XBA2DE]")
@@ -125,7 +125,7 @@ TEST_CASE("Test used features in train note and score with glass", "[XBA2DE]")
 TEST_CASE("Order asc, desc & random", "[XBA2DE]")
 {
     auto raw = RawDatasets("glass", true);
-    std::map<std::string, double> scores{ {"asc", 0.817757}, {"desc", 0.808411}, {"rand", 0.831776} };
+    std::map<std::string, double> scores{ {"asc", 0.771028}, {"desc", 0.845794}, {"rand", 0.766355} };
     for (const std::string& order : { "asc", "desc", "rand" }) {
         auto clf = bayesnet::XBA2DE();
         clf.setHyperparameters({
@@ -202,17 +202,17 @@ TEST_CASE("Bisection Best", "[XBA2DE]")
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     DUMP("Bisection", clf); std::cerr << "GOLDEN[Bisection] score=" << clf.score(raw.X_test, raw.y_test) << std::endl;
-    REQUIRE(clf.getNumberOfNodes() == 360);
-    REQUIRE(clf.getNumberOfEdges() == 936);
-    REQUIRE(clf.getNumberOfStates() == 33936);
+    REQUIRE(clf.getNumberOfNodes() == 435);
+    REQUIRE(clf.getNumberOfEdges() == 1131);
+    REQUIRE(clf.getNumberOfStates() == 41006);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 15 models eliminated");
     REQUIRE(clf.getNotes().at(1) == "Pairs not used in train: 83");
-    REQUIRE(clf.getNotes().at(2) == "Number of models: 24");
+    REQUIRE(clf.getNotes().at(2) == "Number of models: 29");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.958333).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.958333).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.9625).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.9625).epsilon(raw.epsilon));
 }
 TEST_CASE("Bisection Best vs Last", "[XBA2DE]")
 {
@@ -228,7 +228,7 @@ TEST_CASE("Bisection Best vs Last", "[XBA2DE]")
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_best = clf.score(raw.X_test, raw.y_test);
     std::cerr << "GOLDEN[Bisection-best] score_best=" << score_best << std::endl;
-    REQUIRE(score_best == Catch::Approx(0.986667).epsilon(raw.epsilon));
+    REQUIRE(score_best == Catch::Approx(0.98).epsilon(raw.epsilon));
     // Now we will set the hyperparameter to use the last accuracy
     hyperparameters["convergence_best"] = false;
     clf.setHyperparameters(hyperparameters);
@@ -249,16 +249,16 @@ TEST_CASE("Block Update", "[XBA2DE]")
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     DUMP("BlockUpdate", clf); std::cerr << "GOLDEN[BlockUpdate] score=" << clf.score(raw.X_test, raw.y_test) << std::endl;
-    REQUIRE(clf.getNumberOfNodes() == 225);
-    REQUIRE(clf.getNumberOfEdges() == 585);
+    REQUIRE(clf.getNumberOfNodes() == 180);
+    REQUIRE(clf.getNumberOfEdges() == 468);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes()[0] == "Convergence threshold reached & 15 models eliminated");
     REQUIRE(clf.getNotes()[1] == "Pairs not used in train: 83");
-    REQUIRE(clf.getNotes()[2] == "Number of models: 15");
+    REQUIRE(clf.getNotes()[2] == "Number of models: 12");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.976667).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.976667).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.966667).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.966667).epsilon(raw.epsilon));
     /*std::cout << "Number of nodes " << clf.getNumberOfNodes() << std::endl;*/
     /*std::cout << "Number of edges " << clf.getNumberOfEdges() << std::endl;*/
     /*std::cout << "Notes size " << clf.getNotes().size() << std::endl;*/
@@ -282,4 +282,25 @@ TEST_CASE("Alphablock", "[XBA2DE]")
     std::cerr << "GOLDEN[Alphablock] score_alpha=" << score_alpha << " score_no_alpha=" << score_no_alpha << std::endl;
     REQUIRE(score_alpha == Catch::Approx(0.688312).epsilon(raw.epsilon));
     REQUIRE(score_no_alpha == Catch::Approx(0.688312).epsilon(raw.epsilon));
+}
+TEST_CASE("Beta joint-relevance criterion", "[XBA2DE]")
+{
+    auto raw = RawDatasets("glass", true);
+    // beta (ablation knob for the pair-ranking criterion) must be non-negative.
+    auto bad = bayesnet::XBA2DE();
+    REQUIRE_THROWS_AS(bad.setHyperparameters({ {"beta", -0.5} }), std::invalid_argument);
+
+    // Observable signature of the fitted ensemble for a given beta.
+    auto signature = [&](bool set, double beta) {
+        bayesnet::XBA2DE c;
+        nlohmann::json hyper = { {"order", "asc"}, {"convergence", true} };
+        if (set) hyper["beta"] = beta;
+        c.setHyperparameters(hyper);
+        c.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+        return std::make_tuple(c.getNumberOfNodes(), c.getNumberOfEdges(), c.score(raw.Xt, raw.yt));
+    };
+    // Explicit beta=1 (joint relevance) reproduces the default exactly.
+    REQUIRE(signature(false, 0.0) == signature(true, 1.0));
+    // beta=0 (marginal-relevance sum) is a different ranking -> different ensemble.
+    REQUIRE(signature(true, 0.0) != signature(true, 1.0));
 }

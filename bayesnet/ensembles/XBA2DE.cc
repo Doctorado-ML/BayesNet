@@ -12,7 +12,21 @@
 
 namespace bayesnet {
 
-XBA2DE::XBA2DE(bool predict_voting) : Boost(predict_voting) {}
+XBA2DE::XBA2DE(bool predict_voting) : Boost(predict_voting) {
+    validHyperparameters.push_back("beta");
+}
+void XBA2DE::setHyperparameters(const nlohmann::json& hyperparameters_) {
+    auto hyperparameters = hyperparameters_;
+    if (hyperparameters.contains("beta")) {
+        beta_ = hyperparameters["beta"];
+        if (beta_ < 0.0) {
+            throw std::invalid_argument("Invalid beta value, must be >= 0");
+        }
+        hyperparameters.erase("beta");
+    }
+    // Hand off the rest to the boosting base.
+    Boost::setHyperparameters(hyperparameters);
+}
 std::vector<int> XBA2DE::initializeModels(const Smoothing_t smoothing) {
     torch::Tensor weights_ = torch::full({m}, 1.0 / m, torch::kFloat64);
     std::vector<int> featuresSelected = featureSelection(weights_);
@@ -83,7 +97,7 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
     std::vector<std::pair<int, int>> pairSelection;
     while (!finished) {
         // Step 1: Build ranking with mutual information
-        pairSelection = metrics.SelectKPairs(weights_, featuresUsed, ascending, 0); // Get all the pairs sorted
+        pairSelection = metrics.SelectKPairs(weights_, featuresUsed, ascending, 0, beta_); // Get all the pairs sorted by joint relevance
         if (order_algorithm == Orders.RAND) {
             std::shuffle(pairSelection.begin(), pairSelection.end(), g);
         }
