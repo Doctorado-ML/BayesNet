@@ -101,10 +101,11 @@ install(TARGETS bayesnet
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
 
-install(DIRECTORY bayesnet/ 
-    DESTINATION include/bayesnet 
-    FILES_MATCHING 
-    PATTERN "*.h")
+install(DIRECTORY bayesnet/
+    DESTINATION include/bayesnet
+    FILES_MATCHING
+    PATTERN "*.h"
+    PATTERN "*.hpp")
 install(FILES ${CMAKE_BINARY_DIR}/configured_files/include/bayesnet/config.h 
     DESTINATION include/bayesnet)
 
