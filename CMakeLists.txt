@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.27)
 
 project(bayesnet
-  VERSION 1.2.3
+  VERSION 1.3.0
   DESCRIPTION "Bayesian Network and basic classifiers Library."
   HOMEPAGE_URL "https://github.com/rmontanana/bayesnet"
   LANGUAGES CXX
@@ -101,10 +101,11 @@ install(TARGETS bayesnet
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
 
-install(DIRECTORY bayesnet/ 
-    DESTINATION include/bayesnet 
-    FILES_MATCHING 
-    PATTERN "*.h")
+install(DIRECTORY bayesnet/
+    DESTINATION include/bayesnet
+    FILES_MATCHING
+    PATTERN "*.h"
+    PATTERN "*.hpp")
 install(FILES ${CMAKE_BINARY_DIR}/configured_files/include/bayesnet/config.h 
     DESTINATION include/bayesnet)
 
