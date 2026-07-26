@@ -5,6 +5,8 @@
 // ***************************************************************
 
 #include <folding.hpp>
+#include <algorithm>
+#include <set>
 #include <limits.h>
 #include "XBA2DE.h"
 #include "bayesnet/classifiers/XSP2DE.h"
@@ -12,25 +14,37 @@
 
 namespace bayesnet {
 
-XBA2DE::XBA2DE(bool predict_voting) : Boost(predict_voting) {}
-std::vector<int> XBA2DE::initializeModels(const Smoothing_t smoothing) {
-    torch::Tensor weights_ = torch::full({m}, 1.0 / m, torch::kFloat64);
-    std::vector<int> featuresSelected = featureSelection(weights_);
-    if (featuresSelected.size() < 2) {
-        notes.push_back("No features selected in initialization");
-        status = ERROR;
-        return std::vector<int>();
-    }
-    for (int i = 0; i < featuresSelected.size() - 1; i++) {
-        for (int j = i + 1; j < featuresSelected.size(); j++) {
-            std::unique_ptr<Classifier> model = std::make_unique<XSp2de>(featuresSelected[i], featuresSelected[j]);
-            model->fit(dataset, features, className, states, weights_, smoothing);
-            add_model(std::move(model), 1.0);
+XBA2DE::XBA2DE(bool predict_voting) : Boost(predict_voting) {
+    // XBA2DE fixes several knobs to keep the algorithm lean, mirroring how the
+    // BoostAODE experiments were actually run: it always starts from an empty
+    // ensemble (no CFS/IWSS/FCBF seeding) and always uses plain bisection (no
+    // block_update, no alpha_block). Those hyperparameters are dropped here and
+    // the beta pair-ranking criterion is added.
+    auto& vh = validHyperparameters;
+    vh.erase(std::remove_if(vh.begin(), vh.end(), [](const std::string& h) {
+        return h == "select_features" || h == "threshold" || h == "bisection" ||
+               h == "block_update" || h == "alpha_block";
+    }), vh.end());
+    vh.push_back("beta");
+}
+void XBA2DE::setHyperparameters(const nlohmann::json& hyperparameters_) {
+    auto hyperparameters = hyperparameters_;
+    // These knobs are fixed in XBA2DE (see the constructor) and therefore not
+    // accepted: empty-start (no seeding) and plain bisection are always on.
+    for (const auto& forbidden : { "select_features", "threshold", "bisection", "block_update", "alpha_block" }) {
+        if (hyperparameters.contains(forbidden)) {
+            throw std::invalid_argument(std::string("XBA2DE does not support the '") + forbidden + "' hyperparameter");
         }
     }
-    notes.push_back("Used features in initialization: " + std::to_string(featuresSelected.size()) + " of " +
-                    std::to_string(features.size()) + " with " + select_features_algorithm);
-    return featuresSelected;
+    if (hyperparameters.contains("beta")) {
+        beta_ = hyperparameters["beta"];
+        if (beta_ < 0.0) {
+            throw std::invalid_argument("Invalid beta value, must be >= 0");
+        }
+        hyperparameters.erase("beta");
+    }
+    // Hand off the rest to the boosting base.
+    Boost::setHyperparameters(hyperparameters);
 }
 void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothing) {
     //
@@ -52,22 +66,13 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
     double alpha_t = 0;
     torch::Tensor weights_ = torch::full({m}, 1.0 / m, torch::kFloat64);
     bool finished = false;
-    std::vector<int> featuresUsed;
-    if (selectFeatures) {
-        featuresUsed = initializeModels(smoothing);
-        if (featuresUsed.size() == 0) {
-            return;
-        }
-        auto ypred = predict(X_train);
-        std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
-        // Update significance of the models
-        for (int i = 0; i < n_models; ++i) {
-            significanceModels[i] = alpha_t;
-        }
-        if (finished) {
-            return;
-        }
-    }
+    // XBA2DE always starts from an empty ensemble; no feature-selection seeding.
+    // Pairs already added to the ensemble. The boosting unit here is the PAIR,
+    // not a single superparent: a pair is used at most once, but its two
+    // variables may still pair with OTHER variables (that is expected). Allowing
+    // a pair to repeat with updated weights could be a future hyperparameter.
+    std::set<std::pair<int, int>> pairsUsed;
+    std::vector<int> featuresExcluded; // XBA2DE does no feature-level exclusion
     int numItemsPack = 0; // The counter of the models inserted in the current pack
     // Variables to control the accuracy finish condition
     double priorAccuracy = 0.0;
@@ -83,11 +88,14 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
     std::vector<std::pair<int, int>> pairSelection;
     while (!finished) {
         // Step 1: Build ranking with mutual information
-        pairSelection = metrics.SelectKPairs(weights_, featuresUsed, ascending, 0); // Get all the pairs sorted
+        pairSelection = metrics.SelectKPairs(weights_, featuresExcluded, ascending, 0, beta_); // Get all the pairs sorted by joint relevance
         if (order_algorithm == Orders.RAND) {
             std::shuffle(pairSelection.begin(), pairSelection.end(), g);
         }
-        int k = bisection ? pow(2, tolerance) : 1;
+        // Remove pairs already used (boosting without replacement of pairs).
+        pairSelection.erase(std::remove_if(pairSelection.begin(), pairSelection.end(),
+            [&](const std::pair<int, int>& p) { return pairsUsed.count(p) > 0; }), pairSelection.end());
+        int k = pow(2, tolerance); // XBA2DE always uses bisection
         int counter = 0; // The model counter of the current pack
         // VLOG_SCOPE_F(1, "counter=%d k=%d featureSelection.size: %zu", counter, k, featureSelection.size());
         while (counter++ < k && pairSelection.size() > 0) {
@@ -97,21 +105,17 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
             model = std::make_unique<XSp2de>(feature_pair.first, feature_pair.second);
             model->fit(dataset, features, className, states, weights_, smoothing);
             alpha_t = 0.0;
-            if (!block_update) {
-                auto ypred = model->predict(X_train);
-                // Step 3.1: Compute the classifier amout of say
-                std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
-            }
+            auto ypred = model->predict(X_train);
+            // Step 3.1: Compute the classifier amount of say
+            std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
             // Step 3.4: Store classifier and its accuracy to weigh its future vote
             numItemsPack++;
+            pairsUsed.insert(feature_pair);
             models.push_back(std::move(model));
             significanceModels.push_back(alpha_t);
             n_models++;
             // VLOG_SCOPE_F(2, "numItemsPack: %d n_models: %d featuresUsed: %zu", numItemsPack, n_models,
             // featuresUsed.size());
-        }
-        if (block_update) {
-            std::tie(weights_, alpha_t, finished) = update_weights_block(k, y_train, weights_);
         }
         if (convergence && !finished) {
             auto y_val_predict = predict(X_test);

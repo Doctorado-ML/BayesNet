@@ -104,10 +104,12 @@ TEST_CASE("Test instance predict", "[XSPODE]")
     clf.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, bayesnet::Smoothing_t::ORIGINAL);
     REQUIRE(clf.predict(std::vector<int>({1,2,3,4})) == 1);
     REQUIRE(clf.score(raw.Xv, raw.yv) == Catch::Approx(0.973333359f));
-    // Cestnik is not defined in the classifier so it should imply alpha_ = 0
+    // CESTNIK is now a real m-estimate (m=1, uniform prior), not a silent no-op:
+    // it smooths like the other strategies, so this instance is classified as 1
+    // (as ORIGINAL), unlike the old unsmoothed behaviour that predicted 0.
     clf.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, bayesnet::Smoothing_t::CESTNIK);
-    REQUIRE(clf.predict(std::vector<int>({1,2,3,4})) == 0);
-    REQUIRE(clf.score(raw.Xv, raw.yv) == Catch::Approx(0.973333359f));
+    REQUIRE(clf.predict(std::vector<int>({1,2,3,4})) == 1);
+    REQUIRE(clf.score(raw.Xv, raw.yv) == Catch::Approx(0.966666639f));
 }
 TEST_CASE("Test to_string and fitx", "[XSPODE]")
 {

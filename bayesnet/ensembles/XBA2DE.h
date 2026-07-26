@@ -14,12 +14,15 @@ namespace bayesnet {
     public:
         explicit XBA2DE(bool predict_voting = false);
         virtual ~XBA2DE() = default;
+        void setHyperparameters(const nlohmann::json& hyperparameters_) override;
         std::vector<std::string> graph(const std::string& title = "XBA2DE") const override;
         std::string getVersion() override { return version; };
     protected:
         void trainModel(const torch::Tensor& weights, const Smoothing_t smoothing) override;
     private:
-        std::vector<int> initializeModels(const Smoothing_t smoothing);
+        // Pair-ranking criterion knob (joint relevance). beta=1 joint relevance
+        // (default), beta=0 marginal-relevance sum, beta large pure synergy.
+        double beta_ = 1.0;
         std::vector<std::vector<int>> X_train_, X_test_;
         std::vector<int> y_train_, y_test_;
         std::string version = "0.9.7";

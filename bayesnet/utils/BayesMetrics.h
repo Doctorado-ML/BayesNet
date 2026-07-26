@@ -16,7 +16,11 @@ namespace bayesnet {
         Metrics(const torch::Tensor& samples, const std::vector<std::string>& features, const std::string& className, const int classNumStates);
         Metrics(const std::vector<std::vector<int>>& vsamples, const std::vector<int>& labels, const std::vector<std::string>& features, const std::string& className, const int classNumStates);
         std::vector<int> SelectKBestWeighted(const torch::Tensor& weights, bool ascending = false, unsigned k = 0);
-        std::vector<std::pair<int, int>> SelectKPairs(const torch::Tensor& weights, std::vector<int>& featuresExcluded, bool ascending = false, unsigned k = 0);
+        // beta selects the pair-ranking criterion. beta < 0 (default) keeps the
+        // legacy conditional mutual information I(Xi;Xj|C). beta >= 0 uses joint
+        // relevance I(Xi,Xj;C) = I(Xi;C) + I(Xj;C) + beta*(I(Xi;Xj|C) - I(Xi;Xj)):
+        // beta=0 marginal sum, beta=1 joint relevance, beta large pure synergy.
+        std::vector<std::pair<int, int>> SelectKPairs(const torch::Tensor& weights, std::vector<int>& featuresExcluded, bool ascending = false, unsigned k = 0, double beta = -1.0);
         std::vector<double> getScoresKBest() const;
         std::vector<std::pair<std::pair<int, int>, double>> getScoresKPairs() const;
         double mutualInformation(const torch::Tensor& firstFeature, const torch::Tensor& secondFeature, const torch::Tensor& weights);

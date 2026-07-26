@@ -18,8 +18,8 @@ namespace bayesnet {
   // Constructor
   // --------------------------------------
   XSpode::XSpode(int spIndex)
-    : superParent_{ spIndex }, nFeatures_{ 0 }, statesClass_{ 0 }, alpha_{ 1.0 },
-    initializer_{ 1.0 }, semaphore_{ CountingSemaphore::getInstance() },
+    : superParent_{ spIndex }, nFeatures_{ 0 }, statesClass_{ 0 },
+    semaphore_{ CountingSemaphore::getInstance() },
     Classifier(Network())
   {
     validHyperparameters = { "parent" };
@@ -114,18 +114,11 @@ namespace bayesnet {
       instance[nFeatures_] = dataset[-1][i].item<int>();
       addSample(instance, weights[i].item<double>());
     }
-    switch (smoothing) {
-      case bayesnet::Smoothing_t::ORIGINAL:
-        alpha_ = 1.0 / m;
-        break;
-      case bayesnet::Smoothing_t::LAPLACE:
-        alpha_ = 1.0;
-        break;
-      default:
-        alpha_ = 0.0; // No smoothing
-    }
-    initializer_ = std::numeric_limits<double>::max() /
-      (nFeatures_ * nFeatures_); // for numerical stability
+    // Store the smoothing strategy; the per-cell pseudocount is derived per table
+    // from its cardinality (see smoothingPseudocount), which is what makes CESTNIK
+    // a proper m-estimate rather than a single constant (previously CESTNIK fell
+    // through to no smoothing).
+    smoothing_ = smoothing;
     // Convert raw counts to probabilities
     computeProbabilities();
   }
@@ -165,6 +158,28 @@ namespace bayesnet {
   }
 
   // --------------------------------------
+  // smoothingPseudocount
+  // --------------------------------------
+  // Per-cell pseudocount for an additive-smoothed table  P = (count + a)/(N + a*K),
+  // with K = `cardinality` states of the distributed variable.
+  //   ORIGINAL : a = 1/m       LAPLACE : a = 1
+  //   CESTNIK  : a = 1/K       (m-estimate, m=1, uniform prior)
+  //   otherwise: a = 0         (no smoothing)
+  double XSpode::smoothingPseudocount(int cardinality) const
+  {
+    switch (smoothing_) {
+      case bayesnet::Smoothing_t::ORIGINAL:
+        return (m > 0) ? 1.0 / m : 0.0;
+      case bayesnet::Smoothing_t::LAPLACE:
+        return 1.0;
+      case bayesnet::Smoothing_t::CESTNIK:
+        return (cardinality > 0) ? 1.0 / cardinality : 0.0;
+      default:
+        return 0.0; // no smoothing
+    }
+  }
+
+  // --------------------------------------
   // computeProbabilities
   // --------------------------------------
   //
@@ -188,21 +203,23 @@ namespace bayesnet {
         classPriors_[c] = unif;
       }
     } else {
+      double a = smoothingPseudocount(statesClass_);
       for (int c = 0; c < statesClass_; c++) {
         classPriors_[c] =
-          (classCounts_[c] + alpha_) / (totalCount + alpha_ * statesClass_);
+          (classCounts_[c] + a) / (totalCount + a * statesClass_);
       }
     }
 
     // p(x_sp | c)
     spFeatureProbs_.resize(spFeatureCounts_.size());
-    // denominator for spVal * statesClass_ + c is just classCounts_[c] + alpha_ *
+    // denominator for spVal * statesClass_ + c is just classCounts_[c] + a *
     // (#states of sp)
     int spCard = states_[superParent_];
+    double aSp = smoothingPseudocount(spCard);
     for (int spVal = 0; spVal < spCard; spVal++) {
       for (int c = 0; c < statesClass_; c++) {
-        double denom = classCounts_[c] + alpha_ * spCard;
-        double num = spFeatureCounts_[spVal * statesClass_ + c] + alpha_;
+        double denom = classCounts_[c] + aSp * spCard;
+        double num = spFeatureCounts_[spVal * statesClass_ + c] + aSp;
         spFeatureProbs_[spVal * statesClass_ + c] = (denom <= 0.0 ? 0.0 : num / denom);
       }
     }
@@ -214,6 +231,7 @@ namespace bayesnet {
         continue;
       int offset = childOffsets_[f];
       int childCard = states_[f];
+      double aChild = smoothingPseudocount(childCard);
 
       // For each spVal, c, childVal in childCounts_:
       for (int spVal = 0; spVal < spCard; spVal++) {
@@ -222,11 +240,11 @@ namespace bayesnet {
             int idx = offset + spVal * (childCard * statesClass_) +
               childVal * statesClass_ + c;
 
-            double num = childCounts_[idx] + alpha_;
-            // denominator = spFeatureCounts_[spVal * statesClass_ + c] + alpha_ *
+            double num = childCounts_[idx] + aChild;
+            // denominator = spFeatureCounts_[spVal * statesClass_ + c] + aChild *
             // (#states of child)
             double denom =
-              spFeatureCounts_[spVal * statesClass_ + c] + alpha_ * childCard;
+              spFeatureCounts_[spVal * statesClass_ + c] + aChild * childCard;
             childProbs_[idx] = (denom <= 0.0 ? 0.0 : num / denom);
           }
         }
@@ -247,32 +265,48 @@ namespace bayesnet {
     if (!fitted) {
       throw std::logic_error(CLASSIFIER_NOT_FITTED);
     }
-    std::vector<double> probs(statesClass_, 0.0);
-    // Multiply p(c) × p(x_sp | c)
+    // Work in log-space (sum of log-probabilities + log-sum-exp normalization):
+    // numerically stable, needs no magic scaling constant, and matches XSp2de.
+    std::vector<double> logProbs(statesClass_, 0.0);
+    // log p(c) + log p(x_sp | c)
     int spVal = instance[superParent_];
     for (int c = 0; c < statesClass_; c++) {
       double pc = classPriors_[c];
       double pSpC = spFeatureProbs_[spVal * statesClass_ + c];
-      probs[c] = pc * pSpC * initializer_;
+      logProbs[c] = std::log(pc) + std::log(pSpC);
     }
 
-    // Multiply by each child’s probability p(x_child | c, x_sp)
+    // + sum over child features of log p(x_child | c, x_sp)
     for (int feature = 0; feature < nFeatures_; feature++) {
       if (feature == superParent_)
         continue; // skip sp
       int sf = instance[feature];
       int offset = childOffsets_[feature];
-      int childCard = states_[feature]; // not used directly, but for clarity
+      int childCard = states_[feature];
       // Index into childProbs_ = offset + spVal*(childCard*statesClass_) +
       // childVal*statesClass_ + c
       int base = offset + spVal * (childCard * statesClass_) + sf * statesClass_;
       for (int c = 0; c < statesClass_; c++) {
-        probs[c] *= childProbs_[base + c];
+        logProbs[c] += std::log(childProbs_[base + c]);
       }
     }
 
-    // Normalize
-    normalize(probs);
+    // Normalize with log-sum-exp.
+    std::vector<double> probs(statesClass_, 0.0);
+    double maxLog = *std::max_element(logProbs.begin(), logProbs.end());
+    if (!std::isfinite(maxLog)) {
+      // Every class has zero likelihood (only possible without smoothing) -> uniform.
+      std::fill(probs.begin(), probs.end(), 1.0 / static_cast<double>(statesClass_));
+      return probs;
+    }
+    double sumExp = 0.0;
+    for (int c = 0; c < statesClass_; c++) {
+      probs[c] = std::exp(logProbs[c] - maxLog);
+      sumExp += probs[c];
+    }
+    for (int c = 0; c < statesClass_; c++) {
+      probs[c] /= sumExp;
+    }
     return probs;
   }
   std::vector<std::vector<double>> XSpode::predict_proba(std::vector<std::vector<int>>& test_data)

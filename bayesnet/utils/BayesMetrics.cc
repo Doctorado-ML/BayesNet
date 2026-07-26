@@ -30,7 +30,7 @@ namespace bayesnet {
         }
         samples.index_put_({ -1, "..." }, torch::tensor(labels, torch::kInt32));
     }
-    std::vector<std::pair<int, int>> Metrics::SelectKPairs(const torch::Tensor& weights, std::vector<int>& featuresExcluded, bool ascending, unsigned k)
+    std::vector<std::pair<int, int>> Metrics::SelectKPairs(const torch::Tensor& weights, std::vector<int>& featuresExcluded, bool ascending, unsigned k, double beta)
     {
         // Return the K Best features 
         auto n = features.size();
@@ -47,7 +47,23 @@ namespace bayesnet {
                     continue;
                 }
                 auto key = std::make_pair(i, j);
-                auto value = conditionalMutualInformation(samples.index({ i, "..." }), samples.index({ j, "..." }), labels, weights);
+                auto xi = samples.index({ i, "..." });
+                auto xj = samples.index({ j, "..." });
+                double value;
+                if (beta < 0.0) {
+                    // Legacy ranking: conditional mutual information I(Xi;Xj|C) alone.
+                    value = conditionalMutualInformation(xi, xj, labels, weights);
+                } else {
+                    // Joint relevance I(Xi,Xj;C) = I(Xi;C) + I(Xj;C) + beta * S(i,j),
+                    // with interaction information S(i,j) = I(Xi;Xj|C) - I(Xi;Xj).
+                    // beta=0 -> marginal-relevance sum, beta=1 -> joint relevance,
+                    // beta large -> pure synergy. Same 3-way (Xi,Xj,C) table cost.
+                    double miIC = mutualInformation(labels, xi, weights);
+                    double miJC = mutualInformation(labels, xj, weights);
+                    double cmiIJ = conditionalMutualInformation(xi, xj, labels, weights);
+                    double miIJ = mutualInformation(xi, xj, weights);
+                    value = miIC + miJC + beta * (cmiIJ - miIJ);
+                }
                 scoresKPairs.push_back({ key, value });
             }
         }

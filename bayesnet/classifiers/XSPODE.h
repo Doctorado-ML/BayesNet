@@ -46,6 +46,11 @@ namespace bayesnet {
     private:
         void addSample(const std::vector<int>& instance, double weight);
         void computeProbabilities();
+        // Per-cell smoothing pseudocount for an additive-smoothed table whose
+        // distributed variable has `cardinality` states. ORIGINAL (1/m) and
+        // LAPLACE (1) ignore cardinality; CESTNIK is the m-estimate (m=1, uniform
+        // prior) => 1/cardinality.
+        double smoothingPseudocount(int cardinality) const;
         int superParent_;
         int nFeatures_;
         int statesClass_;
@@ -67,8 +72,9 @@ namespace bayesnet {
         std::vector<double> childProbs_;
         std::vector<int>    childOffsets_;
 
-        double alpha_ = 1.0;
-        double initializer_; // for numerical stability
+        // Smoothing strategy chosen at fit time; the actual per-cell pseudocount
+        // is derived from it and the table cardinality (see smoothingPseudocount).
+        bayesnet::Smoothing_t smoothing_ = bayesnet::Smoothing_t::ORIGINAL;
         CountingSemaphore& semaphore_;
     };
 }

@@ -47,19 +47,31 @@ class XSp2de : public Classifier {
     void addSample(const std::vector<int> &instance, double weight);
     void normalize(std::vector<double> &v) const;
     void computeProbabilities();
+    // Per-cell smoothing pseudocount for a table whose distributed variable has
+    // `cardinality` states. ORIGINAL (1/m) and LAPLACE (1) ignore cardinality;
+    // CESTNIK is the m-estimate (m=1, uniform prior) => 1/cardinality.
+    double smoothingPseudocount(int cardinality) const;
 
     int superParent1_;
     int superParent2_;
     int nFeatures_;
     int statesClass_;
-    double alpha_;
-    double initializer_;
+    // Smoothing strategy chosen at fit time; the actual per-cell pseudocount is
+    // derived from it and the table cardinality (see smoothingPseudocount).
+    bayesnet::Smoothing_t smoothing_;
+    // If true, model the two superparents jointly P(sp1,sp2|c) (classic A2DE),
+    // instead of as independent factors P(sp1|c)*P(sp2|c). This is the parent
+    // layer where BoostA2DE departs from BoostAODE.
+    bool jointParents_;
 
     std::vector<int> states_;
     std::vector<double> classCounts_;
     std::vector<double> classPriors_;
     std::vector<double> sp1FeatureCounts_, sp1FeatureProbs_;
     std::vector<double> sp2FeatureCounts_, sp2FeatureProbs_;
+    // Joint superparents: p(sp1Val, sp2Val | c). Block layout
+    // (sp1Val*states_[sp2]+sp2Val)*statesClass_ + c.
+    std::vector<double> spPairCounts_, spPairProbs_;
     // childOffsets_[f] will be the offset into childCounts_ for feature f.
     // If f is either superParent1 or superParent2, childOffsets_[f] = -1
     std::vector<int> childOffsets_;
