@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Build
+
+- Fix `conandata.yml`. Every entry was fictional: the `sha256` fields were the literal string `placeholder_sha256`, and the `github.com/rmontanana/BayesNet` archive URLs all return 404 (including `1.1.2`, a version that was never tagged). Entries now point at the Gitea origin and carry real, verified hashes for 1.0.7, 1.1.0, 1.2.1, 1.2.2, 1.2.3 and 1.3.0. Note that the file is still reference metadata only: `conanfile.py` packages from `exports_sources` and has no `source()` method, so nothing here is fetched during `conan create`.
+
 ## [1.3.0] - 2026-08-02
 
 ### Added

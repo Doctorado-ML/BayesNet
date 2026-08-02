@@ -1,10 +1,31 @@
+# Release source archives.
+#
+# NOTE: conanfile.py packages from `exports_sources` (the local checkout) and has
+# no `source()` method, so this file is currently reference metadata only --
+# nothing here is downloaded during `conan create`. It becomes live the moment a
+# `source()` that reads `self.conan_data["sources"][self.version]` is added.
+#
+# URLs point at the Gitea origin; the github.com/rmontanana/BayesNet mirror does
+# not serve these tags (every archive URL there returns 404).
 sources:
-  "1.1.2":
-    url: "https://github.com/rmontanana/BayesNet/archive/v1.1.2.tar.gz"
-    sha256: "placeholder_sha256"  # Replace with actual SHA256 when releasing
+  "1.3.0":
+    url: "https://gitea.rmontanana.es/rmontanana/BayesNet/archive/v1.3.0.tar.gz"
+    sha256: "9b508c8fca6c18323fa655b5b92145bc032afa588503971dcde78cbb42ec659a"
+  "1.2.3":
+    url: "https://gitea.rmontanana.es/rmontanana/BayesNet/archive/v1.2.3.tar.gz"
+    sha256: "cc24624e746c0806f2599d0ad2e9d5c4183bec17ff4e36e94b2f7745e44ae9a7"
+  "1.2.2":
+    url: "https://gitea.rmontanana.es/rmontanana/BayesNet/archive/v1.2.2.tar.gz"
+    sha256: "05c5ff3c4cd339f7f7d17864ee218589c62aee267be21f32642c0449776bc4d4"
+  "1.2.1":
+    url: "https://gitea.rmontanana.es/rmontanana/BayesNet/archive/v1.2.1.tar.gz"
+    sha256: "77e50b9ca3a93b6752ba9502addcaed629251fa47d5b41f9548f9b42bac330cf"
+  "1.1.0":
+    url: "https://gitea.rmontanana.es/rmontanana/BayesNet/archive/v1.1.0.tar.gz"
+    sha256: "0f76105843baef59a64c4a5e558677220d34a23256597aa411cf47ea5afa4c06"
   "1.0.7":
-    url: "https://github.com/rmontanana/BayesNet/archive/v1.0.7.tar.gz"
-    sha256: "placeholder_sha256"  # Replace with actual SHA256 when releasing
+    url: "https://gitea.rmontanana.es/rmontanana/BayesNet/archive/v1.0.7.tar.gz"
+    sha256: "5be7da5724921021226315051e19c4280b9d7d8b1277641adb2903571c38af84"
 
 patches:
   # Add patches here if needed for specific versions
