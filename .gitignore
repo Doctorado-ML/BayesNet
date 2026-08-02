@@ -45,8 +45,23 @@ docs/man3
 docs/man
 docs/Doxyfile
 .cache
+compile_commands.json
+
+# Package managers
 vcpkg_installed
 CMakeUserPresets.json
-node_modules
-package-lock.json
+test_package/build/**
+
+# Coverage artifacts
+*.gcno
+*.gcda
+*.gcov
+coverage.info
+
+# Editor / tooling local state
+.claude/settings.local.json
+
+# Node / npm (not part of this C++ project)
+node_modules/
 package.json
+package-lock.json

@@ -7,19 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-02
+
 ### Added
 
-- Add the `weightless` hyperparameter to BoostAODE. When enabled, the Boost ensemble never updates instance weights and every SPODE votes with the same significance (1.0), effectively disabling the AdaBoost reweighting.
+- **XA1DE**: optimized AODE ensemble built on the new header-only `Xaode` engine, which materializes every SPODE submodel as flat count arrays filled in a single pass instead of going through the `Network` representation.
+- **XA2DE**: optimized A2DE ensemble built on the new header-only `Xaode2de` engine. It materializes all C(n,2) pair-superparent SP2DE submodels as flat count arrays and averages their per-pair posteriors in log-space with uniform significance. Its single-pair posterior matches `XSp2de` exactly, and the full model matches the average of `XSp2de` over all pairs.
+- `ExpClf`, a shared base for the flat-table experimental ensembles.
+- **XSP2DE**: joint superparent model `P(sp1,sp2|c)` (classic A2DE) as the default, behind the new `joint_parents` hyperparameter. The legacy independent factorization `P(sp1|c)*P(sp2|c)` remains available for ablation. `getNumberOfEdges` is mode-aware: 3n-4 independent, 3n-3 joint.
+- **XBA2DE**: joint-relevance pair-selection criterion `I(Xi,Xj;C) = I(Xi;C) + I(Xj;C) + beta * (I(Xi;Xj|C) - I(Xi;Xj))`, exposed through the new `beta` hyperparameter (default 1.0). `beta` is the ablation axis: 0 = marginal-relevance sum, 1 = joint relevance, large = pure synergy.
+- `BayesMetrics::SelectKPairs` gains a `beta` parameter. A negative `beta` (the default) keeps the legacy CMI-only ranking, so BoostA2DE is untouched. All four mutual-information terms come from the same 3-way (Xi,Xj,C) table, so the new criterion costs nothing extra.
+- Add the `weightless` hyperparameter to BoostAODE and XBAODE. When enabled, the Boost ensemble never updates instance weights and every SPODE votes with the same significance (1.0), effectively disabling the AdaBoost reweighting.
 - Local discretization implementation review reports.
+- Conda and Conan setup in the devcontainer Dockerfile.
+
+### Changed
+
+- **XSPODE** and **XSP2DE**: `predict_proba` now works in log-space, summing log-probabilities and normalizing with log-sum-exp instead of multiplying probabilities and rescaling by a `DBL_MAX / nFeatures^2` constant. This removes the underflow that the old `initializer_` member papered over — relevant because SP2DE's 4-way child tables `p(x|c,sp1,sp2)` are very sparse — and makes both flat-count base classifiers numerically identical. ORIGINAL, LAPLACE and NONE are numerically unchanged.
+- **XBA2DE**: feature-selection seeding (CFS/IWSS/FCBF) removed; the ensemble always starts empty and grows only through the boosting loop. This was the sole source of the C(k,2) base-model explosion on high-dimensional datasets. `select_features` and `threshold` are now rejected by `setHyperparameters`.
+- **XBA2DE**: bisection is always on, and `block_update` / `alpha_block` are gone. `bisection`, `block_update` and `alpha_block` are now rejected by `setHyperparameters`. The remaining valid hyperparameters are `order`, `convergence`, `convergence_best`, `maxTolerance`, `predict_voting`, `weightless` and `beta`.
 
 ### Fixed
 
+- **XSPODE** and **XSP2DE**: `CESTNIK` smoothing was a silent no-op — neither class had a `CESTNIK` case in its smoothing switch, so selecting it fell through to no smoothing at all. It is now a proper m-estimate (m=1, uniform prior) with a per-cell pseudocount of 1/K, where K is the cardinality of the distributed variable, matching the `Network` path. `ORIGINAL` and `LAPLACE` are byte-for-byte unchanged.
+- **XBA2DE**: boost without replacement of pairs. The boosting unit in XBA2DE is the pair, not a single superparent, so used *pairs* are now tracked and excluded from future selection (a used pair (A,B) is excluded, but A and B may still pair with other variables). Previously no pairs were tracked at all, so a pair could be re-selected across packs and `SelectKPairs` never emptied, leaving convergence as the only stop condition. Pair exhaustion is now a natural termination criterion.
 - Correct the model significance update in BoostAODE when feature selection was used.
 - Improve the stopping criterion in the CFS feature selection algorithm.
+
+### Build
+
+- Install `*.hpp` headers as well as `*.h`. `XA1DE.h` and `XA2DE.h` include the header-only flat engines (`Xaode.hpp`, `Xaode2de.hpp`), and the install rule only matched `*.h`, so consumers of the packaged library could not find them.
 
 ### Internal
 
 - Add AI agent definitions.
+- Add a v2.0 diagnostic report and execution plan.
+- Ignore Node/npm artifacts, coverage artifacts and local editor state; stop tracking `.claude/settings.local.json`.
 
 ## [1.2.3] - 2025-10-20
 
