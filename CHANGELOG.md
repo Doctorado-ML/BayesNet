@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Build
 
+- Upgrade `fimdlp` from 2.1.3 to 3.0.0. 3.0.0 keeps the 2.1.3 API (`fit(samples_t&, labels_t&)`, `transform`, `getCutPoints`) and only adds to it — config structs, move overloads, static `discretize` helpers, typed exceptions — so BayesNet compiles unchanged. Verified with `benchmark/mdlp_compare` over the 10 datasets in `tests/data` with TAN and TANLd: accuracies, MDLP cut points (342 features, max abs diff 0.0) and learnt networks are identical, while discretization time drops 89.5% overall (3516 ms to 368 ms), from -51% on iris to -93% on kdd_JapaneseVowels. End to end the gain is ~2%, since discretization is a small fraction of the total next to `fit`.
 - Fix `conandata.yml`. Every entry was fictional: the `sha256` fields were the literal string `placeholder_sha256`, and the `github.com/rmontanana/BayesNet` archive URLs all return 404 (including `1.1.2`, a version that was never tagged). Entries now point at the Gitea origin and carry real, verified hashes for 1.0.7, 1.1.0, 1.2.1, 1.2.2, 1.2.3 and 1.3.0. Note that the file is still reference metadata only: `conanfile.py` packages from `exports_sources` and has no `source()` method, so nothing here is fetched during `conan create`.
 
 ## [1.3.0] - 2026-08-02
