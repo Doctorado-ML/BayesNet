@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `Proposal::prepareX` read the **training** matrix instead of the samples being predicted for the features it does not discretize. Only datasets with mixed numeric/nominal features reach that branch, so it affected every `Proposal` user (`TANLd`, `KDBLd`, `SPODELd`, `AODELd`) on such data, in `predict`, `predict_proba` and `score`. Predicting on a set whose sample count differs from the training one threw from torch; predicting on a same-sized set silently substituted the training values into the categorical columns and returned wrong answers. `heart-statlog` is the only dataset in `tests/data` that exercises this, and its cases in `tests/TestBayesModels.cc` are commented out, which is why it went unnoticed.
+
 ### Build
 
 - Fix `conandata.yml`. Every entry was fictional: the `sha256` fields were the literal string `placeholder_sha256`, and the `github.com/rmontanana/BayesNet` archive URLs all return 404 (including `1.1.2`, a version that was never tagged). Entries now point at the Gitea origin and carry real, verified hashes for 1.0.7, 1.1.0, 1.2.1, 1.2.2, 1.2.3 and 1.3.0. Note that the file is still reference metadata only: `conanfile.py` packages from `exports_sources` and has no `source()` method, so nothing here is fetched during `conan create`.

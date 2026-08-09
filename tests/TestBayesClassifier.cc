@@ -5,12 +5,17 @@
 // ***************************************************************
 
 #include <catch2/catch_test_macros.hpp>
+#include <catch2/generators/catch_generators.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
+#include <algorithm>
+#include <memory>
 #include <string>
 #include "TestUtils.h"
 #include "bayesnet/classifiers/TAN.h"
 #include "bayesnet/classifiers/KDB.h"
 #include "bayesnet/classifiers/KDBLd.h"
+#include "bayesnet/classifiers/TANLd.h"
+#include "bayesnet/classifiers/SPODELd.h"
 
 
 TEST_CASE("Test Cannot build dataset with wrong data vector", "[Classifier]")
@@ -114,6 +119,49 @@ TEST_CASE("KDB Graph", "[Classifier]")
     model.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
     auto graph = model.graph();
     REQUIRE(graph.size() == 15);
+}
+TEST_CASE("Ld models predict on datasets with categorical features", "[Classifier]")
+{
+    // heart-statlog is the only dataset in tests/data whose features are not all
+    // numeric (all.txt marks [0,3,4,7,9,11]), so it is the only one that reaches
+    // the categorical branch of Proposal::prepareX.
+    auto raw = RawDatasets("heart-statlog", false);
+    REQUIRE(std::count(raw.is_numeric.begin(), raw.is_numeric.end(), false) > 0);
+
+    folding::StratifiedKFold fold(3, raw.yv, 271);
+    auto [train, test] = fold.getFold(0);
+    auto train_t = torch::tensor(train);
+    auto test_t = torch::tensor(test);
+    auto X_train = raw.Xt.index({ torch::indexing::Slice(), train_t }).contiguous();
+    auto y_train = raw.yt.index({ train_t }).contiguous();
+    auto X_test = raw.Xt.index({ torch::indexing::Slice(), test_t }).contiguous();
+    auto y_test = raw.yt.index({ test_t }).contiguous();
+    REQUIRE(X_train.size(1) != X_test.size(1));
+
+    std::string name = GENERATE("TANLd", "KDBLd", "SPODELd");
+    std::unique_ptr<bayesnet::BaseClassifier> clf;
+    if (name == "TANLd") clf = std::make_unique<bayesnet::TANLd>();
+    else if (name == "KDBLd") clf = std::make_unique<bayesnet::KDBLd>(2);
+    else clf = std::make_unique<bayesnet::SPODELd>(1);
+    INFO("Classifier: " << name);
+    clf->fit(X_train, y_train, raw.features, raw.className, raw.states, raw.smoothing);
+
+    SECTION("Predicting a set of a different size than the training one")
+    {
+        REQUIRE_NOTHROW(clf->predict(X_test));
+        REQUIRE(clf->score(X_test, y_test) > 0.5f);
+    }
+    SECTION("Categorical columns come from the samples being predicted")
+    {
+        // Same number of samples as the training set, so nothing blows up on the
+        // shapes; if the categorical columns were taken from the training data
+        // instead of from the argument, reversing the samples would not reverse
+        // the predictions.
+        auto reversed = X_train.flip(1).contiguous();
+        auto predictions = clf->predict(X_train);
+        auto predictions_reversed = clf->predict(reversed);
+        REQUIRE(torch::equal(predictions_reversed, predictions.flip(0)));
+    }
 }
 TEST_CASE("KDBLd Graph", "[Classifier]")
 {
