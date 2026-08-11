@@ -53,7 +53,7 @@ TEST_CASE("Feature_select FCBF", "[BoostAODE]")
     REQUIRE(clf.getNumberOfNodes() == 90);
     REQUIRE(clf.getNumberOfEdges() == 153);
     REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 4 of 9 with FCBF");
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 5 of 9 with FCBF");
     REQUIRE(clf.getNotes()[1] == "Number of models: 9");
 }
 TEST_CASE("Test used features in train note and score", "[BoostAODE]")
@@ -73,8 +73,8 @@ TEST_CASE("Test used features in train note and score", "[BoostAODE]")
     REQUIRE(clf.getNotes()[1] == "Number of models: 8");
     auto score = clf.score(raw.Xv, raw.yv);
     auto scoret = clf.score(raw.Xt, raw.yt);
-    REQUIRE(score == Catch::Approx(0.80859375f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.80859375f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.80078125f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.80078125f).epsilon(raw.epsilon));
 }
 TEST_CASE("Voting vs proba", "[BoostAODE]")
 {
@@ -88,10 +88,10 @@ TEST_CASE("Voting vs proba", "[BoostAODE]")
         });
     auto score_voting = clf.score(raw.Xv, raw.yv);
     auto pred_voting = clf.predict_proba(raw.Xv);
-    REQUIRE(score_proba == Catch::Approx(0.97333).epsilon(raw.epsilon));
-    REQUIRE(score_voting == Catch::Approx(0.98).epsilon(raw.epsilon));
-    REQUIRE(pred_voting[83][2] == Catch::Approx(1.0).epsilon(raw.epsilon));
-    REQUIRE(pred_proba[83][2] == Catch::Approx(0.86121525).epsilon(raw.epsilon));
+    REQUIRE(score_proba == Catch::Approx(0.973333359).epsilon(raw.epsilon));
+    REQUIRE(score_voting == Catch::Approx(0.980000019).epsilon(raw.epsilon));
+    REQUIRE(pred_voting[83][2] == Catch::Approx(0.553122699).epsilon(raw.epsilon));
+    REQUIRE(pred_proba[83][2] == Catch::Approx(0.511210654).epsilon(raw.epsilon));
     REQUIRE(clf.dump_cpt().size() == 7004);
     REQUIRE(clf.topological_order() == std::vector<std::string>());
 }
@@ -164,14 +164,15 @@ TEST_CASE("Bisection Best", "[BoostAODE]")
         {"convergence_best", false},
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 210);
-    REQUIRE(clf.getNumberOfEdges() == 378);
-    REQUIRE(clf.getNotes().size() == 1);
-    REQUIRE(clf.getNotes().at(0) == "Number of models: 14");
+    REQUIRE(clf.getNumberOfNodes() == 30);
+    REQUIRE(clf.getNumberOfEdges() == 54);
+    REQUIRE(clf.getNotes().size() == 2);
+    REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 12 models eliminated");
+    REQUIRE(clf.getNotes().at(1) == "Number of models: 2");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.991666675f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.991666675f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.987500012f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.987500012f).epsilon(raw.epsilon));
 }
 TEST_CASE("Bisection Best vs Last", "[BoostAODE]")
 {
@@ -186,13 +187,13 @@ TEST_CASE("Bisection Best vs Last", "[BoostAODE]")
     clf.setHyperparameters(hyperparameters);
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_best = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score_best == Catch::Approx(0.980000019f).epsilon(raw.epsilon));
+    REQUIRE(score_best == Catch::Approx(0.986666679f).epsilon(raw.epsilon));
     // Now we will set the hyperparameter to use the last accuracy
     hyperparameters["convergence_best"] = false;
     clf.setHyperparameters(hyperparameters);
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_last = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score_last == Catch::Approx(0.976666689f).epsilon(raw.epsilon));
+    REQUIRE(score_last == Catch::Approx(0.986666679f).epsilon(raw.epsilon));
 }
 TEST_CASE("Block Update", "[BoostAODE]")
 {
@@ -205,16 +206,16 @@ TEST_CASE("Block Update", "[BoostAODE]")
         {"convergence", true},
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 868);
-    REQUIRE(clf.getNumberOfEdges() == 1724);
+    REQUIRE(clf.getNumberOfNodes() == 1085);
+    REQUIRE(clf.getNumberOfEdges() == 2155);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes()[0] == "Convergence threshold reached & 15 models eliminated");
-    REQUIRE(clf.getNotes()[1] == "Used features in train: 19 of 216");
-    REQUIRE(clf.getNotes()[2] == "Number of models: 4");
+    REQUIRE(clf.getNotes()[1] == "Used features in train: 20 of 216");
+    REQUIRE(clf.getNotes()[2] == "Number of models: 5");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.99f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.99f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.980000019f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.980000019f).epsilon(raw.epsilon));
     //
     // std::cout << "Number of nodes " << clf.getNumberOfNodes() << std::endl;
     // std::cout << "Number of edges " << clf.getNumberOfEdges() << std::endl;
@@ -236,8 +237,8 @@ TEST_CASE("Alphablock", "[BoostAODE]")
     clf_no_alpha.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_alpha = clf_alpha.score(raw.X_test, raw.y_test);
     auto score_no_alpha = clf_no_alpha.score(raw.X_test, raw.y_test);
-    REQUIRE(score_alpha == Catch::Approx(0.720779f).epsilon(raw.epsilon));
-    REQUIRE(score_no_alpha == Catch::Approx(0.733766f).epsilon(raw.epsilon));
+    REQUIRE(score_alpha == Catch::Approx(0.694805205f).epsilon(raw.epsilon));
+    REQUIRE(score_no_alpha == Catch::Approx(0.727272749f).epsilon(raw.epsilon));
 }
 TEST_CASE("Weightless hyperparameter is accepted", "[BoostAODE]")
 {
@@ -313,7 +314,7 @@ TEST_CASE("Weighted (default) produces non uniform significances", "[BoostAODE]"
     }
     REQUIRE_FALSE(all_ones);
 }
-TEST_CASE("Weightless vs weighted scores differ", "[BoostAODE]")
+TEST_CASE("Weightless vs weighted predictions differ", "[BoostAODE]")
 {
     auto raw = RawDatasets("diabetes", true);
     auto clf_weightless = bayesnet::BoostAODE();
@@ -326,8 +327,11 @@ TEST_CASE("Weightless vs weighted scores differ", "[BoostAODE]")
     clf_weighted.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_weighted = clf_weighted.score(raw.X_test, raw.y_test);
 
-    REQUIRE(score_weightless == Catch::Approx(0.746753275f).epsilon(raw.epsilon));
-    REQUIRE(score_weighted == Catch::Approx(0.733766258f).epsilon(raw.epsilon));
-    REQUIRE(score_weightless != Catch::Approx(score_weighted).epsilon(raw.epsilon));
+    REQUIRE(score_weightless == Catch::Approx(0.727272749f).epsilon(raw.epsilon));
+    REQUIRE(score_weighted == Catch::Approx(0.727272749f).epsilon(raw.epsilon));
+    // The two ensembles are different models: on this split they happen to reach
+    // the same accuracy, so compare the predictions themselves rather than the score.
+    auto differing = (clf_weightless.predict(raw.X_test) != clf_weighted.predict(raw.X_test)).sum().item<int>();
+    REQUIRE(differing == 12);
 }
 

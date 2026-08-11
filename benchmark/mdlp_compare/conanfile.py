@@ -20,7 +20,7 @@ class MdlpBenchConan(ConanFile):
     def requirements(self):
         self.requires("libtorch/2.7.1")
         self.requires("nlohmann_json/3.11.3")
-        self.requires("folding/1.1.2")
+        self.requires("folding/2.0.0")
         self.requires("arff-files/1.2.1")
         self.requires("fimdlp/{}".format(self.options.mdlp_version))
 

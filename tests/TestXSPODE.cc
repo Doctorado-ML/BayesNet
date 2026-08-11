@@ -13,7 +13,7 @@
 
 TEST_CASE("fit vector test", "[XSPODE]") {
   auto raw = RawDatasets("iris", true);
-  auto scores = std::vector<float>({0.966667, 0.9333333, 0.966667, 0.966667});
+  auto scores = std::vector<float>({1.0f, 1.0f, 1.0f, 1.0f});
   for (int i = 0; i < 4; ++i) {
     auto clf = bayesnet::XSpode(i);
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states,
@@ -26,7 +26,7 @@ TEST_CASE("fit vector test", "[XSPODE]") {
 }
 TEST_CASE("fit dataset test", "[XSPODE]") {
   auto raw = RawDatasets("iris", true);
-  auto scores = std::vector<float>({0.966667, 0.9333333, 0.966667, 0.966667});
+  auto scores = std::vector<float>({1.0f, 1.0f, 1.0f, 1.0f});
   for (int i = 0; i < 4; ++i) {
     auto clf = bayesnet::XSpode(i);
     clf.fit(raw.dataset, raw.features, raw.className, raw.states,
@@ -39,7 +39,7 @@ TEST_CASE("fit dataset test", "[XSPODE]") {
 }
 TEST_CASE("tensors dataset predict & predict_proba", "[XSPODE]") {
   auto raw = RawDatasets("iris", true);
-  auto scores = std::vector<float>({0.966667, 0.9333333, 0.966667, 0.966667});
+  auto scores = std::vector<float>({1.0f, 1.0f, 1.0f, 1.0f});
   auto probs_expected = std::vector<std::vector<float>>({ 
       {0.999017, 0.000306908, 0.000676449}, 
       {0.99831, 0.00119304, 0.000497099}, 
@@ -65,7 +65,7 @@ TEST_CASE("tensors dataset predict & predict_proba", "[XSPODE]") {
 
 TEST_CASE("mfeat-factors dataset test", "[XSPODE]") {
   auto raw = RawDatasets("mfeat-factors", true);
-  auto scores = std::vector<float>({0.9825, 0.9775, 0.9775, 0.99});
+  auto scores = std::vector<float>({0.99, 0.9825, 0.9825, 0.99});
   for (int i = 0; i < 4; ++i) {
     auto clf = bayesnet::XSpode(i);
     clf.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, raw.smoothing);
@@ -78,7 +78,7 @@ TEST_CASE("mfeat-factors dataset test", "[XSPODE]") {
 }
 TEST_CASE("Laplace predict", "[XSPODE]") {
   auto raw = RawDatasets("iris", true);
-  auto scores = std::vector<float>({0.966666639, 1.0f, 0.933333337, 1.0f});
+  auto scores = std::vector<float>({1.0f, 0.966666639, 1.0f, 0.966666639});
   for (int i = 0; i < 4; ++i) {
     auto clf = bayesnet::XSpode(0);
     clf.setHyperparameters({ {"parent", i} });
@@ -122,7 +122,7 @@ TEST_CASE("Test to_string and fitx", "[XSPODE]")
   REQUIRE(clf.getNotes().size() == 0);
   REQUIRE(clf.getNumberOfStates() == 64);
   REQUIRE(clf.getNFeatures() == 4);
-  REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.966666639f));
+  REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(1.0f));
   REQUIRE(clf.to_string().size() == 1966);
   REQUIRE(clf.graph("Not yet implemented") == std::vector<std::string>({"Not yet implemented"}));
 }

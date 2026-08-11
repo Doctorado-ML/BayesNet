@@ -22,7 +22,7 @@ TEST_CASE("Normal test", "[XBAODE]")
     REQUIRE(clf.getVersion() == "0.9.7");
     REQUIRE(clf.getNotes()[0] == "Number of models: 4");
     REQUIRE(clf.getNumberOfStates() == 256);
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.933333));
+    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(1.0));
 }
 TEST_CASE("Feature_select CFS", "[XBAODE]")
 {
@@ -35,7 +35,7 @@ TEST_CASE("Feature_select CFS", "[XBAODE]")
     REQUIRE(clf.getNotes().size() == 2);
     REQUIRE(clf.getNotes()[0] == "Used features in initialization: 9 of 9 with CFS");
     REQUIRE(clf.getNotes()[1] == "Number of models: 9");
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.720930219));
+    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.761904776));
 }
 TEST_CASE("Feature_select IWSS", "[XBAODE]")
 {
@@ -48,7 +48,7 @@ TEST_CASE("Feature_select IWSS", "[XBAODE]")
     REQUIRE(clf.getNotes().size() == 2);
     REQUIRE(clf.getNotes()[0] == "Used features in initialization: 9 of 9 with IWSS");
     REQUIRE(clf.getNotes()[1] == "Number of models: 9");
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.720930219f));
+    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.761904776f));
 }
 TEST_CASE("Feature_select FCBF", "[XBAODE]")
 {
@@ -59,9 +59,9 @@ TEST_CASE("Feature_select FCBF", "[XBAODE]")
     REQUIRE(clf.getNumberOfNodes() == 90);
     REQUIRE(clf.getNumberOfEdges() == 171);
     REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 4 of 9 with FCBF");
+    REQUIRE(clf.getNotes()[0] == "Used features in initialization: 5 of 9 with FCBF");
     REQUIRE(clf.getNotes()[1] == "Number of models: 9");
-    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.720930219));
+    REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(0.785714269));
 }
 TEST_CASE("Test used features in train note and score", "[XBAODE]")
 {
@@ -80,8 +80,8 @@ TEST_CASE("Test used features in train note and score", "[XBAODE]")
     REQUIRE(clf.getNotes()[1] == "Number of models: 8");
     auto score = clf.score(raw.Xv, raw.yv);
     auto scoret = clf.score(raw.Xt, raw.yt);
-    REQUIRE(score == Catch::Approx(0.822916687f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.822916687f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.8046875f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.8046875f).epsilon(raw.epsilon));
 }
 TEST_CASE("Order asc, desc & random", "[XBAODE]")
 {
@@ -150,14 +150,15 @@ TEST_CASE("Bisection Best", "[XBAODE]")
         {"convergence_best", false},
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 210);
-    REQUIRE(clf.getNumberOfEdges() == 406);
-    REQUIRE(clf.getNotes().size() == 1);
-    REQUIRE(clf.getNotes().at(0) == "Number of models: 14");
+    REQUIRE(clf.getNumberOfNodes() == 30);
+    REQUIRE(clf.getNumberOfEdges() == 58);
+    REQUIRE(clf.getNotes().size() == 2);
+    REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 12 models eliminated");
+    REQUIRE(clf.getNotes().at(1) == "Number of models: 2");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.991666675f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.991666675f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.987500012f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.987500012f).epsilon(raw.epsilon));
 }
 TEST_CASE("Bisection Best vs Last", "[XBAODE]")
 {
@@ -172,13 +173,13 @@ TEST_CASE("Bisection Best vs Last", "[XBAODE]")
     clf.setHyperparameters(hyperparameters);
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_best = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score_best == Catch::Approx(0.973333359f).epsilon(raw.epsilon));
+    REQUIRE(score_best == Catch::Approx(0.99000001f).epsilon(raw.epsilon));
     // Now we will set the hyperparameter to use the last accuracy
     hyperparameters["convergence_best"] = false;
     clf.setHyperparameters(hyperparameters);
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_last = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score_last == Catch::Approx(0.976666689f).epsilon(raw.epsilon));
+    REQUIRE(score_last == Catch::Approx(0.99000001f).epsilon(raw.epsilon));
 }
 TEST_CASE("Block Update", "[XBAODE]")
 {
@@ -199,8 +200,8 @@ TEST_CASE("Block Update", "[XBAODE]")
     REQUIRE(clf.getNotes()[2] == "Number of models: 5");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(1.0f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(1.0f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.959999979f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.959999979f).epsilon(raw.epsilon));
     //
     // std::cout << "Number of nodes " << clf.getNumberOfNodes() << std::endl;
     // std::cout << "Number of edges " << clf.getNumberOfEdges() << std::endl;
@@ -222,6 +223,6 @@ TEST_CASE("Alphablock", "[XBAODE]")
     clf_no_alpha.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_alpha = clf_alpha.score(raw.X_test, raw.y_test);
     auto score_no_alpha = clf_no_alpha.score(raw.X_test, raw.y_test);
-    REQUIRE(score_alpha == Catch::Approx(0.720779f).epsilon(raw.epsilon));
-    REQUIRE(score_no_alpha == Catch::Approx(0.733766f).epsilon(raw.epsilon));
+    REQUIRE(score_alpha == Catch::Approx(0.694805205f).epsilon(raw.epsilon));
+    REQUIRE(score_no_alpha == Catch::Approx(0.727272749f).epsilon(raw.epsilon));
 }
