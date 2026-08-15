@@ -34,7 +34,15 @@
 #include <string>
 #include <vector>
 
+// ArffFiles 2.0 moved the header and put everything in a namespace. Which one
+// we get is decided by the fimdlp version under test, so support both.
+#if defined(ARFF_V2)
+#include <ArffFiles/ArffFiles.hpp>
+using ArffReader = ArffFiles::ArffFiles;
+#else
 #include <ArffFiles.hpp>
+using ArffReader = ArffFiles;
+#endif
 #include <fimdlp/CPPFImdlp.h>
 #include <folding.hpp>
 #include <nlohmann/json.hpp>
@@ -149,7 +157,7 @@ static Dataset loadDataset(const std::string& data_path, const std::string& name
     if (it == catalog.end()) {
         throw std::invalid_argument("Dataset " + name + " is not present in all.txt");
     }
-    ArffFiles handler;
+    ArffReader handler;
     // The class is not always the last attribute (kdd_JapaneseVowels has it
     // first), so take the name from the catalog rather than assuming.
     if (it->second.className.empty()) {

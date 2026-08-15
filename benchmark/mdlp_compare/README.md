@@ -118,7 +118,14 @@ the third column of `all.txt` instead, via `ArffFiles::load(file, className)`.
   wall clock, especially with `TANLd`, whose iterative local discretization
   refits the discretizers on every iteration. Use `--max-samples` or
   `--datasets` while iterating.
-- The benchmark compiles unchanged against both versions: 3.0.0 keeps the
-  2.1.3 API (`fit(samples_t&, labels_t&)`, `transform`, `getCutPoints`) and
-  only adds to it (config structs, move overloads, `discretize` helpers,
-  typed exceptions).
+- The benchmark's own mdlp calls compile unchanged against both versions:
+  3.0.0 keeps the 2.1.3 API (`fit(samples_t&, labels_t&)`, `transform`,
+  `getCutPoints`) and only adds to it (config structs, move overloads,
+  `discretize` helpers, typed exceptions).
+- `arff-files` is the one dependency that is *not* common to both: 2.1.3 pins
+  `arff-files/1.2.1` and 3.0.0 pins `arff-files/2.0.0`, and the two conflict in
+  a Conan graph. So `conanfile.py` derives the pin from `mdlp_version`, and
+  `mdlp_bench.cc` supports both APIs behind `ARFF_V2` (2.0.0 moved the header
+  to `ArffFiles/ArffFiles.hpp` and wrapped everything in `namespace ArffFiles`).
+  `CMakeLists.txt` defines `ARFF_V2` from the version `find_package` resolved,
+  so nothing has to be passed by hand.

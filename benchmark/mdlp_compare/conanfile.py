@@ -21,7 +21,10 @@ class MdlpBenchConan(ConanFile):
         self.requires("libtorch/2.7.1")
         self.requires("nlohmann_json/3.11.3")
         self.requires("folding/2.0.0")
-        self.requires("arff-files/1.2.1")
+        # Each fimdlp version pins its own arff-files, and the two are
+        # incompatible, so the pin has to follow the version under test.
+        self.requires("arff-files/1.2.1" if self.options.mdlp_version == "2.1.3"
+                      else "arff-files/2.0.0")
         self.requires("fimdlp/{}".format(self.options.mdlp_version))
 
     def generate(self):

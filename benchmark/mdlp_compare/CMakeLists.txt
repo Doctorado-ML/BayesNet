@@ -55,3 +55,8 @@ target_link_libraries(mdlp_bench PRIVATE
     nlohmann_json::nlohmann_json
     arff-files::arff-files
 )
+
+if(arff-files_VERSION VERSION_GREATER_EQUAL 2.0.0)
+    target_compile_definitions(mdlp_bench PRIVATE ARFF_V2=1)
+endif()
+message(STATUS "arff-files version: ${arff-files_VERSION}")
