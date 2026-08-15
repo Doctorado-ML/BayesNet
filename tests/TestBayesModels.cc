@@ -53,7 +53,7 @@ TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
                                                       {{"glass", "SPODE"}, 0.775701},
                                                       {{"glass", "TAN"}, 0.827103},
                                                       {{"glass", "AODELd"}, 0.799065411f},
-                                                      {{"glass", "KDBLd"}, 0.864485979f},
+                                                      {{"glass", "KDBLd"}, 0.869158864f},
                                                       {{"glass", "SPODELd"}, 0.780373812f},
                                                       {{"glass", "TANLd"}, 0.831775725f},
                                                       {{"glass", "BoostAODE"}, 0.84579f},

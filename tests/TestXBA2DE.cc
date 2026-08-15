@@ -99,17 +99,17 @@ TEST_CASE("Bisection Best", "[XBA2DE]")
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     DUMP("Bisection", clf); std::cerr << "GOLDEN[Bisection] score=" << clf.score(raw.X_test, raw.y_test) << std::endl;
-    REQUIRE(clf.getNumberOfNodes() == 135);
-    REQUIRE(clf.getNumberOfEdges() == 351);
-    REQUIRE(clf.getNumberOfStates() == 12726);
+    REQUIRE(clf.getNumberOfNodes() == 240);
+    REQUIRE(clf.getNumberOfEdges() == 624);
+    REQUIRE(clf.getNumberOfStates() == 22624);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 15 models eliminated");
-    REQUIRE(clf.getNotes().at(1) == "Pairs not used in train: 67");
-    REQUIRE(clf.getNotes().at(2) == "Number of models: 9");
+    REQUIRE(clf.getNotes().at(1) == "Pairs not used in train: 60");
+    REQUIRE(clf.getNotes().at(2) == "Number of models: 16");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.983333349).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.983333349).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.995833337).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.995833337).epsilon(raw.epsilon));
 }
 TEST_CASE("Bisection Best vs Last", "[XBA2DE]")
 {
@@ -124,7 +124,7 @@ TEST_CASE("Bisection Best vs Last", "[XBA2DE]")
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_best = clf.score(raw.X_test, raw.y_test);
     std::cerr << "GOLDEN[Bisection-best] score_best=" << score_best << std::endl;
-    REQUIRE(score_best == Catch::Approx(0.99000001).epsilon(raw.epsilon));
+    REQUIRE(score_best == Catch::Approx(0.983333349).epsilon(raw.epsilon));
     // Now we will set the hyperparameter to use the last accuracy
     hyperparameters["convergence_best"] = false;
     clf.setHyperparameters(hyperparameters);

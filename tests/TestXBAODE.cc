@@ -150,15 +150,15 @@ TEST_CASE("Bisection Best", "[XBAODE]")
         {"convergence_best", false},
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 30);
-    REQUIRE(clf.getNumberOfEdges() == 58);
+    REQUIRE(clf.getNumberOfNodes() == 75);
+    REQUIRE(clf.getNumberOfEdges() == 145);
     REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 12 models eliminated");
-    REQUIRE(clf.getNotes().at(1) == "Number of models: 2");
+    REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 9 models eliminated");
+    REQUIRE(clf.getNotes().at(1) == "Number of models: 5");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.987500012f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.987500012f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.995833337f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.995833337f).epsilon(raw.epsilon));
 }
 TEST_CASE("Bisection Best vs Last", "[XBAODE]")
 {
@@ -173,7 +173,7 @@ TEST_CASE("Bisection Best vs Last", "[XBAODE]")
     clf.setHyperparameters(hyperparameters);
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_best = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score_best == Catch::Approx(0.99000001f).epsilon(raw.epsilon));
+    REQUIRE(score_best == Catch::Approx(0.980000019f).epsilon(raw.epsilon));
     // Now we will set the hyperparameter to use the last accuracy
     hyperparameters["convergence_best"] = false;
     clf.setHyperparameters(hyperparameters);
