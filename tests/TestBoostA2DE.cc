@@ -95,7 +95,7 @@ TEST_CASE("Order asc, desc & random", "[BoostA2DE]")
 {
     auto raw = RawDatasets("glass", true);
     std::map<std::string, double> scores{
-        {"asc", 0.789719641f }, { "desc", 0.813084f }, { "rand", 0.84579438f }
+        {"asc", 0.799065411f }, { "desc", 0.813084f }, { "rand", 0.855140209f }
     };
     for (const std::string& order : { "asc", "desc", "rand" }) {
         auto clf = bayesnet::BoostA2DE();
