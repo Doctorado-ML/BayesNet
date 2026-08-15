@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-#include <ArffFiles.hpp>
+#include <ArffFiles/ArffFiles.hpp>
 #include <fimdlp/CPPFImdlp.h>
 #include <torch/torch.h>
 
@@ -40,7 +40,7 @@ struct DiscreteDataset {
 
 static DiscreteDataset load_dataset(const std::string& name, bool class_last = true)
 {
-    ArffFiles handler;
+    ArffFiles::ArffFiles handler;
     handler.load(name, class_last);
     auto X = handler.getX();
     auto y = handler.getY();

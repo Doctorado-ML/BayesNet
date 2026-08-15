@@ -14,7 +14,7 @@
 #include <tuple>
 #include <vector>
 
-#include <ArffFiles.hpp>
+#include <ArffFiles/ArffFiles.hpp>
 #include <fimdlp/CPPFImdlp.h>
 #include <torch/torch.h>
 
@@ -73,7 +73,7 @@ struct ContinuousDataset {
 
 static ContinuousDataset load_arff(const std::string& path, bool class_last = true)
 {
-    ArffFiles handler;
+    ArffFiles::ArffFiles handler;
     handler.load(path, class_last);
     auto X = handler.getX();
     auto y = handler.getY();
@@ -102,7 +102,7 @@ struct DiscreteDataset {
 
 static DiscreteDataset discretize_arff(const std::string& path, bool class_last = true)
 {
-    ArffFiles handler;
+    ArffFiles::ArffFiles handler;
     handler.load(path, class_last);
     auto X = handler.getX();
     auto y = handler.getY();
