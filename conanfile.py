@@ -64,7 +64,7 @@ class BayesNetConan(ConanFile):
 
     def build_requirements(self):
         self.build_requires("cmake/[>=3.27]")
-        self.test_requires("arff-files/1.2.1")  # Custom package
+        self.test_requires("arff-files/2.0.0")  # Custom package
         self.test_requires("catch2/3.8.1")
 
     def layout(self):

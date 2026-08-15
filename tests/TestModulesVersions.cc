@@ -19,7 +19,7 @@ std::map<std::string, std::string> modules = {
     { "mdlp", "3.0.0" },
     { "Folding", "2.0.0" },
     { "json", "3.11" },
-    { "ArffFiles", "1.2.1" }
+    { "ArffFiles", "2.0.0" }
 };
 
 TEST_CASE("MDLP", "[Modules]")
@@ -38,6 +38,6 @@ TEST_CASE("NLOHMANN_JSON", "[Modules]")
 }
 TEST_CASE("ArffFiles", "[Modules]")
 {
-    auto handler = ArffFiles();
+    auto handler = ArffFiles::ArffFiles();
     REQUIRE(handler.version() == modules["ArffFiles"]);
 }

@@ -17,32 +17,36 @@ public:
     }
 };
 
-class ShuffleArffFiles : public ArffFiles {
+class ShuffleArffFiles : public ArffFiles::ArffFiles {
 public:
-    ShuffleArffFiles(int num_samples = 0, bool shuffle = false) : ArffFiles(), num_samples(num_samples), shuffle(shuffle) {}
+    // ArffFiles 2.0 keeps its storage private, so the subset is built through
+    // the non-const getters instead of touching the members directly.
+    using Base = ArffFiles::ArffFiles;
+    ShuffleArffFiles(int num_samples = 0, bool shuffle = false) : Base(), num_samples(num_samples), shuffle(shuffle) {}
     void load(const std::string& file_name, bool class_last = true)
     {
-        ArffFiles::load(file_name, class_last);
+        Base::load(file_name, class_last);
         if (num_samples > 0) {
-            if (num_samples > getY().size()) {
+            if (num_samples > static_cast<int>(getY().size())) {
                 throw std::invalid_argument("num_lines must be less than the number of lines in the file");
             }
+            auto n_features = getAttributes().size();
             auto indices = std::vector<int>(num_samples);
             std::iota(indices.begin(), indices.end(), 0);
             if (shuffle) {
                 std::mt19937 g{ 173 };
                 std::shuffle(indices.begin(), indices.end(), g);
             }
-            auto XX = std::vector<std::vector<float>>(attributes.size(), std::vector<float>(num_samples));
+            auto XX = std::vector<std::vector<float>>(n_features, std::vector<float>(num_samples));
             auto yy = std::vector<int>(num_samples);
             for (int i = 0; i < num_samples; i++) {
                 yy[i] = getY()[indices[i]];
-                for (int j = 0; j < attributes.size(); j++) {
-                    XX[j][i] = X[j][indices[i]];
+                for (size_t j = 0; j < n_features; j++) {
+                    XX[j][i] = getX()[j][indices[i]];
                 }
             }
-            X = XX;
-            y = yy;
+            getX() = XX;
+            getY() = yy;
         }
     }
 private:
