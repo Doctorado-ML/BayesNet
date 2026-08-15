@@ -103,9 +103,14 @@ namespace bayesnet {
                 selectedScores.push_back(suLabels[featureOrder[i]]);
             }
         } else {
-            // Sort by importance (absolute coefficient value)
+            // Sort by importance (absolute coefficient value); equal importances
+            // are ordered by feature index so the ranking does not depend on
+            // std::sort's handling of equivalent elements
             std::sort(featureImportance.begin(), featureImportance.end(),
-                [](const auto& a, const auto& b) { return a.second > b.second; });
+                [](const auto& a, const auto& b) {
+                    if (a.second != b.second) return a.second > b.second;
+                    return a.first < b.first;
+                });
 
             // Select top features up to maxFeatures
             int numToSelect = std::min(static_cast<int>(featureImportance.size()),

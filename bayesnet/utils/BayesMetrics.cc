@@ -5,7 +5,6 @@
 // ***************************************************************
 
 #include <map>
-#include <unordered_map>
 #include <tuple>
 #include "Mst.h"
 #include "BayesMetrics.h"
@@ -67,14 +66,22 @@ namespace bayesnet {
                 scoresKPairs.push_back({ key, value });
             }
         }
-        // sort scores
+        // sort scores; pairs with an equal score are ordered by (i, j) so that
+        // the ranking is fully defined here and not by std::sort's handling of
+        // equivalent elements, which differs between standard libraries
         if (ascending) {
-            sort(scoresKPairs.begin(), scoresKPairs.end(), [](auto& a, auto& b)
-                { return a.second < b.second; });
+            sort(scoresKPairs.begin(), scoresKPairs.end(), [](const auto& a, const auto& b)
+                {
+                    if (a.second != b.second) return a.second < b.second;
+                    return a.first < b.first;
+                });
 
         } else {
-            sort(scoresKPairs.begin(), scoresKPairs.end(), [](auto& a, auto& b)
-                { return a.second > b.second; });
+            sort(scoresKPairs.begin(), scoresKPairs.end(), [](const auto& a, const auto& b)
+                {
+                    if (a.second != b.second) return a.second > b.second;
+                    return a.first < b.first;
+                });
         }
         for (auto& [pairs, score] : scoresKPairs) {
             pairsKBest.push_back(pairs);
@@ -111,7 +118,10 @@ namespace bayesnet {
         // sort & reduce scores and features
         if (ascending) {
             sort(featuresKBest.begin(), featuresKBest.end(), [&](int i, int j)
-                { return scoresKBest[i] < scoresKBest[j]; });
+                {
+                    if (scoresKBest[i] != scoresKBest[j]) return scoresKBest[i] < scoresKBest[j];
+                    return i < j;
+                });
             sort(scoresKBest.begin(), scoresKBest.end(), std::less<double>());
             if (k < n) {
                 for (int i = 0; i < n - k; ++i) {
@@ -121,7 +131,10 @@ namespace bayesnet {
             }
         } else {
             sort(featuresKBest.begin(), featuresKBest.end(), [&](int i, int j)
-                { return scoresKBest[i] > scoresKBest[j]; });
+                {
+                    if (scoresKBest[i] != scoresKBest[j]) return scoresKBest[i] > scoresKBest[j];
+                    return i < j;
+                });
             sort(scoresKBest.begin(), scoresKBest.end(), std::greater<double>());
             featuresKBest.resize(k);
             scoresKBest.resize(k);
@@ -180,7 +193,10 @@ namespace bayesnet {
     {
         torch::Tensor counts = feature.bincount(weights);
         double totalWeight = counts.sum().item<double>();
-        torch::Tensor probs = counts.to(torch::kFloat) / totalWeight;
+        // In double: the rest of the computation, and conditionalEntropy which
+        // this is subtracted from, are double. Going through float32 here left
+        // the mutual information with ~7 significant digits.
+        torch::Tensor probs = counts.to(torch::kDouble) / totalWeight;
         torch::Tensor logProbs = torch::log(probs);
         torch::Tensor entropy = -probs * logProbs;
         return entropy.nansum().item<double>();
@@ -190,11 +206,15 @@ namespace bayesnet {
     {
         int numSamples = firstFeature.sizes()[0];
         torch::Tensor featureCounts = secondFeature.bincount(weights);
-        std::unordered_map<int, std::unordered_map<int, double>> jointCounts;
+        // Ordered: the entropy below is accumulated by iterating this, and
+        // floating point addition is not associative, so an implementation
+        // defined iteration order would put the result's last bits at the mercy
+        // of the standard library in use.
+        std::map<int, std::map<int, double>> jointCounts;
         double totalWeight = 0;
         for (auto i = 0; i < numSamples; i++) {
             jointCounts[secondFeature[i].item<int>()][firstFeature[i].item<int>()] += weights[i].item<double>();
-            totalWeight += weights[i].item<float>();
+            totalWeight += weights[i].item<double>(); // was item<float>(), inconsistent with the line above
         }
         if (totalWeight == 0)
             return 0;
