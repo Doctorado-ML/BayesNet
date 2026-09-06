@@ -37,9 +37,13 @@
 #include <torch/torch.h>
 #include <nlohmann/json.hpp>
 
+#include <ArffFiles/ArffFiles.hpp>
+#include <fimdlp/CPPFImdlp.h>
+
 #include <bayesnet/classifiers/XSP2DE.h>
 #include <bayesnet/ensembles/XBA2DE.h>
 #include <bayesnet/utils/BayesMetrics.h>
+#include <bayesnet/config.h>
 
 using json = nlohmann::json;
 using clk = std::chrono::steady_clock;
@@ -99,6 +103,149 @@ static Case makeSynthetic(int n, int m, int card, int nClasses, int signal, unsi
     std::vector<int> classStates(nClasses);
     std::iota(classStates.begin(), classStates.end(), 0);
     c.states[c.className] = classStates;
+    return c;
+}
+
+// --------------------------------------------------------------------------
+// Real data from tests/data.
+//
+// tests/data/all.txt holds "name;className;numericFeatures", the third field
+// being "all", "none" or a json list of the numeric feature indices. The class
+// name matters: kdd_JapaneseVowels declares `speaker` as its FIRST attribute,
+// so loading it class-last takes a REAL feature as the class and produces
+// hundreds of "classes". Take the name from the catalog, as
+// benchmark/mdlp_compare does, rather than assuming a position.
+// --------------------------------------------------------------------------
+struct CatalogEntry {
+    std::string className;
+    std::vector<int> numericFeaturesIdx; // {-1} means every feature is numeric
+};
+
+static std::vector<std::string> splitLine(const std::string& text, char delimiter)
+{
+    std::vector<std::string> out;
+    std::stringstream ss(text);
+    std::string token;
+    while (std::getline(ss, token, delimiter)) {
+        auto begin = token.find_first_not_of(" \t\r\n");
+        auto end = token.find_last_not_of(" \t\r\n");
+        out.push_back(begin == std::string::npos ? "" : token.substr(begin, end - begin + 1));
+    }
+    return out;
+}
+
+static std::string dataPath() { return { data_path.begin(), data_path.end() }; }
+
+static std::map<std::string, CatalogEntry> loadCatalog()
+{
+    std::map<std::string, CatalogEntry> catalog;
+    std::ifstream file(dataPath() + "all.txt");
+    if (!file.is_open()) {
+        throw std::invalid_argument("Unable to open catalog file [" + dataPath() + "all.txt]");
+    }
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.empty() || line[0] == '#') continue;
+        auto tokens = splitLine(line, ';');
+        CatalogEntry entry;
+        entry.className = tokens.size() > 1 ? tokens[1] : "";
+        auto numeric = tokens.size() > 2 ? tokens[2] : "all";
+        if (numeric == "all") {
+            entry.numericFeaturesIdx.push_back(-1);
+        } else if (numeric != "none") {
+            for (auto& f : nlohmann::json::parse(numeric)) entry.numericFeaturesIdx.push_back(f);
+        }
+        catalog[tokens[0]] = entry;
+    }
+    return catalog;
+}
+
+// The profiler needs a fixed discrete dataset to time XBA2DE on, so MDLP is
+// fitted on all the data. The accuracy that comes out is therefore
+// resubstitution -- it is used as an invariant to detect behaviour changes, not
+// as a quality measure.
+static Case makeArff(const std::string& name, int maxSamples)
+{
+    static const auto catalog = loadCatalog();
+    auto it = catalog.find(name);
+    if (it == catalog.end()) {
+        throw std::invalid_argument("Dataset " + name + " is not present in all.txt");
+    }
+
+    ArffFiles::ArffFiles handler;
+    auto file = dataPath() + name + ".arff";
+    if (it->second.className.empty()) {
+        handler.load(file, true);
+    } else {
+        handler.load(file, it->second.className);
+    }
+
+    auto X = handler.getX();   // feature-major, float
+    auto y = handler.getY();
+    auto attributes = handler.getAttributes();
+
+    Case c;
+    c.className = handler.getClassName();
+    for (const auto& attr : attributes) c.features.push_back(attr.first);
+    auto n = static_cast<int>(c.features.size());
+
+    // Seeded subsample over the whole file, so a cap does not just take a
+    // prefix -- several of these datasets are sorted by class.
+    auto m = static_cast<int>(y.size());
+    if (maxSamples > 0 && maxSamples < m) {
+        std::vector<int> indices(m);
+        std::iota(indices.begin(), indices.end(), 0);
+        std::mt19937 g(271);
+        std::shuffle(indices.begin(), indices.end(), g);
+        indices.resize(maxSamples);
+        std::sort(indices.begin(), indices.end());
+        std::vector<std::vector<float>> Xs(n, std::vector<float>(maxSamples));
+        std::vector<int> ys(maxSamples);
+        for (int i = 0; i < maxSamples; ++i) {
+            ys[i] = y[indices[i]];
+            for (int f = 0; f < n; ++f) Xs[f][i] = X[f][indices[i]];
+        }
+        X = std::move(Xs);
+        y = std::move(ys);
+        m = maxSamples;
+    }
+
+    std::vector<bool> isNumeric(n, false);
+    const auto& numericIdx = it->second.numericFeaturesIdx;
+    if (!numericIdx.empty()) {
+        if (numericIdx[0] == -1) {
+            isNumeric.assign(n, true);
+        } else {
+            for (auto idx : numericIdx) {
+                if (idx >= 0 && idx < n) isNumeric[idx] = true;
+            }
+        }
+    }
+
+    c.dataset = torch::zeros({ n + 1, m }, torch::kInt32);
+    for (int f = 0; f < n; ++f) {
+        mdlp::labels_t discrete;
+        if (isNumeric[f]) {
+            mdlp::CPPFImdlp fimdlp;
+            fimdlp.fit(X[f], y);
+            discrete = fimdlp.transform(X[f]);
+        } else {
+            discrete.reserve(m);
+            for (auto v : X[f]) discrete.push_back(static_cast<int>(v));
+        }
+        auto states = *std::max_element(discrete.begin(), discrete.end()) + 1;
+        c.states[c.features[f]] = std::vector<int>(states);
+        std::iota(c.states[c.features[f]].begin(), c.states[c.features[f]].end(), 0);
+        c.dataset.index_put_({ f, "..." }, torch::tensor(discrete, torch::kInt32));
+    }
+    c.dataset.index_put_({ -1, "..." }, torch::tensor(y, torch::kInt32));
+
+    c.nClasses = *std::max_element(y.begin(), y.end()) + 1;
+    c.states[c.className] = std::vector<int>(c.nClasses);
+    std::iota(c.states[c.className].begin(), c.states[c.className].end(), 0);
+    c.n = n;
+    c.m = m;
+    c.label = "arff " + name + (maxSamples > 0 ? " (<=" + std::to_string(maxSamples) + ")" : "");
     return c;
 }
 
@@ -237,7 +384,9 @@ static void usage(const char* prog)
     std::cout <<
         "usage: " << prog << " [options]\n"
         "  --synthetic N,M,CARD   add a synthetic case (repeatable)\n"
-        "                         default cases if none given and no --arff\n"
+        "  --arff NAME[,MAX]      add a case from tests/data/NAME.arff, MDLP\n"
+        "                         discretized, optionally capped to MAX samples\n"
+        "                         (repeatable). Default cases if neither given.\n"
         "  --reps K               repetitions per micro-benchmark, median kept (default 5)\n"
         "  --threads K            torch intra-op threads (default 1)\n"
         "  --beta V               pair-ranking beta for SelectKPairs (default 1.0)\n"
@@ -256,7 +405,7 @@ int main(int argc, char** argv)
     std::string jsonPath, runLabel = "run";
     json hyper = json::object();
     std::vector<Case> cases;
-    std::vector<std::string> pendingSynthetic;
+    std::vector<std::string> pendingSynthetic, pendingArff;
 
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
@@ -266,6 +415,7 @@ int main(int argc, char** argv)
         };
         if (a == "-h" || a == "--help") { usage(argv[0]); return 0; }
         else if (a == "--synthetic") pendingSynthetic.push_back(next());
+        else if (a == "--arff") pendingArff.push_back(next());
         else if (a == "--reps") reps = std::stoi(next());
         else if (a == "--threads") threads = std::stoi(next());
         else if (a == "--beta") beta = std::stod(next());
@@ -280,7 +430,7 @@ int main(int argc, char** argv)
 
     // Default sweep: holds n and m fixed in turn so the n^2 and m growth of
     // the pair ranking are both visible.
-    if (pendingSynthetic.empty()) {
+    if (pendingSynthetic.empty() && pendingArff.empty()) {
         pendingSynthetic = { "20,2000,4", "20,5000,4", "40,5000,4", "40,20000,4" };
     }
 
@@ -291,6 +441,12 @@ int main(int argc, char** argv)
             return 2;
         }
         cases.push_back(makeSynthetic(n, m, card, /*nClasses=*/3, /*signal=*/30, /*seed=*/42));
+    }
+    for (const auto& spec : pendingArff) {
+        auto comma = spec.find(',');
+        auto name = comma == std::string::npos ? spec : spec.substr(0, comma);
+        int cap = comma == std::string::npos ? 0 : std::stoi(spec.substr(comma + 1));
+        cases.push_back(makeArff(name, cap));
     }
 
     json report;
