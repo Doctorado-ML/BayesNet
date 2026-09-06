@@ -9,6 +9,7 @@
 #include <catch2/generators/catch_generators.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
 #include "TestUtils.h"
+#include "bayesnet/config.h"
 #include "bayesnet/classifiers/KDB.h"
 #include "bayesnet/classifiers/KDBLd.h"
 #include "bayesnet/classifiers/SPODE.h"
@@ -20,7 +21,10 @@
 #include "bayesnet/ensembles/AODELd.h"
 #include "bayesnet/ensembles/BoostAODE.h"
 
-const std::string ACTUAL_VERSION = "1.3.0";
+// Read the version CMake configures into bayesnet/config.h rather than
+// repeating it here, where it went stale at the 1.2.3 -> 1.3.0 bump and failed
+// for every classifier until someone noticed.
+const std::string ACTUAL_VERSION = { project_version.begin(), project_version.end() };
 
 TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
 {
