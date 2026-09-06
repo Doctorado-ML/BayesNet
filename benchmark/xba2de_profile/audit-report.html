@@ -371,10 +371,10 @@
     <dl class="meta">
       <div><dt>Repository</dt><dd>BayesNet 1.3.0</dd></div>
       <div><dt>Subject</dt><dd>XBA2DE 0.9.7</dd></div>
-      <div><dt>Date</dt><dd>2026-09-06</dd></div>
+      <div><dt>Date</dt><dd>2026-09-07</dd></div>
       <div><dt>Method</dt><dd>staged profiling</dd></div>
       <div><dt>Machine</dt><dd>Apple silicon, 1 torch thread</dd></div>
-      <div><dt>Build</dt><dd>Release, -O3</dd></div>
+      <div><dt>Branch</dt><dd>feat/fimdlp-3.0.0</dd></div>
     </dl>
   </header>
 
@@ -396,17 +396,18 @@
         at n=80 / m=5 000.</span>
       </div>
       <div class="fig">
-        <span class="n">67×</span>
-        <span class="lab"><b>End-to-end.</b> A complete XBA2DE fit, identical
-        ensemble, identical accuracy.</span>
+        <span class="n">87×</span>
+        <span class="lab"><b>On real data.</b> One ranking on mfeat-factors —
+        216 features, 23 220 pairs — 209 s to 2.4 s.</span>
       </div>
     </div>
 
     <p>
-      At the scale XBA2DE was built for — 100 features, 100 000 samples — one pair ranking
-      took roughly <strong>34 minutes</strong> before and takes <strong>9.7 seconds</strong> now.
-      A complete fit on that dataset now finishes in <strong>42 seconds</strong>. The same run
-      before the fixes projects to about <strong>two and a half hours</strong>.
+      The clearest case is a real one. <strong>mfeat-factors</strong> has 216 features, so the
+      boosting loop ranks 23 220 pairs every round — 209 seconds each, and a complete fit
+      performs about 74 of them. That fit now takes <strong>178 seconds</strong> against a
+      projected <strong>4.3 hours</strong>: training a 216-feature model went from something you
+      start and come back to after lunch, to something you wait three minutes for.
     </p>
     <p>
       Every change is an implementation fix: the arithmetic is unchanged, and in most cases
@@ -703,32 +704,76 @@
       </table>
     </div>
 
-    <h3>At the target scale</h3>
+    <h3>On the real datasets</h3>
     <p>
-      n=100, m=100 000 — the size class XBA2DE exists to address. Measured after the fixes;
-      the before column is projected from the 200–224× ranking factor measured above, because
-      running the baseline here was not practical.
+      Ten datasets from <code>tests/data</code>, MDLP discretized. Measured on
+      <code>feat/fimdlp-3.0.0</code> with and without the optimization commits, so both columns
+      share the same dependency set and the same deterministic tie-breaking. Accuracy and model
+      count were identical in every case.
     </p>
 
     <div class="scroll">
       <table>
-        <caption>n=100 · m=100 000 · 4 950 pairs</caption>
+        <caption>One pair ranking, per dataset</caption>
         <thead>
-          <tr><th>Stage</th><th class="num">Before (projected)</th><th class="num">After (measured)</th></tr>
+          <tr><th>Dataset</th><th class="num">Features</th><th class="num">Samples</th><th class="num">Pairs</th><th class="num">Before</th><th class="num">After</th><th class="num">Gain</th></tr>
         </thead>
         <tbody>
-          <tr><td>One pair ranking</td><td class="num">~34 min</td><td class="num">9.7 s</td></tr>
-          <tr><td>One <code>XSp2de</code> fit</td><td class="num">~5.9 s</td><td class="num">0.015 s</td></tr>
-          <tr class="total"><td>Complete fit</td><td class="num">~2.5 h</td><td class="num">42.4 s</td></tr>
+          <tr><td class="code">iris</td><td class="num">4</td><td class="num">150</td><td class="num">6</td><td class="num">0.004 s</td><td class="num">0.0001 s</td><td class="num gain">51×</td></tr>
+          <tr><td class="code">liver-disorders</td><td class="num">6</td><td class="num">345</td><td class="num">15</td><td class="num">0.022 s</td><td class="num">0.0002 s</td><td class="num gain">140×</td></tr>
+          <tr><td class="code">ecoli</td><td class="num">7</td><td class="num">336</td><td class="num">21</td><td class="num">0.031 s</td><td class="num">0.0002 s</td><td class="num gain">129×</td></tr>
+          <tr><td class="code">diabetes</td><td class="num">8</td><td class="num">768</td><td class="num">28</td><td class="num">0.104 s</td><td class="num">0.0007 s</td><td class="num gain">141×</td></tr>
+          <tr><td class="code">glass</td><td class="num">9</td><td class="num">214</td><td class="num">36</td><td class="num">0.034 s</td><td class="num">0.0003 s</td><td class="num gain">106×</td></tr>
+          <tr><td class="code">heart-statlog</td><td class="num">13</td><td class="num">270</td><td class="num">78</td><td class="num">0.094 s</td><td class="num">0.0006 s</td><td class="num gain">152×</td></tr>
+          <tr><td class="code">kdd_JapaneseVowels</td><td class="num">14</td><td class="num">9 961</td><td class="num">91</td><td class="num">4.227 s</td><td class="num">0.031 s</td><td class="num gain">138×</td></tr>
+          <tr><td class="code">letter</td><td class="num">16</td><td class="num">20 000</td><td class="num">120</td><td class="num">10.788 s</td><td class="num">0.133 s</td><td class="num gain">81×</td></tr>
+          <tr><td class="code">spambase</td><td class="num">57</td><td class="num">4 601</td><td class="num">1 596</td><td class="num">31.984 s</td><td class="num">0.104 s</td><td class="num gain">307×</td></tr>
+          <tr><td class="code"><strong>mfeat-factors</strong></td><td class="num"><strong>216</strong></td><td class="num">2 000</td><td class="num"><strong>23 220</strong></td><td class="num"><strong>209.3 s</strong></td><td class="num"><strong>2.4 s</strong></td><td class="num gain">87×</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>Complete fit</caption>
+        <thead>
+          <tr><th>Dataset</th><th class="num">Before</th><th class="num">After</th><th class="num">Gain</th><th class="num">Models</th><th class="num">Accuracy</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="code">iris</td><td class="num">0.021 s</td><td class="num">0.003 s</td><td class="num gain">6×</td><td class="num same">6</td><td class="num same">0.98000</td></tr>
+          <tr><td class="code">liver-disorders</td><td class="num">0.111 s</td><td class="num">0.008 s</td><td class="num gain">13×</td><td class="num same">1</td><td class="num same">0.63188</td></tr>
+          <tr><td class="code">ecoli</td><td class="num">0.266 s</td><td class="num">0.013 s</td><td class="num gain">20×</td><td class="num same">21</td><td class="num same">0.89286</td></tr>
+          <tr><td class="code">glass</td><td class="num">0.186 s</td><td class="num">0.007 s</td><td class="num gain">29×</td><td class="num same">17</td><td class="num same">0.83645</td></tr>
+          <tr><td class="code">diabetes</td><td class="num">0.474 s</td><td class="num">0.015 s</td><td class="num gain">32×</td><td class="num same">1</td><td class="num same">0.83073</td></tr>
+          <tr><td class="code">heart-statlog</td><td class="num">0.422 s</td><td class="num">0.010 s</td><td class="num gain">41×</td><td class="num same">1</td><td class="num same">0.85185</td></tr>
+          <tr><td class="code">kdd_JapaneseVowels</td><td class="num">186.8 s</td><td class="num">6.6 s</td><td class="num gain">28×</td><td class="num same">91</td><td class="num same">0.99488</td></tr>
         </tbody>
       </table>
     </div>
 
     <p>
-      That fit converged after 2 models, so its ranking share is unrepresentative — the
-      synthetic generator makes the problem too easy at this size. On real data with more
-      boosting rounds, each additional round still costs a further 9.7 seconds of ranking.
-      That is H3, and it is now essentially the entire cost of training.
+      The three large ones were run to completion only on the optimized build. Their "before" is
+      projected from the measured ranking cost times the number of rankings the fit performs,
+      which is what a fit is now almost entirely made of.
+    </p>
+
+    <div class="scroll">
+      <table>
+        <caption>Complete fit, large datasets · before is projected</caption>
+        <thead>
+          <tr><th>Dataset</th><th class="num">Before (projected)</th><th class="num">After (measured)</th><th class="num">Models</th><th class="num">Accuracy</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="code">spambase</td><td class="num">~4.4 min</td><td class="num">0.87 s</td><td class="num same">6</td><td class="num same">0.95088</td></tr>
+          <tr><td class="code">letter</td><td class="num">~26 min</td><td class="num">18.98 s</td><td class="num same">86</td><td class="num same">0.98615</td></tr>
+          <tr class="total"><td class="code"><strong>mfeat-factors</strong></td><td class="num"><strong>~4.3 h</strong></td><td class="num"><strong>177.8 s</strong></td><td class="num same">135</td><td class="num same">0.98250</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      A synthetic case at 100 features and 100 000 samples behaves the same way: one ranking went
+      from roughly 34 minutes to 9.7 seconds, and the whole fit finishes in 42 seconds.
     </p>
   </section>
 
@@ -748,53 +793,47 @@
 
     <h3>And against the test suite</h3>
     <p>
-      <code>tests/TestUtils.cc</code> was subsequently ported to the arff-files 2.x API, so the
-      unit tests build and run again. Two independent results came out of it.
+      This work now lives on <code>feat/fimdlp-3.0.0</code>, the branch that carries the
+      folding 2.0.0 / fimdlp 3.0.0 / arff-files 2.0.0 upgrade and the deterministic tie-breaking
+      that came with it. That branch has a full, green suite, and it stays green: <strong>2002
+      assertions in 135 test cases, all passing</strong>, before and after the optimization
+      commits.
     </p>
     <p>
-      First, the suite was run twice — once with the performance changes applied and once with
-      them stashed — and produced <strong>identical results</strong>: 94 test cases passing and 40
-      failing in both runs, with the same distribution across files. The optimizations move
-      nothing the tests can observe.
+      That is the strongest statement available here. Those 2002 expectations were recorded
+      against the branch's own metrics code, including the <code>std::map</code> introduced to
+      make the summation order deterministic. The dense table that replaced it reproduces every
+      one of them, because it iterates the same cells in the same ascending index order — it
+      satisfies the determinism the map was there for, and drops the per-element
+      <code>.item()</code> walk the map had kept.
     </p>
     <p>
-      Second, the categories that directly exercise the rewritten code all pass in full:
-      <strong>Metrics</strong> (170 assertions, covering <code>conditionalEntropy</code>,
-      <code>mutualInformation</code> and <code>SelectKPairs</code>),
-      <strong>FeatureSelection</strong> (225), <strong>Network</strong> (301),
-      <strong>Classifier</strong> (34), <strong>Node</strong>, <strong>MST</strong>,
-      <strong>A2DE</strong>, <strong>XA1DE</strong>, <strong>XA2DE</strong> and
-      <strong>XSPnDE</strong>. Those are recorded expectations, not synthetic invariants.
+      The profiler adds a second, independent check on top: it records accuracy and model count
+      alongside every timing, and <code>compare.py</code> fails loudly if either moves. Across
+      the ten real datasets and the synthetic sweep, accuracy matched to the last bit of the
+      double and every model count was identical.
     </p>
 
     <div class="callout">
-      <h3>The 40 remaining failures are dependency drift, not this work</h3>
+      <h3>What the numbers are not</h3>
       <p>
-        Conan is resolving major versions the project does not declare:
-        <code>folding</code> 2.0.0 against a pinned 1.1.2, and <code>fimdlp</code> 3.0.0 against a
-        pinned 2.1.3. The pinned releases are not in the local cache at all, so the build silently
-        took the newer ones.
+        The profiler fits MDLP on all the data, because it wants one fixed discrete dataset to
+        time. The accuracies in the tables above are therefore resubstitution figures, useful as
+        change detectors and not as quality measures. For honest accuracy on these datasets, use
+        the test suite or <code>benchmark/mdlp_compare</code>, which discretize per fold.
       </p>
       <p>
-        <code>folding</code> 2.0.0 changed how a seed maps to folds — its own README says so, and
-        a direct comparison confirms it: for the same 150-sample stratified problem with seed 271,
-        fold 0 selects a completely different test set under 1.1.3 than under 2.0.0. Every
-        recorded score in the suite was produced on the old split, so every score assertion that
-        goes through <code>raw.X_test</code> now misses.
-      </p>
-      <p>
-        Resolving it is a reproducibility decision: pin <code>folding/1.1.3</code> and
-        <code>fimdlp/2.1.3</code> — both are available on the Cimmeria remote — or re-record the
-        expectations against the new majors and accept that older published results no longer
-        reproduce.
+        The class column is read from <code>tests/data/all.txt</code> rather than assumed to be
+        last — <code>kdd_JapaneseVowels</code> declares <code>speaker</code> first, and loading it
+        class-last silently picks a REAL feature as the class. It loads here with its 9 classes.
       </p>
     </div>
 
     <p>
       One genuine test bug was fixed along the way: <code>ACTUAL_VERSION</code> in
-      <code>TestBayesModels.cc</code> was the literal <code>"1.2.3"</code>, stale since the 1.3.0
-      bump and failing for every classifier. It now reads the version CMake configures into
-      <code>bayesnet/config.h</code>.
+      <code>TestBayesModels.cc</code> was a literal, stale since the 1.2.3 bump and failing for
+      every classifier until someone noticed. It now reads the version CMake configures into
+      <code>bayesnet/config.h</code>, so it cannot go stale again.
     </p>
 
     <h3>Reproducing it</h3>
@@ -821,10 +860,11 @@ benchmark/xba2de_profile/compare.py \
     </p>
 
     <p>
-      With H1, H2, H4 and H5 in place, a full pair ranking at target scale costs about ten
-      seconds and the rest of a boosting round costs almost nothing. Training time is now, very
-      nearly, <em>the number of rounds times the cost of one ranking</em>. Three directions,
-      in increasing order of how much they change the method:
+      With H1, H2, H4 and H5 in place, the rest of a boosting round costs almost nothing next to
+      the ranking. Training time is now, very nearly, <em>the number of rounds times the cost of
+      one ranking</em> — the profiler prints exactly that ratio, and on mfeat-factors it reads
+      73.8 rankings for a fit of 177.8 seconds. Cut the number of rankings and you cut the fit.
+      Three directions, in increasing order of how much they change the method:
     </p>
 
     <ul>
@@ -844,8 +884,15 @@ benchmark/xba2de_profile/compare.py \
     </ul>
 
     <p>
-      Two smaller items also remain open: M2, the quadratic convergence check, and M4, the status
-      field that always reports a warning.
+      Two smaller items also remain open: M2, the quadratic convergence check — which
+      mfeat-factors, at 135 models, is now the first case large enough to make worth measuring —
+      and M4, the status field that always reports a warning.
+    </p>
+    <p>
+      And one open question that is not about speed: <code>analisis_portabilidad_tests.md</code>
+      leaves the cross-platform claim demonstrated on macOS arm64 only. Generating the golden
+      files on Linux and diffing them byte for byte is what would let the two-tier test
+      architecture collapse into a single exact suite.
     </p>
   </section>
 
