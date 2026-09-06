@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 // ***************************************************************
 
+#include <algorithm>
 #include <map>
 #include <tuple>
 #include "Mst.h"
@@ -37,31 +38,52 @@ namespace bayesnet {
         scoresKPairs.clear();
         pairsKBest.clear();
         auto labels = samples.index({ -1, "..." });
+
+        // Three of the four quantities every pair score is built from depend on
+        // a single variable: I(Xi;C), H(Xi|C) and H(Xi). They used to be
+        // recomputed inside the pair loop, i.e. n-1 times each. Hoisting them
+        // turns that part of the ranking from O(n^2*m) into O(n*m) and leaves
+        // only the genuinely pairwise H(Xi|Xj,C) and H(Xi|Xj) in the inner loop.
+        // The arithmetic is unchanged, so the scores are bit-for-bit the same.
+        std::vector<torch::Tensor> rows(n);
+        std::vector<double> miWithClass(n, 0.0);           // I(Xi;C)
+        std::vector<double> condEntropyGivenClass(n, 0.0); // H(Xi|C)
+        std::vector<double> featureEntropy(n, 0.0);        // H(Xi)
+        for (int i = 0; i < n; ++i) {
+            if (std::find(featuresExcluded.begin(), featuresExcluded.end(), i) != featuresExcluded.end()) {
+                continue;
+            }
+            rows[i] = samples.index({ i, "..." });
+            miWithClass[i] = mutualInformation(labels, rows[i], weights);
+            condEntropyGivenClass[i] = conditionalEntropy(rows[i], labels, weights);
+            featureEntropy[i] = entropy(rows[i], weights);
+        }
+
         for (int i = 0; i < n - 1; ++i) {
             if (std::find(featuresExcluded.begin(), featuresExcluded.end(), i) != featuresExcluded.end()) {
                 continue;
             }
+            const auto& xi = rows[i];
             for (int j = i + 1; j < n; ++j) {
                 if (std::find(featuresExcluded.begin(), featuresExcluded.end(), j) != featuresExcluded.end()) {
                     continue;
                 }
                 auto key = std::make_pair(i, j);
-                auto xi = samples.index({ i, "..." });
-                auto xj = samples.index({ j, "..." });
+                const auto& xj = rows[j];
+                // I(Xi;Xj|C) = H(Xi|C) - H(Xi|Xj,C), with H(Xi|C) hoisted above.
+                double cmiIJ = std::max(condEntropyGivenClass[i] - conditionalEntropy(xi, xj, labels, weights), 0.0);
                 double value;
                 if (beta < 0.0) {
                     // Legacy ranking: conditional mutual information I(Xi;Xj|C) alone.
-                    value = conditionalMutualInformation(xi, xj, labels, weights);
+                    value = cmiIJ;
                 } else {
                     // Joint relevance I(Xi,Xj;C) = I(Xi;C) + I(Xj;C) + beta * S(i,j),
                     // with interaction information S(i,j) = I(Xi;Xj|C) - I(Xi;Xj).
                     // beta=0 -> marginal-relevance sum, beta=1 -> joint relevance,
                     // beta large -> pure synergy. Same 3-way (Xi,Xj,C) table cost.
-                    double miIC = mutualInformation(labels, xi, weights);
-                    double miJC = mutualInformation(labels, xj, weights);
-                    double cmiIJ = conditionalMutualInformation(xi, xj, labels, weights);
-                    double miIJ = mutualInformation(xi, xj, weights);
-                    value = miIC + miJC + beta * (cmiIJ - miIJ);
+                    // I(Xi;Xj) = H(Xi) - H(Xi|Xj), with H(Xi) hoisted above.
+                    double miIJ = std::max(featureEntropy[i] - conditionalEntropy(xi, xj, weights), 0.0);
+                    value = miWithClass[i] + miWithClass[j] + beta * (cmiIJ - miIJ);
                 }
                 scoresKPairs.push_back({ key, value });
             }
@@ -88,11 +110,11 @@ namespace bayesnet {
         }
         if (k != 0 && k < pairsKBest.size()) {
             if (ascending) {
+                // Drop the head in one shot; erasing element by element made
+                // this O(P^2) in the number of pairs.
                 int limit = pairsKBest.size() - k;
-                for (int i = 0; i < limit; i++) {
-                    pairsKBest.erase(pairsKBest.begin());
-                    scoresKPairs.erase(scoresKPairs.begin());
-                }
+                pairsKBest.erase(pairsKBest.begin(), pairsKBest.begin() + limit);
+                scoresKPairs.erase(scoresKPairs.begin(), scoresKPairs.begin() + limit);
             } else {
                 pairsKBest.resize(k);
                 scoresKPairs.resize(k);
@@ -202,28 +224,63 @@ namespace bayesnet {
         return entropy.nansum().item<double>();
     }
     // H(Y|X) = sum_{x in X} p(x) H(Y|X=x)
+    // Counts live in a dense (X,Y) table read through raw accessors. The
+    // previous version walked the tensors with firstFeature[i].item<int>() and
+    // friends, four ATen dispatches per sample, which made this ~50x slower
+    // than the three-argument overload below despite doing less work. It is
+    // called O(n^2) times per boosting round by SelectKPairs, so it dominated
+    // XBA2DE training.
+    //
+    // The table also settles the iteration order the std::map here used to
+    // provide: the entropy is accumulated over cells in ascending (X,Y) index
+    // order, which is the order the map gave, so the result stays independent
+    // of the standard library and bit-identical to that version.
     double Metrics::conditionalEntropy(const torch::Tensor& firstFeature, const torch::Tensor& secondFeature, const torch::Tensor& weights)
     {
-        int numSamples = firstFeature.sizes()[0];
-        torch::Tensor featureCounts = secondFeature.bincount(weights);
-        // Ordered: the entropy below is accumulated by iterating this, and
-        // floating point addition is not associative, so an implementation
-        // defined iteration order would put the result's last bits at the mercy
-        // of the standard library in use.
-        std::map<int, std::map<int, double>> jointCounts;
+        // to() is a no-op when the dtype already matches, so the common
+        // int32/float64 path costs nothing; other integral dtypes keep working
+        // as they did when this walked the tensors with item<int>().
+        auto first = firstFeature.to(torch::kInt32).contiguous();
+        auto second = secondFeature.to(torch::kInt32).contiguous();
+        auto weights_ = weights.to(torch::kFloat64).contiguous();
+        auto firstData = first.accessor<int, 1>();
+        auto secondData = second.accessor<int, 1>();
+        auto weightsData = weights_.accessor<double, 1>();
+        int numSamples = first.size(0);
+        if (numSamples == 0)
+            return 0;
+
+        auto featureCounts = second.bincount(weights_).to(torch::kFloat64).contiguous();
+        auto featureCountsData = featureCounts.accessor<double, 1>();
+        int numSecondStates = static_cast<int>(featureCounts.size(0));
+        int numFirstStates = first.max().item<int>() + 1;
+
+        // jointWeight accumulates the weight of every (second, first) cell;
+        // observed marks the cells that actually occur, which is what the
+        // nested maps this replaced used to express implicitly.
+        std::vector<double> jointWeight(static_cast<size_t>(numSecondStates) * numFirstStates, 0.0);
+        std::vector<char> observed(jointWeight.size(), 0);
         double totalWeight = 0;
-        for (auto i = 0; i < numSamples; i++) {
-            jointCounts[secondFeature[i].item<int>()][firstFeature[i].item<int>()] += weights[i].item<double>();
-            totalWeight += weights[i].item<double>(); // was item<float>(), inconsistent with the line above
+        for (int i = 0; i < numSamples; ++i) {
+            auto cell = static_cast<size_t>(secondData[i]) * numFirstStates + firstData[i];
+            jointWeight[cell] += weightsData[i];
+            observed[cell] = 1;
+            // Accumulated in double; the old code narrowed each weight to float
+            // here while using double for the joint counts just above.
+            totalWeight += weightsData[i];
         }
         if (totalWeight == 0)
             return 0;
         double entropyValue = 0;
-        for (int value = 0; value < featureCounts.sizes()[0]; ++value) {
-            double p_f = featureCounts[value].item<double>() / totalWeight;
+        for (int value = 0; value < numSecondStates; ++value) {
+            double countValue = featureCountsData[value];
+            double p_f = countValue / totalWeight;
             double entropy_f = 0;
-            for (auto& [label, jointCount] : jointCounts[value]) {
-                double p_l_f = jointCount / featureCounts[value].item<double>();
+            auto base = static_cast<size_t>(value) * numFirstStates;
+            for (int label = 0; label < numFirstStates; ++label) {
+                if (!observed[base + label])
+                    continue;
+                double p_l_f = jointWeight[base + label] / countValue;
                 if (p_l_f > 0) {
                     entropy_f -= p_l_f * log(p_l_f);
                 } else {
