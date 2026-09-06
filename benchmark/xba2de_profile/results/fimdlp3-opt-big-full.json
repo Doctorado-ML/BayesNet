@@ -1,0 +1,111 @@
+{
+  "beta": 1.0,
+  "cases": [
+    {
+      "label": "arff letter",
+      "n_classes": 26,
+      "n_features": 16,
+      "n_samples": 20000,
+      "primitives_ms": {
+        "conditional_entropy3": 1.0959999999999999,
+        "conditional_mutual_information": 0.9972909999999999,
+        "entropy": 0.112125,
+        "mutual_information": 0.0785
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.130430875,
+        "legacy_cmi_s": 0.126864541,
+        "n_pairs": 120
+      },
+      "xba2de": {
+        "accuracy": 0.9861500263214111,
+        "edges": 3870,
+        "fit_s": 18.976189291,
+        "n_models": 86,
+        "nodes": 1462,
+        "notes": [
+          "Convergence threshold reached & 15 models eliminated",
+          "Pairs not used in train: 19",
+          "Number of models: 86"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 0.002416625,
+        "predict_s": 0.004783125
+      }
+    },
+    {
+      "label": "arff spambase",
+      "n_classes": 2,
+      "n_features": 57,
+      "n_samples": 4601,
+      "primitives_ms": {
+        "conditional_entropy3": 0.033917,
+        "conditional_mutual_information": 0.053083,
+        "entropy": 0.049166999999999995,
+        "mutual_information": 0.060084000000000005
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.104865333,
+        "legacy_cmi_s": 0.060789125,
+        "n_pairs": 1596
+      },
+      "xba2de": {
+        "accuracy": 0.950880229473114,
+        "edges": 1008,
+        "fit_s": 0.869768958,
+        "n_models": 6,
+        "nodes": 348,
+        "notes": [
+          "Convergence threshold reached & 15 models eliminated",
+          "Pairs not used in train: 1575",
+          "Number of models: 6"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 0.000388,
+        "predict_s": 0.000900083
+      }
+    },
+    {
+      "label": "arff mfeat-factors",
+      "n_classes": 10,
+      "n_features": 216,
+      "n_samples": 2000,
+      "primitives_ms": {
+        "conditional_entropy3": 0.066708,
+        "conditional_mutual_information": 0.061,
+        "entropy": 0.020874999999999998,
+        "mutual_information": 0.018042000000000002
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 2.409475625,
+        "legacy_cmi_s": 2.299907625,
+        "n_pairs": 23220
+      },
+      "xba2de": {
+        "accuracy": 0.9825000166893005,
+        "edges": 87075,
+        "fit_s": 177.822676458,
+        "n_models": 135,
+        "nodes": 29295,
+        "notes": [
+          "Convergence threshold reached & 15 models eliminated",
+          "Pairs not used in train: 23070",
+          "Number of models: 135"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 0.004377167,
+        "predict_s": 0.002163292
+      }
+    }
+  ],
+  "label": "big-full-opt",
+  "reps": 1,
+  "skip_full": false,
+  "threads": 1
+}

@@ -104,6 +104,19 @@ not serve: 216 features, and the boosting loop pays a full ranking every round.
 | heart-statlog | 0.422 s | 0.010 s | 41x | 1 |
 | kdd_JapaneseVowels | 186.8 s | 6.6 s | 28x | 91 |
 
+The three large ones were only run to completion on the optimized build; their
+"before" is projected from the measured ranking cost times the number of
+rankings the fit performs, which is what a fit is almost entirely made of.
+
+| dataset | before (projected) | after (measured) | models | accuracy |
+|---|---:|---:|---:|---:|
+| spambase | ~4.4 min | 0.87 s | 6 | 0.95088 |
+| letter | ~26 min | 18.98 s | 86 | 0.98615 |
+| **mfeat-factors** | **~4.3 h** | **177.8 s** | 135 | 0.98250 |
+
+Training a 216-feature model went from something you start and come back to
+after lunch, to something you wait three minutes for.
+
 ### Synthetic
 
 | case | SelectKPairs before | after | gain | full fit before | after | gain |
