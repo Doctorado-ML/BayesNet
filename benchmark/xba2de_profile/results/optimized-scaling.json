@@ -1,0 +1,75 @@
+{
+  "beta": 1.0,
+  "cases": [
+    {
+      "label": "synth n=40 m=5000 card=4",
+      "n_classes": 3,
+      "n_features": 40,
+      "n_samples": 5000,
+      "primitives_ms": {
+        "conditional_entropy3": 0.103333,
+        "conditional_mutual_information": 0.083,
+        "entropy": 0.095666,
+        "mutual_information": 0.034917
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.087716084,
+        "legacy_cmi_s": 0.075202834,
+        "n_pairs": 780
+      },
+      "xsp2de": {
+        "fit_s": 0.00028775,
+        "predict_s": 0.001011625
+      }
+    },
+    {
+      "label": "synth n=80 m=5000 card=4",
+      "n_classes": 3,
+      "n_features": 80,
+      "n_samples": 5000,
+      "primitives_ms": {
+        "conditional_entropy3": 0.109958,
+        "conditional_mutual_information": 0.07387500000000001,
+        "entropy": 0.032209,
+        "mutual_information": 0.038541000000000006
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.348046583,
+        "legacy_cmi_s": 0.30088925,
+        "n_pairs": 3160
+      },
+      "xsp2de": {
+        "fit_s": 0.0006175,
+        "predict_s": 0.001274833
+      }
+    },
+    {
+      "label": "synth n=40 m=20000 card=4",
+      "n_classes": 3,
+      "n_features": 40,
+      "n_samples": 20000,
+      "primitives_ms": {
+        "conditional_entropy3": 0.434583,
+        "conditional_mutual_information": 0.372459,
+        "entropy": 0.078417,
+        "mutual_information": 0.116
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.321797875,
+        "legacy_cmi_s": 0.277842208,
+        "n_pairs": 780
+      },
+      "xsp2de": {
+        "fit_s": 0.001127083,
+        "predict_s": 0.003354917
+      }
+    }
+  ],
+  "label": "optimized-scaling",
+  "reps": 1,
+  "skip_full": true,
+  "threads": 1
+}

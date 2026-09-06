@@ -1,0 +1,77 @@
+{
+  "beta": 1.0,
+  "cases": [
+    {
+      "label": "synth n=20 m=2000 card=4",
+      "n_classes": 3,
+      "n_features": 20,
+      "n_samples": 2000,
+      "primitives_ms": {
+        "conditional_entropy3": 0.028083,
+        "conditional_mutual_information": 0.026625,
+        "entropy": 0.01175,
+        "mutual_information": 0.016833
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.010373792,
+        "legacy_cmi_s": 0.008865833,
+        "n_pairs": 190
+      },
+      "xba2de": {
+        "accuracy": 0.9860000014305115,
+        "edges": 1995,
+        "fit_s": 0.592755667,
+        "n_models": 35,
+        "nodes": 735,
+        "notes": [
+          "Convergence threshold reached & 15 models eliminated",
+          "Pairs not used in train: 140",
+          "Number of models: 35"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 6.1542e-05,
+        "predict_s": 0.000331542
+      }
+    },
+    {
+      "label": "synth n=20 m=5000 card=4",
+      "n_classes": 3,
+      "n_features": 20,
+      "n_samples": 5000,
+      "primitives_ms": {
+        "conditional_entropy3": 0.064417,
+        "conditional_mutual_information": 0.051583,
+        "entropy": 0.013375,
+        "mutual_information": 0.0265
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.022382125,
+        "legacy_cmi_s": 0.019736917,
+        "n_pairs": 190
+      },
+      "xba2de": {
+        "accuracy": 0.9864000082015991,
+        "edges": 4218,
+        "fit_s": 2.186744875,
+        "n_models": 74,
+        "nodes": 1554,
+        "notes": [
+          "Convergence threshold reached & 15 models eliminated",
+          "Pairs not used in train: 101",
+          "Number of models: 74"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 0.000176167,
+        "predict_s": 0.000651
+      }
+    }
+  ],
+  "label": "optimized",
+  "reps": 3,
+  "skip_full": false,
+  "threads": 1
+}

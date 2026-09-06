@@ -30,6 +30,7 @@ endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
 # Options
 # -------
 option(ENABLE_TESTING "Unit testing build"                       OFF)
+option(ENABLE_BENCHMARK "Build the performance profilers"        OFF)
     
 find_package(Torch CONFIG REQUIRED)
 if(NOT TARGET torch::torch)
@@ -81,6 +82,13 @@ if (ENABLE_TESTING)
     include(CTest)
     add_subdirectory(tests)
 endif (ENABLE_TESTING)
+
+# Benchmarks
+# ----------
+if (ENABLE_BENCHMARK)
+    MESSAGE(STATUS "Benchmarks enabled")
+    add_subdirectory(benchmark/xba2de_profile)
+endif (ENABLE_BENCHMARK)
 
 # Installation
 # ------------
