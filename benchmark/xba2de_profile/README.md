@@ -48,27 +48,70 @@ much of a full fit is spent ranking pairs rather than training models.
 
 ## Data
 
-Synthetic only, deliberately. Each feature agrees with the class 30 % of the
-time and is uniform noise otherwise; the seed is fixed, so runs are
-byte-identical and accuracy is a usable invariant.
+Two sources, both deterministic.
 
-Real ARFF cases are not wired up because the test-suite loader
-(`tests/TestUtils.cc`) is written against the arff-files 1.x API while Conan
-resolves 2.0.0, which renamed the header and moved everything into an
-`ArffFiles` namespace. That breaks `make debug` / `make test` too, and is
-tracked separately from this profiler.
+**Synthetic** (`--synthetic N,M,CARD`): each feature agrees with the class 30 %
+of the time and is uniform noise otherwise, fixed seed. Useful because n and m
+move independently, which is what exposes the O(n^2 * m) growth of the ranking.
 
-## Baseline (2026-09-06, 1.3.0, M-series, 1 torch thread)
+**Real** (`--arff NAME[,MAX]`): a dataset from `tests/data`, MDLP discretized.
+The class column comes from `tests/data/all.txt`, not from position — see the
+`kdd_JapaneseVowels` note in `../mdlp_compare/README.md`: it declares `speaker`
+first, and loading it class-last picks a REAL feature as the class and yields
+hundreds of "classes". The catalog also supplies the numeric-feature mask, so
+nominal columns are cast rather than discretized.
 
-| case | SelectKPairs | XSp2de fit | full fit | ranking share |
+MDLP is fitted on all the data: the profiler wants one fixed discrete dataset
+to time, so the accuracy it reports is a resubstitution figure, used as a change
+detector and not as a quality measure. `MAX` subsamples with a fixed seed over
+the whole file rather than taking a prefix, since several of these datasets are
+sorted by class.
+
+## Results
+
+Measured on `feat/fimdlp-3.0.0` with and without the optimization commits, so
+both columns share the same dependency set and the same deterministic
+tie-breaking. macOS arm64, Release, 1 torch thread. Accuracy and model count
+were identical in every case.
+
+### Real datasets — one pair ranking
+
+| dataset | features | samples | pairs | before | after | gain |
+|---|---:|---:|---:|---:|---:|---:|
+| iris | 4 | 150 | 6 | 0.004 s | 0.0001 s | 51x |
+| liver-disorders | 6 | 345 | 15 | 0.022 s | 0.0002 s | 140x |
+| ecoli | 7 | 336 | 21 | 0.031 s | 0.0002 s | 129x |
+| diabetes | 8 | 768 | 28 | 0.104 s | 0.0007 s | 141x |
+| glass | 9 | 214 | 36 | 0.034 s | 0.0003 s | 106x |
+| heart-statlog | 13 | 270 | 78 | 0.094 s | 0.0006 s | 152x |
+| kdd_JapaneseVowels | 14 | 9 961 | 91 | 4.227 s | 0.031 s | 138x |
+| letter | 16 | 20 000 | 120 | 10.788 s | 0.133 s | 81x |
+| spambase | 57 | 4 601 | 1 596 | 31.984 s | 0.104 s | 307x |
+| **mfeat-factors** | **216** | **2 000** | **23 220** | **209.3 s** | **2.4 s** | **87x** |
+
+`mfeat-factors` is the case the algorithm was meant for and the one it could
+not serve: 216 features, and the boosting loop pays a full ranking every round.
+
+### Real datasets — complete fit
+
+| dataset | before | after | gain | models |
 |---|---:|---:|---:|---:|
-| n=20 m=2000 | 1.58 s | 0.022 s | 40.0 s | ~25 rankings |
-| n=20 m=5000 | 4.28 s | 0.054 s | 114.4 s | ~27 rankings |
-| n=40 m=5000 | 17.7 s | 0.104 s | — | — |
-| n=80 m=5000 | 72.5 s | 0.245 s | — | — |
-| n=40 m=20000 | 72.0 s | 0.436 s | — | — |
+| iris | 0.021 s | 0.003 s | 6x | 6 |
+| glass | 0.186 s | 0.007 s | 29x | 17 |
+| ecoli | 0.266 s | 0.013 s | 20x | 21 |
+| liver-disorders | 0.111 s | 0.008 s | 13x | 1 |
+| diabetes | 0.474 s | 0.015 s | 32x | 1 |
+| heart-statlog | 0.422 s | 0.010 s | 41x | 1 |
+| kdd_JapaneseVowels | 186.8 s | 6.6 s | 28x | 91 |
 
-Ranking cost grows as O(n²·m) and is ~98 % of training time. Within it,
-`mutualInformation` (5.1–5.7 ms) is ~50× the 3-argument `conditionalEntropy`
-(0.07–0.11 ms) despite doing less work — the 2-argument `conditionalEntropy`
-indexes tensors element-by-element with `.item()`.
+### Synthetic
+
+| case | SelectKPairs before | after | gain | full fit before | after | gain |
+|---|---:|---:|---:|---:|---:|---:|
+| n=20 m=2 000 | 1.724 s | 0.011 s | 163x | 45.06 s | 0.59 s | 76x |
+| n=20 m=5 000 | 4.456 s | 0.023 s | 192x | 123.89 s | 2.16 s | 57x |
+
+The line `~N pair rankings' worth of time` in the output is the headline: it
+says how much of a fit is spent ranking pairs rather than training models. It
+goes *up* after the optimization, because what is left is dominated by the
+ranking the boosting loop still repeats every round.

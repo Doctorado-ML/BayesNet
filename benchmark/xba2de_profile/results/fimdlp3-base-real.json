@@ -1,0 +1,239 @@
+{
+  "beta": 1.0,
+  "cases": [
+    {
+      "label": "arff iris",
+      "n_classes": 3,
+      "n_features": 4,
+      "n_samples": 150,
+      "primitives_ms": {
+        "conditional_entropy3": 0.005084,
+        "conditional_mutual_information": 0.163334,
+        "entropy": 0.00675,
+        "mutual_information": 0.167417
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.004063208,
+        "legacy_cmi_s": 0.000986333,
+        "n_pairs": 6
+      },
+      "xba2de": {
+        "accuracy": 0.9800000190734863,
+        "edges": 54,
+        "fit_s": 0.021104959,
+        "n_models": 6,
+        "nodes": 30,
+        "notes": [
+          "Number of models: 6"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 0.0004385,
+        "predict_s": 0.000164375
+      }
+    },
+    {
+      "label": "arff liver-disorders",
+      "n_classes": 2,
+      "n_features": 6,
+      "n_samples": 345,
+      "primitives_ms": {
+        "conditional_entropy3": 0.001792,
+        "conditional_mutual_information": 0.353833,
+        "entropy": 0.004625,
+        "mutual_information": 0.33179200000000003
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.022198542,
+        "legacy_cmi_s": 0.005472875,
+        "n_pairs": 15
+      },
+      "xba2de": {
+        "accuracy": 0.6318840384483337,
+        "edges": 15,
+        "fit_s": 0.111259042,
+        "n_models": 1,
+        "nodes": 7,
+        "notes": [
+          "Convergence threshold reached & 14 models eliminated",
+          "Number of models: 1"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 0.001374625,
+        "predict_s": 0.000131291
+      }
+    },
+    {
+      "label": "arff glass",
+      "n_classes": 6,
+      "n_features": 9,
+      "n_samples": 214,
+      "primitives_ms": {
+        "conditional_entropy3": 0.004,
+        "conditional_mutual_information": 0.241875,
+        "entropy": 0.003792,
+        "mutual_information": 0.21591700000000003
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.033836084,
+        "legacy_cmi_s": 0.008404625,
+        "n_pairs": 36
+      },
+      "xba2de": {
+        "accuracy": 0.836448609828949,
+        "edges": 408,
+        "fit_s": 0.185881208,
+        "n_models": 17,
+        "nodes": 170,
+        "notes": [
+          "Pairs not used in train: 19",
+          "Number of models: 17"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 0.0011435,
+        "predict_s": 0.000162333
+      }
+    },
+    {
+      "label": "arff ecoli",
+      "n_classes": 8,
+      "n_features": 7,
+      "n_samples": 336,
+      "primitives_ms": {
+        "conditional_entropy3": 0.005875,
+        "conditional_mutual_information": 0.36537499999999995,
+        "entropy": 0.004334,
+        "mutual_information": 0.362167
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.030608708,
+        "legacy_cmi_s": 0.00828575,
+        "n_pairs": 21
+      },
+      "xba2de": {
+        "accuracy": 0.8928571343421936,
+        "edges": 378,
+        "fit_s": 0.265778291,
+        "n_models": 21,
+        "nodes": 168,
+        "notes": [
+          "Number of models: 21"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 0.001548792,
+        "predict_s": 0.000170708
+      }
+    },
+    {
+      "label": "arff heart-statlog",
+      "n_classes": 2,
+      "n_features": 13,
+      "n_samples": 270,
+      "primitives_ms": {
+        "conditional_entropy3": 0.0035,
+        "conditional_mutual_information": 0.286209,
+        "entropy": 0.0043749999999999995,
+        "mutual_information": 0.281542
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.094249541,
+        "legacy_cmi_s": 0.02489625,
+        "n_pairs": 78
+      },
+      "xba2de": {
+        "accuracy": 0.8518518805503845,
+        "edges": 36,
+        "fit_s": 0.421601791,
+        "n_models": 1,
+        "nodes": 14,
+        "notes": [
+          "Convergence threshold reached & 15 models eliminated",
+          "Pairs not used in train: 62",
+          "Number of models: 1"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 0.002003667,
+        "predict_s": 0.000169
+      }
+    },
+    {
+      "label": "arff diabetes",
+      "n_classes": 2,
+      "n_features": 8,
+      "n_samples": 768,
+      "primitives_ms": {
+        "conditional_entropy3": 0.021167,
+        "conditional_mutual_information": 0.933625,
+        "entropy": 0.0045000000000000005,
+        "mutual_information": 0.903292
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.104047958,
+        "legacy_cmi_s": 0.02622525,
+        "n_pairs": 28
+      },
+      "xba2de": {
+        "accuracy": 0.8307291865348816,
+        "edges": 21,
+        "fit_s": 0.473804584,
+        "n_models": 1,
+        "nodes": 9,
+        "notes": [
+          "Convergence threshold reached & 15 models eliminated",
+          "Pairs not used in train: 12",
+          "Number of models: 1"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 0.003884292,
+        "predict_s": 0.000220583
+      }
+    },
+    {
+      "label": "arff kdd_JapaneseVowels",
+      "n_classes": 9,
+      "n_features": 14,
+      "n_samples": 9961,
+      "primitives_ms": {
+        "conditional_entropy3": 0.705292,
+        "conditional_mutual_information": 12.580792,
+        "entropy": 0.043209,
+        "mutual_information": 12.031542
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 4.226842125,
+        "legacy_cmi_s": 1.018761333,
+        "n_pairs": 91
+      },
+      "xba2de": {
+        "accuracy": 0.9948800206184387,
+        "edges": 3549,
+        "fit_s": 186.769163834,
+        "n_models": 91,
+        "nodes": 1365,
+        "notes": [
+          "Number of models: 91"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 0.084866667,
+        "predict_s": 0.0017885
+      }
+    }
+  ],
+  "label": "real-base",
+  "reps": 3,
+  "skip_full": false,
+  "threads": 1
+}
