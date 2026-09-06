@@ -124,6 +124,7 @@ sección 1, reproducido en local sin necesidad de otra plataforma.
 | 1 | `folding` 1.1.x usaba `std::shuffle`, no especificado por el estándar → folds distintos por plataforma | **Eliminada** en folding 2.0.0 (Fisher-Yates propio + `bounded_rand` de Lemire sobre `mt19937`, ambos deterministas) | Ya resuelto |
 | 2 | `std::sort` con puntuaciones empatadas en `argsort`, `SelectKBestWeighted` y `SelectKPairs` | **Activa y dominante** | **Sí** |
 | 3 | Orden de iteración de `unordered_map` en `conditionalEntropy` → suma en distinto orden | Activa, magnitud 6.4e-14 | **Sí** |
+| 3.bis | El mismo `conditionalEntropy` recorría los tensores con `.item()` por elemento: ~50x más lento que su hermana de 3 argumentos, y dominaba el ranking de pares de XBA2DE | Activa (rendimiento, no divergencia) | **Sí** |
 | 4 | `entropy()` calcula en **float32** (`counts.to(torch::kFloat)`), mientras el resto va en double | Activa, reduce la precisión útil a ~1e-7 | **Sí** |
 | 5 | `conditionalEntropy` lee el mismo peso como `double` (l. 275) y como `float` (l. 276) en dos líneas contiguas | Activa, inconsistencia numérica | **Sí** |
 | 6 | Kernels de libtorch y aritmética arm64 vs x86_64 | Inherente | No, pero irrelevante: queda a 1e-14 |
@@ -170,7 +171,7 @@ Los tres pasos están implementados:
 | Desempate por índice en `argsort` | `bayesnet/utils/bayesnetUtils.cc` |
 | Desempate por `(i, j)` en `SelectKPairs`, por índice en `SelectKBestWeighted` (ambas ramas) | `bayesnet/utils/BayesMetrics.cc` |
 | Desempate por índice al ordenar por importancia | `bayesnet/feature_selection/L1FS.cc` |
-| `unordered_map` → `std::map` en `conditionalEntropy` | `bayesnet/utils/BayesMetrics.cc` |
+| `unordered_map` → tabla densa en `conditionalEntropy` | `bayesnet/utils/BayesMetrics.cc` |
 | `entropy()` en double en vez de float32 | `bayesnet/utils/BayesMetrics.cc` |
 | Peso leído como `double` en las dos líneas contiguas | `bayesnet/utils/BayesMetrics.cc` |
 
@@ -178,6 +179,24 @@ Los tres pasos están implementados:
 según `featureOrder`, que ya viene de `argsort`. `Mst::kruskal_algorithm` usa
 `stable_sort` sobre una entrada construida en orden de índices, que es
 determinista por construcción.
+
+El paso 2 se implementó primero como `std::map` y después como una **tabla densa
+`(X, Y)`** indexada por valor, que la sustituye por dos motivos a la vez:
+
+- **Determinismo**: la entropía se acumula recorriendo las celdas en orden
+  ascendente de índice, que es exactamente el orden que daba el `std::map`. El
+  resultado es bit a bit idéntico al de esa versión, y sigue sin depender de la
+  implementación de la biblioteca estándar. Las 2002 aserciones de la suite,
+  regeneradas contra la versión con `std::map`, pasan sin tocar ningún valor.
+- **Coste**: el `std::map` conservaba el recorrido con `firstFeature[i].item<int>()`,
+  cuatro despachos de ATen por muestra. `SelectKPairs` llama a esta función
+  O(n²) veces por ronda de boosting, así que era el ~98 % del entrenamiento de
+  XBA2DE. Con accessors sobre la tabla, un ranking de pares baja de 72 s a
+  0,32 s en n=40 / m=20 000 (~200x). Ver `benchmark/xba2de_profile/`.
+
+Es decir, el paso 2 no tenía por qué costar nada: la nota original («coste
+despreciable con las cardinalidades de estos datasets») era correcta sobre el
+`std::map` en sí, pero la implementación que lo rodeaba sí costaba, y mucho.
 
 **Impacto en los valores esperados**: solo se movieron dos, ambos en
 `BoostA2DE / "Order asc, desc & random"` sobre glass — el dataset con 15
