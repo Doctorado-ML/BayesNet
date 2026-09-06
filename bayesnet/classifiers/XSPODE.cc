@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 // ***************************************************************
 #include <algorithm>
+#include <functional>  // std::cref
 #include <cmath>
 #include <limits>
 #include <numeric>
@@ -105,14 +106,20 @@ namespace bayesnet {
   void XSpode::trainModel(const torch::Tensor& weights,
     const bayesnet::Smoothing_t smoothing)
   {
-    // Accumulate raw counts
+    // Accumulate raw counts. Read through raw accessors: indexing the tensor
+    // per value (dataset[f][i].item<int>()) costs an ATen dispatch each time,
+    // m*n of them per fit, and the boosting loop refits a model every round.
+    auto data = dataset.to(torch::kInt32).contiguous();
+    auto dataData = data.accessor<int, 2>();
+    auto weights_ = weights.to(torch::kFloat64).contiguous();
+    auto weightsData = weights_.accessor<double, 1>();
+    std::vector<int> instance(nFeatures_ + 1);
     for (int i = 0; i < m; i++) {
-      std::vector<int> instance(nFeatures_ + 1);
       for (int f = 0; f < nFeatures_; f++) {
-        instance[f] = dataset[f][i].item<int>();
+        instance[f] = dataData[f][i];
       }
-      instance[nFeatures_] = dataset[-1][i].item<int>();
-      addSample(instance, weights[i].item<double>());
+      instance[nFeatures_] = dataData[nFeatures_][i];
+      addSample(instance, weightsData[i]);
     }
     // Store the smoothing strategy; the per-cell pseudocount is derived per table
     // from its cardinality (see smoothingPseudocount), which is what makes CESTNIK
@@ -341,7 +348,9 @@ namespace bayesnet {
     for (int begin = 0; begin < test_size; begin += chunk_size) {
       int chunk = std::min(chunk_size, test_size - begin);
       semaphore_.acquire();
-      threads.emplace_back(worker, test_data, begin, chunk, sample_size, std::ref(probabilities));
+      // std::cref: without it std::thread copies the whole test set into every
+      // chunk's argument tuple, i.e. O(m^2 * n) bytes over the m/150 chunks.
+      threads.emplace_back(worker, std::cref(test_data), begin, chunk, sample_size, std::ref(probabilities));
     }
     for (auto& thread : threads) {
       thread.join();
