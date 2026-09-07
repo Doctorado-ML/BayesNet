@@ -130,9 +130,9 @@ TEST_CASE("Check different smoothing", "[XSP2DE]")
   auto score4 = clf4.score(raw.X_test, raw.y_test);
   std::cerr << "GOLDEN[smoothing] ORIGINAL=" << score << " LAPLACE=" << score2
             << " NONE=" << score3 << " CESTNIK=" << score4 << std::endl;
-  REQUIRE(score == Catch::Approx(0.966667).epsilon(raw.epsilon));
+  REQUIRE(score == Catch::Approx(1.0).epsilon(raw.epsilon));
   REQUIRE(score2 == Catch::Approx(1.0).epsilon(raw.epsilon));
-  REQUIRE(score3 == Catch::Approx(0.966667).epsilon(raw.epsilon));
+  REQUIRE(score3 == Catch::Approx(1.0).epsilon(raw.epsilon));
   // CESTNIK is now a real m-estimate (not a silent no-op that falls back to no
   // smoothing): it produces a genuinely smoothed model, so its score differs
   // from the unsmoothed NONE run.

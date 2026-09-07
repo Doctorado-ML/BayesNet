@@ -10,7 +10,6 @@
 #include <limits.h>
 #include "XBA2DE.h"
 #include "bayesnet/classifiers/XSP2DE.h"
-#include "bayesnet/utils/TensorUtils.h"
 
 namespace bayesnet {
 
@@ -56,12 +55,10 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
 
     // Algorithm based on the adaboost algorithm for classification
     // as explained in Ensemble methods (Zhi-Hua Zhou, 2012)
-    X_train_ = TensorUtils::to_matrix(X_train);
-    y_train_ = TensorUtils::to_vector<int>(y_train);
-    if (convergence) {
-        X_test_ = TensorUtils::to_matrix(X_test);
-        y_test_ = TensorUtils::to_vector<int>(y_test);
-    }
+    // The boosting loop below works on the tensors directly (model->fit takes
+    // `dataset`, update_weights takes y_train), so no std::vector copies of the
+    // train/test folds are needed. XBAODE keeps them because its inner loop
+    // predicts through the vector overload.
     fitted = true;
     double alpha_t = 0;
     torch::Tensor weights_ = torch::full({m}, 1.0 / m, torch::kFloat64);

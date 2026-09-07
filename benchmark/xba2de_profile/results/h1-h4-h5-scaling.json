@@ -1,0 +1,75 @@
+{
+  "beta": 1.0,
+  "cases": [
+    {
+      "label": "synth n=40 m=5000 card=4",
+      "n_classes": 3,
+      "n_features": 40,
+      "n_samples": 5000,
+      "primitives_ms": {
+        "conditional_entropy3": 0.107042,
+        "conditional_mutual_information": 0.091416,
+        "entropy": 0.104875,
+        "mutual_information": 0.036209
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.153793584,
+        "legacy_cmi_s": 0.089186583,
+        "n_pairs": 780
+      },
+      "xsp2de": {
+        "fit_s": 0.000295667,
+        "predict_s": 0.000875458
+      }
+    },
+    {
+      "label": "synth n=80 m=5000 card=4",
+      "n_classes": 3,
+      "n_features": 80,
+      "n_samples": 5000,
+      "primitives_ms": {
+        "conditional_entropy3": 0.093458,
+        "conditional_mutual_information": 0.07475,
+        "entropy": 0.048959,
+        "mutual_information": 0.029917
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.632222083,
+        "legacy_cmi_s": 0.35596775,
+        "n_pairs": 3160
+      },
+      "xsp2de": {
+        "fit_s": 0.0007095,
+        "predict_s": 0.000899084
+      }
+    },
+    {
+      "label": "synth n=40 m=20000 card=4",
+      "n_classes": 3,
+      "n_features": 40,
+      "n_samples": 20000,
+      "primitives_ms": {
+        "conditional_entropy3": 0.40087500000000004,
+        "conditional_mutual_information": 0.392708,
+        "entropy": 0.064417,
+        "mutual_information": 0.100458
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.563976,
+        "legacy_cmi_s": 0.320419667,
+        "n_pairs": 780
+      },
+      "xsp2de": {
+        "fit_s": 0.001125334,
+        "predict_s": 0.00286425
+      }
+    }
+  ],
+  "label": "h1-h4-h5-scaling",
+  "reps": 1,
+  "skip_full": true,
+  "threads": 1
+}

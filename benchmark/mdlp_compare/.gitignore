@@ -1,0 +1,4 @@
+build_*/
+CMakeUserPresets.json
+results_*.json
+REPORT*.md

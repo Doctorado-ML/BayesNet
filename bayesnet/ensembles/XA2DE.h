@@ -22,7 +22,7 @@ namespace bayesnet {
     public:
         XA2DE();
         virtual ~XA2DE() override = default;
-        std::string getVersion() { return version; };
+        std::string getVersion() override { return version; };
         // BaseClassifier interface (delegates to the flat engine, bypassing Network)
         std::vector<int> predict(std::vector<std::vector<int>>& X) override;
         torch::Tensor predict(torch::Tensor& X) override;

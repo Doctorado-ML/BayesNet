@@ -1,0 +1,904 @@
+<title>XBA2DE Performance Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+  :root {
+    --ground:   #eceff0;
+    --surface:  #ffffff;
+    --sunken:   #e3e8e8;
+    --ink:      #121a1b;
+    --muted:    #56666a;
+    --faint:    #7c8b8e;
+    --line:     #d3dbdb;
+    --line-soft:#e2e8e8;
+    --accent:   #0b6b63;
+    --accent-w: #e2f0ed;
+    --hot:      #a4381f;
+    --hot-w:    #f7e6e0;
+    --warm:     #85600d;
+    --warm-w:   #f5ecd9;
+
+    --serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+    --sans:  "IBM Plex Sans", ui-sans-serif, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono:  "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --measure: 68ch;
+    --wide: 1080px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:   #0d1314;
+      --surface:  #141d1e;
+      --sunken:   #101819;
+      --ink:      #e2eae9;
+      --muted:    #9aabad;
+      --faint:    #74868a;
+      --line:     #253130;
+      --line-soft:#1c2626;
+      --accent:   #56c2b7;
+      --accent-w: #10312e;
+      --hot:      #e5836a;
+      --hot-w:    #351a12;
+      --warm:     #d6a745;
+      --warm-w:   #2f2510;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:   #0d1314;
+    --surface:  #141d1e;
+    --sunken:   #101819;
+    --ink:      #e2eae9;
+    --muted:    #9aabad;
+    --faint:    #74868a;
+    --line:     #253130;
+    --line-soft:#1c2626;
+    --accent:   #56c2b7;
+    --accent-w: #10312e;
+    --hot:      #e5836a;
+    --hot-w:    #351a12;
+    --warm:     #d6a745;
+    --warm-w:   #2f2510;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: var(--wide); margin: 0 auto; padding: 0 28px 96px; }
+  .col  { max-width: var(--measure); }
+
+  /* ---------- masthead ---------- */
+
+  header.mast {
+    padding: 56px 0 28px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(38px, 6vw, 60px);
+    line-height: 1.04;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0 0 18px;
+  }
+  .standfirst {
+    font-size: 19px;
+    line-height: 1.55;
+    color: var(--muted);
+    max-width: 60ch;
+    margin: 0 0 34px;
+  }
+
+  dl.meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+    gap: 18px 26px;
+    margin: 0;
+    padding: 0 0 4px;
+  }
+  dl.meta dt {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin: 0 0 4px;
+  }
+  dl.meta dd {
+    margin: 0;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink);
+  }
+
+  /* ---------- sections ---------- */
+
+  section { padding-top: 54px; }
+
+  h2 {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 27px;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    text-wrap: balance;
+    margin: 0 0 6px;
+  }
+  h2 + .deck {
+    color: var(--muted);
+    margin: 0 0 26px;
+    max-width: 62ch;
+  }
+  h3 {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.005em;
+    margin: 34px 0 10px;
+  }
+  p { margin: 0 0 16px; max-width: var(--measure); }
+  ul { max-width: var(--measure); padding-left: 20px; margin: 0 0 16px; }
+  li { margin-bottom: 7px; }
+  strong { font-weight: 600; }
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.87em;
+    background: var(--sunken);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  /* ---------- headline figures ---------- */
+
+  .figures {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    margin: 0 0 30px;
+  }
+  .fig { background: var(--surface); padding: 22px 22px 20px; }
+  .fig .n {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 40px;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 9px;
+  }
+  .fig .lab {
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+  .fig .lab b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- tables ---------- */
+
+  .scroll { overflow-x: auto; margin: 0 0 22px; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 540px;
+    font-size: 13.5px;
+  }
+  caption {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--faint);
+    padding-bottom: 9px;
+  }
+  th, td {
+    text-align: left;
+    padding: 8px 14px 8px 0;
+    border-bottom: 1px solid var(--line-soft);
+    vertical-align: baseline;
+  }
+  thead th {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--faint);
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  td.num, th.num {
+    text-align: right;
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    padding-right: 20px;
+  }
+  td.code { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  .gain { color: var(--accent); font-weight: 600; }
+  .same { color: var(--faint); }
+  tr.total td {
+    border-top: 1px solid var(--line);
+    border-bottom: none;
+    font-weight: 600;
+    padding-top: 10px;
+  }
+
+  /* ---------- findings register ---------- */
+
+  .register { display: flex; flex-direction: column; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+  .finding {
+    background: var(--surface);
+    display: grid;
+    grid-template-columns: 62px 1fr;
+    gap: 0 18px;
+    padding: 18px 20px 18px 0;
+    border-left: 3px solid var(--line);
+  }
+  .finding.sev-high { border-left-color: var(--hot); }
+  .finding.sev-med  { border-left-color: var(--warm); }
+  .finding .id {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--ink);
+    padding-left: 17px;
+  }
+  .finding .body { min-width: 0; }
+  .finding h4 {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 600;
+    margin: 0 0 5px;
+    line-height: 1.35;
+    text-wrap: balance;
+  }
+  .finding p { margin: 0 0 8px; font-size: 14px; color: var(--muted); max-width: 64ch; }
+  .finding p:last-child { margin-bottom: 0; }
+  .finding .loc {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--faint);
+    display: block;
+    margin-top: 8px;
+    overflow-wrap: anywhere;
+  }
+
+  .chip {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 2px;
+    vertical-align: 2px;
+    margin-left: 8px;
+    white-space: nowrap;
+  }
+  .chip.fixed   { background: var(--accent-w); color: var(--accent); }
+  .chip.open    { background: var(--hot-w);    color: var(--hot); }
+  .chip.noted   { background: var(--sunken);   color: var(--muted); }
+
+  /* ---------- callout ---------- */
+
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--warm);
+    padding: 20px 22px;
+    margin: 0 0 22px;
+    max-width: var(--measure);
+  }
+  .callout h3 { margin-top: 0; }
+  .callout p:last-child { margin-bottom: 0; }
+
+  pre {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    margin: 0 0 20px;
+    max-width: var(--wide);
+  }
+  pre code { background: none; padding: 0; font-size: inherit; }
+  .comment { color: var(--faint); }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--faint);
+    max-width: var(--measure);
+  }
+
+  @media (max-width: 620px) {
+    .page { padding: 0 18px 64px; }
+    .finding { grid-template-columns: 1fr; gap: 8px; padding-right: 16px; }
+    .finding .id { padding-left: 17px; }
+    .fig .n { font-size: 34px; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="mast">
+    <p class="eyebrow">BayesNet · performance audit</p>
+    <h1>XBA2DE Performance Audit</h1>
+    <p class="standfirst">
+      The algorithm was correct but unusable on the large datasets it was designed for.
+      Ninety-eight percent of training time turned out to be one function walking tensors
+      one element at a time.
+    </p>
+    <dl class="meta">
+      <div><dt>Repository</dt><dd>BayesNet 1.3.0</dd></div>
+      <div><dt>Subject</dt><dd>XBA2DE 0.9.7</dd></div>
+      <div><dt>Date</dt><dd>2026-09-07</dd></div>
+      <div><dt>Method</dt><dd>staged profiling</dd></div>
+      <div><dt>Machine</dt><dd>Apple silicon, 1 torch thread</dd></div>
+      <div><dt>Branch</dt><dd>feat/fimdlp-3.0.0</dd></div>
+    </dl>
+  </header>
+
+  <section>
+    <h2>Result</h2>
+    <p class="deck">
+      Five implementation defects fixed. No change to any model produced.
+    </p>
+
+    <div class="figures">
+      <div class="fig">
+        <span class="n">223×</span>
+        <span class="lab"><b>Pair ranking.</b> <code>SelectKPairs</code>, the boosting loop's
+        per-round cost, at n=40 / m=20 000.</span>
+      </div>
+      <div class="fig">
+        <span class="n">397×</span>
+        <span class="lab"><b>Model fitting.</b> A single <code>XSp2de</code> fit,
+        at n=80 / m=5 000.</span>
+      </div>
+      <div class="fig">
+        <span class="n">87×</span>
+        <span class="lab"><b>On real data.</b> One ranking on mfeat-factors —
+        216 features, 23 220 pairs — 209 s to 2.4 s.</span>
+      </div>
+    </div>
+
+    <p>
+      The clearest case is a real one. <strong>mfeat-factors</strong> has 216 features, so the
+      boosting loop ranks 23 220 pairs every round — 209 seconds each, and a complete fit
+      performs about 74 of them. That fit now takes <strong>178 seconds</strong> against a
+      projected <strong>4.3 hours</strong>: training a 216-feature model went from something you
+      start and come back to after lunch, to something you wait three minutes for.
+    </p>
+    <p>
+      Every change is an implementation fix: the arithmetic is unchanged, and in most cases
+      the operands are evaluated in the same order, so the scores are bit-for-bit identical.
+      The remaining barrier is algorithmic and is described at the end.
+    </p>
+  </section>
+
+  <section>
+    <h2>Where the time went</h2>
+    <p class="deck">
+      Training the ensemble was never the cost. Ranking candidate pairs was.
+    </p>
+
+    <p>
+      XBA2DE's boosting loop calls <code>Metrics::SelectKPairs</code> once per round to
+      re-rank all <span style="white-space:nowrap">n(n−1)/2</span> variable pairs under the
+      current sample weights, then consumes <code>k = 2^tolerance</code> of them — usually
+      one. On a deliberately small case, n=40 and m=5 000, the split was stark:
+    </p>
+
+    <div class="scroll">
+      <table>
+        <caption>Baseline breakdown · n=40, m=5 000</caption>
+        <thead>
+          <tr><th>Stage</th><th class="num">Per call</th><th class="num">Calls</th><th class="num">Total</th><th class="num">Share</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Pair ranking <code>SelectKPairs</code></td><td class="num">16.7 s</td><td class="num">~8</td><td class="num">134 s</td><td class="num">98.5 %</td></tr>
+          <tr><td>Model fitting <code>XSp2de::fit</code></td><td class="num">0.106 s</td><td class="num">7</td><td class="num">0.75 s</td><td class="num">0.6 %</td></tr>
+          <tr><td>Prediction</td><td class="num">0.001 s</td><td class="num">~15</td><td class="num">0.02 s</td><td class="num">&lt; 0.1 %</td></tr>
+          <tr class="total"><td>Complete fit — 7 models</td><td class="num"></td><td class="num"></td><td class="num">136 s</td><td class="num">100 %</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      Timing the four information-theoretic kernels that every pair score is assembled from
+      located the cause precisely. One of them is two orders of magnitude slower than a
+      sibling that does strictly more work:
+    </p>
+
+    <div class="scroll">
+      <table>
+        <caption>Metrics kernels, per call · m=5 000</caption>
+        <thead>
+          <tr><th>Kernel</th><th>How it reads the data</th><th class="num">Before</th><th class="num">After</th><th class="num">Gain</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>entropy</code></td>
+            <td class="same">vectorised <code>bincount</code></td>
+            <td class="num">0.013 ms</td><td class="num">0.013 ms</td><td class="num same">—</td>
+          </tr>
+          <tr>
+            <td><code>conditionalEntropy</code> <span class="same">(3-arg)</span></td>
+            <td class="same">raw accessors</td>
+            <td class="num">0.066 ms</td><td class="num">0.064 ms</td><td class="num same">—</td>
+          </tr>
+          <tr>
+            <td><code>mutualInformation</code></td>
+            <td style="color:var(--hot)">per-element <code>.item()</code></td>
+            <td class="num">5.742 ms</td><td class="num">0.027 ms</td><td class="num gain">217×</td>
+          </tr>
+          <tr>
+            <td><code>conditionalMutualInformation</code></td>
+            <td style="color:var(--hot)">per-element <code>.item()</code></td>
+            <td class="num">5.929 ms</td><td class="num">0.052 ms</td><td class="num gain">115×</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      Both slow kernels route through the same place: the two-argument
+      <code>Metrics::conditionalEntropy</code>, which indexed the tensors value by value.
+      Each <code>secondFeature[i].item&lt;int&gt;()</code> is an ATen dispatch — four of them
+      per sample, on a function called O(n²) times per boosting round.
+    </p>
+  </section>
+
+  <section>
+    <h2>Findings</h2>
+    <p class="deck">
+      Ordered by measured cost. H — dominant cost or scaling hazard. M — smaller or latent.
+    </p>
+
+    <div class="register">
+
+      <div class="finding sev-high">
+        <div class="id">H1</div>
+        <div class="body">
+          <h4>Two-argument <code>conditionalEntropy</code> indexed tensors element by element<span class="chip fixed">fixed</span></h4>
+          <p>
+            Four ATen dispatches per sample where the three-argument sibling used raw accessors,
+            making it ~50× slower while doing less work. This single function was ~99 % of the
+            pair ranking, and the pair ranking was ~98 % of training.
+          </p>
+          <p>
+            Rewritten with a dense (X,Y) count table read through accessors. Cells that never
+            occur are tracked explicitly, so the zero-probability branch behaves exactly as the
+            nested maps did.
+          </p>
+          <span class="loc">bayesnet/utils/BayesMetrics.cc:189</span>
+        </div>
+      </div>
+
+      <div class="finding sev-high">
+        <div class="id">H2</div>
+        <div class="body">
+          <h4>Per-feature marginals recomputed inside the pair loop<span class="chip fixed">fixed</span></h4>
+          <p>
+            Three of the four quantities in each pair score — I(X<sub>i</sub>;C), H(X<sub>i</sub>|C)
+            and H(X<sub>i</sub>) — depend on one variable only, yet were recalculated for every
+            pair, i.e. n−1 times each. Hoisting them turns that part of the ranking from
+            O(n²·m) into O(n·m), leaving only the genuinely pairwise terms in the inner loop.
+          </p>
+          <span class="loc">bayesnet/utils/BayesMetrics.cc:33 — <code>SelectKPairs</code></span>
+        </div>
+      </div>
+
+      <div class="finding sev-high">
+        <div class="id">H3</div>
+        <div class="body">
+          <h4>A full O(n²·m) ranking is recomputed for every model added<span class="chip open">open</span></h4>
+          <p>
+            <code>SelectKPairs</code> sits inside the boosting <code>while</code> loop. It ranks
+            every pair, then consumes <code>k = 2^tolerance</code> of them — typically one. In a
+            traced run, 16 models were built and 15 discarded by the convergence check, each
+            round paying the full ranking.
+          </p>
+          <p>
+            This is correct by design, since the weights change every round, and it is the
+            barrier that remains after H1 and H2. Fixing it means changing the algorithm —
+            incremental or lazy re-ranking, a refreshed top-K, or pair sampling — which is a
+            research decision, not a cleanup.
+          </p>
+          <span class="loc">bayesnet/ensembles/XBA2DE.cc:88</span>
+        </div>
+      </div>
+
+      <div class="finding sev-high">
+        <div class="id">H4</div>
+        <div class="body">
+          <h4><code>XSp2de::trainModel</code> repeated the same antipattern<span class="chip fixed">fixed</span></h4>
+          <p>
+            <code>dataset[f][i].item&lt;int&gt;()</code> executed m×n times per fit — 3.9 s per
+            model at n=100 / m=80 000, and the boosting loop refits a model every round. Now read
+            through a 2-D accessor with a reused instance buffer. The single-superparent sibling
+            <code>XSpode</code> carried the identical bug and was fixed with it, which also
+            benefits XBAODE and XA1DE.
+          </p>
+          <span class="loc">bayesnet/classifiers/XSP2DE.cc:141 · bayesnet/classifiers/XSPODE.cc:112</span>
+        </div>
+      </div>
+
+      <div class="finding sev-high">
+        <div class="id">H5</div>
+        <div class="body">
+          <h4>Batch prediction copied the whole test set into every worker thread<span class="chip fixed">fixed</span></h4>
+          <p>
+            <code>threads.emplace_back(worker, test_data, …)</code> passes by value: with
+            <code>chunk_size</code> capped at 150, that is m/150 copies of the entire test matrix,
+            O(m²·n) bytes. At m=100 000 and n=100 it amounts to roughly 26 GB of memcpy per
+            prediction. The fix is <code>std::cref</code>; the worker already took a const
+            reference and the data outlives the joins.
+          </p>
+          <p>
+            Present at five call sites across four files, all corrected.
+          </p>
+          <span class="loc">XSP2DE.cc:466 · XSPODE.cc:344 · XA2DE.cc:91 · ExpClf.cc:61,122</span>
+        </div>
+      </div>
+
+      <div class="finding sev-med">
+        <div class="id">M1</div>
+        <div class="body">
+          <h4>Dead train/test copies materialised on every fit<span class="chip fixed">fixed</span></h4>
+          <p>
+            <code>X_train_</code>, <code>y_train_</code>, <code>X_test_</code> and
+            <code>y_test_</code> were built with <code>TensorUtils::to_matrix</code> at the top of
+            <code>trainModel</code> and never read — the loop works on the tensors directly.
+            O(n·m) of copying discarded per fit. Members removed; XBAODE keeps its own because it
+            genuinely uses them.
+          </p>
+          <span class="loc">bayesnet/ensembles/XBA2DE.cc:59 · XBA2DE.h:26</span>
+        </div>
+      </div>
+
+      <div class="finding sev-med">
+        <div class="id">M2</div>
+        <div class="body">
+          <h4>The convergence check re-predicts with the entire ensemble each round<span class="chip open">open</span></h4>
+          <p>
+            Cost grows as O(n_models²) over a run. Now that H5 has removed the copy overhead this
+            is no longer visible at the sizes measured, but it remains the next scaling limit
+            after H3 for runs that build many models. Caching per-model validation predictions
+            would make it linear.
+          </p>
+          <span class="loc">bayesnet/ensembles/XBA2DE.cc:118</span>
+        </div>
+      </div>
+
+      <div class="finding sev-med">
+        <div class="id">M3</div>
+        <div class="body">
+          <h4>Child-table denominator re-summed for every cell<span class="chip fixed">fixed</span></h4>
+          <p>
+            <code>computeProbabilities</code> recomputed N(sp1,sp2,c) inside the
+            <code>childVal</code> loop although it does not depend on it, making the pass
+            O(fCard²). Hoisted out; the summation order per class is unchanged, so the
+            probabilities are bit-identical.
+          </p>
+          <span class="loc">bayesnet/classifiers/XSP2DE.cc:322</span>
+        </div>
+      </div>
+
+      <div class="finding sev-med">
+        <div class="id">M4</div>
+        <div class="body">
+          <h4>Training status is reported as <code>WARNING</code> on almost every run<span class="chip noted">not changed</span></h4>
+          <p>
+            The note <em>"Pairs not used in train: N"</em> and the accompanying
+            <code>status = WARNING</code> fire whenever any pair remains unconsumed, which is
+            nearly always true by construction. The status field therefore carries no signal.
+            Left alone deliberately — changing it alters reported behaviour, which is outside a
+            no-semantic-change batch.
+          </p>
+          <span class="loc">bayesnet/ensembles/XBA2DE.cc:167</span>
+        </div>
+      </div>
+
+      <div class="finding sev-med">
+        <div class="id">M5</div>
+        <div class="body">
+          <h4>Head-truncation erased one element at a time<span class="chip fixed">fixed</span></h4>
+          <p>
+            The ascending branch of the top-K cut called <code>erase(begin())</code> in a loop,
+            O(P²) in the number of pairs. Replaced with a single range erase.
+          </p>
+          <span class="loc">bayesnet/utils/BayesMetrics.cc:82</span>
+        </div>
+      </div>
+
+      <div class="finding sev-med">
+        <div class="id">M6</div>
+        <div class="body">
+          <h4>Weight total accumulated through a <code>float</code> narrowing<span class="chip fixed">fixed</span></h4>
+          <p>
+            <code>totalWeight += weights[i].item&lt;float&gt;()</code> narrowed each float64
+            weight to single precision on the line after the joint counts read the same value as
+            a double. Corrected as part of H1; this is the one change that can move a result, and
+            only in the last few bits.
+          </p>
+          <span class="loc">bayesnet/utils/BayesMetrics.cc:197</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Measurements</h2>
+    <p class="deck">
+      Five synthetic configurations, fixed seed, median of repeated runs.
+    </p>
+
+    <div class="scroll">
+      <table>
+        <caption>Pair ranking · <code>SelectKPairs</code>, beta = 1</caption>
+        <thead>
+          <tr><th>Case</th><th class="num">Pairs</th><th class="num">Before</th><th class="num">After</th><th class="num">Gain</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="code">n=20 · m=2 000</td><td class="num">190</td><td class="num">1.583 s</td><td class="num">0.010 s</td><td class="num gain">153×</td></tr>
+          <tr><td class="code">n=20 · m=5 000</td><td class="num">190</td><td class="num">4.276 s</td><td class="num">0.022 s</td><td class="num gain">191×</td></tr>
+          <tr><td class="code">n=40 · m=5 000</td><td class="num">780</td><td class="num">17.739 s</td><td class="num">0.088 s</td><td class="num gain">202×</td></tr>
+          <tr><td class="code">n=80 · m=5 000</td><td class="num">3 160</td><td class="num">72.496 s</td><td class="num">0.348 s</td><td class="num gain">208×</td></tr>
+          <tr><td class="code">n=40 · m=20 000</td><td class="num">780</td><td class="num">72.004 s</td><td class="num">0.322 s</td><td class="num gain">224×</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>Complete fit · accuracy and model count are invariants, not results</caption>
+        <thead>
+          <tr><th>Case</th><th class="num">Before</th><th class="num">After</th><th class="num">Gain</th><th class="num">Models</th><th class="num">Accuracy</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="code">n=20 · m=2 000</td><td class="num">39.969 s</td><td class="num">0.593 s</td><td class="num gain">67×</td><td class="num same">35 → 35</td><td class="num same">0.98600</td></tr>
+          <tr><td class="code">n=20 · m=5 000</td><td class="num">114.427 s</td><td class="num">2.180 s</td><td class="num gain">52×</td><td class="num same">74 → 74</td><td class="num same">0.98640</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>On the real datasets</h3>
+    <p>
+      Ten datasets from <code>tests/data</code>, MDLP discretized. Measured on
+      <code>feat/fimdlp-3.0.0</code> with and without the optimization commits, so both columns
+      share the same dependency set and the same deterministic tie-breaking. Accuracy and model
+      count were identical in every case.
+    </p>
+
+    <div class="scroll">
+      <table>
+        <caption>One pair ranking, per dataset</caption>
+        <thead>
+          <tr><th>Dataset</th><th class="num">Features</th><th class="num">Samples</th><th class="num">Pairs</th><th class="num">Before</th><th class="num">After</th><th class="num">Gain</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="code">iris</td><td class="num">4</td><td class="num">150</td><td class="num">6</td><td class="num">0.004 s</td><td class="num">0.0001 s</td><td class="num gain">51×</td></tr>
+          <tr><td class="code">liver-disorders</td><td class="num">6</td><td class="num">345</td><td class="num">15</td><td class="num">0.022 s</td><td class="num">0.0002 s</td><td class="num gain">140×</td></tr>
+          <tr><td class="code">ecoli</td><td class="num">7</td><td class="num">336</td><td class="num">21</td><td class="num">0.031 s</td><td class="num">0.0002 s</td><td class="num gain">129×</td></tr>
+          <tr><td class="code">diabetes</td><td class="num">8</td><td class="num">768</td><td class="num">28</td><td class="num">0.104 s</td><td class="num">0.0007 s</td><td class="num gain">141×</td></tr>
+          <tr><td class="code">glass</td><td class="num">9</td><td class="num">214</td><td class="num">36</td><td class="num">0.034 s</td><td class="num">0.0003 s</td><td class="num gain">106×</td></tr>
+          <tr><td class="code">heart-statlog</td><td class="num">13</td><td class="num">270</td><td class="num">78</td><td class="num">0.094 s</td><td class="num">0.0006 s</td><td class="num gain">152×</td></tr>
+          <tr><td class="code">kdd_JapaneseVowels</td><td class="num">14</td><td class="num">9 961</td><td class="num">91</td><td class="num">4.227 s</td><td class="num">0.031 s</td><td class="num gain">138×</td></tr>
+          <tr><td class="code">letter</td><td class="num">16</td><td class="num">20 000</td><td class="num">120</td><td class="num">10.788 s</td><td class="num">0.133 s</td><td class="num gain">81×</td></tr>
+          <tr><td class="code">spambase</td><td class="num">57</td><td class="num">4 601</td><td class="num">1 596</td><td class="num">31.984 s</td><td class="num">0.104 s</td><td class="num gain">307×</td></tr>
+          <tr><td class="code"><strong>mfeat-factors</strong></td><td class="num"><strong>216</strong></td><td class="num">2 000</td><td class="num"><strong>23 220</strong></td><td class="num"><strong>209.3 s</strong></td><td class="num"><strong>2.4 s</strong></td><td class="num gain">87×</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="scroll">
+      <table>
+        <caption>Complete fit</caption>
+        <thead>
+          <tr><th>Dataset</th><th class="num">Before</th><th class="num">After</th><th class="num">Gain</th><th class="num">Models</th><th class="num">Accuracy</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="code">iris</td><td class="num">0.021 s</td><td class="num">0.003 s</td><td class="num gain">6×</td><td class="num same">6</td><td class="num same">0.98000</td></tr>
+          <tr><td class="code">liver-disorders</td><td class="num">0.111 s</td><td class="num">0.008 s</td><td class="num gain">13×</td><td class="num same">1</td><td class="num same">0.63188</td></tr>
+          <tr><td class="code">ecoli</td><td class="num">0.266 s</td><td class="num">0.013 s</td><td class="num gain">20×</td><td class="num same">21</td><td class="num same">0.89286</td></tr>
+          <tr><td class="code">glass</td><td class="num">0.186 s</td><td class="num">0.007 s</td><td class="num gain">29×</td><td class="num same">17</td><td class="num same">0.83645</td></tr>
+          <tr><td class="code">diabetes</td><td class="num">0.474 s</td><td class="num">0.015 s</td><td class="num gain">32×</td><td class="num same">1</td><td class="num same">0.83073</td></tr>
+          <tr><td class="code">heart-statlog</td><td class="num">0.422 s</td><td class="num">0.010 s</td><td class="num gain">41×</td><td class="num same">1</td><td class="num same">0.85185</td></tr>
+          <tr><td class="code">kdd_JapaneseVowels</td><td class="num">186.8 s</td><td class="num">6.6 s</td><td class="num gain">28×</td><td class="num same">91</td><td class="num same">0.99488</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      The three large ones were run to completion only on the optimized build. Their "before" is
+      projected from the measured ranking cost times the number of rankings the fit performs,
+      which is what a fit is now almost entirely made of.
+    </p>
+
+    <div class="scroll">
+      <table>
+        <caption>Complete fit, large datasets · before is projected</caption>
+        <thead>
+          <tr><th>Dataset</th><th class="num">Before (projected)</th><th class="num">After (measured)</th><th class="num">Models</th><th class="num">Accuracy</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="code">spambase</td><td class="num">~4.4 min</td><td class="num">0.87 s</td><td class="num same">6</td><td class="num same">0.95088</td></tr>
+          <tr><td class="code">letter</td><td class="num">~26 min</td><td class="num">18.98 s</td><td class="num same">86</td><td class="num same">0.98615</td></tr>
+          <tr class="total"><td class="code"><strong>mfeat-factors</strong></td><td class="num"><strong>~4.3 h</strong></td><td class="num"><strong>177.8 s</strong></td><td class="num same">135</td><td class="num same">0.98250</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      A synthetic case at 100 features and 100 000 samples behaves the same way: one ranking went
+      from roughly 34 minutes to 9.7 seconds, and the whole fit finishes in 42 seconds.
+    </p>
+  </section>
+
+  <section>
+    <h2>How this was verified</h2>
+    <p class="deck">
+      Every change was measured and checked against invariants, one step at a time.
+    </p>
+
+    <p>
+      A profiler was built first and a baseline recorded before any code was touched. Each fix
+      was then applied, rebuilt, and re-measured against that baseline. Alongside the timings the
+      harness records the ensemble's <strong>accuracy</strong> and <strong>model count</strong>,
+      and <code>compare.py</code> fails loudly if either moves. Across all five configurations,
+      accuracy matched to the last bit of the double and the model counts were identical.
+    </p>
+
+    <h3>And against the test suite</h3>
+    <p>
+      This work now lives on <code>feat/fimdlp-3.0.0</code>, the branch that carries the
+      folding 2.0.0 / fimdlp 3.0.0 / arff-files 2.0.0 upgrade and the deterministic tie-breaking
+      that came with it. That branch has a full, green suite, and it stays green: <strong>2002
+      assertions in 135 test cases, all passing</strong>, before and after the optimization
+      commits.
+    </p>
+    <p>
+      That is the strongest statement available here. Those 2002 expectations were recorded
+      against the branch's own metrics code, including the <code>std::map</code> introduced to
+      make the summation order deterministic. The dense table that replaced it reproduces every
+      one of them, because it iterates the same cells in the same ascending index order — it
+      satisfies the determinism the map was there for, and drops the per-element
+      <code>.item()</code> walk the map had kept.
+    </p>
+    <p>
+      The profiler adds a second, independent check on top: it records accuracy and model count
+      alongside every timing, and <code>compare.py</code> fails loudly if either moves. Across
+      the ten real datasets and the synthetic sweep, accuracy matched to the last bit of the
+      double and every model count was identical.
+    </p>
+
+    <div class="callout">
+      <h3>What the numbers are not</h3>
+      <p>
+        The profiler fits MDLP on all the data, because it wants one fixed discrete dataset to
+        time. The accuracies in the tables above are therefore resubstitution figures, useful as
+        change detectors and not as quality measures. For honest accuracy on these datasets, use
+        the test suite or <code>benchmark/mdlp_compare</code>, which discretize per fold.
+      </p>
+      <p>
+        The class column is read from <code>tests/data/all.txt</code> rather than assumed to be
+        last — <code>kdd_JapaneseVowels</code> declares <code>speaker</code> first, and loading it
+        class-last silently picks a REAL feature as the class. It loads here with its 9 classes.
+      </p>
+    </div>
+
+    <p>
+      One genuine test bug was fixed along the way: <code>ACTUAL_VERSION</code> in
+      <code>TestBayesModels.cc</code> was a literal, stale since the 1.2.3 bump and failing for
+      every classifier until someone noticed. It now reads the version CMake configures into
+      <code>bayesnet/config.h</code>, so it cannot go stale again.
+    </p>
+
+    <h3>Reproducing it</h3>
+    <pre><code>cmake -S . -B build_Release -DENABLE_BENCHMARK=ON
+cmake --build build_Release --target xba2de_profile --parallel
+
+benchmark/xba2de_profile/run.sh baseline     <span class="comment"># record</span>
+<span class="comment"># ... change code, rebuild ...</span>
+benchmark/xba2de_profile/run.sh candidate    <span class="comment"># record again</span>
+benchmark/xba2de_profile/compare.py \
+    benchmark/xba2de_profile/results/baseline.json \
+    benchmark/xba2de_profile/results/candidate.json</code></pre>
+
+    <p>
+      The profiler is self-contained and generates its own fixed-seed synthetic data, so it
+      builds and runs while the ARFF loader is broken.
+    </p>
+  </section>
+
+  <section>
+    <h2>What comes next</h2>
+    <p class="deck">
+      The implementation is no longer the bottleneck. The algorithm is.
+    </p>
+
+    <p>
+      With H1, H2, H4 and H5 in place, the rest of a boosting round costs almost nothing next to
+      the ranking. Training time is now, very nearly, <em>the number of rounds times the cost of
+      one ranking</em> — the profiler prints exactly that ratio, and on mfeat-factors it reads
+      73.8 rankings for a fit of 177.8 seconds. Cut the number of rankings and you cut the fit.
+      Three directions, in increasing order of how much they change the method:
+    </p>
+
+    <ul>
+      <li>
+        <strong>Refresh the ranking every T rounds</strong> rather than every round, accepting
+        slightly stale weights. Cheapest to try, and the effect on accuracy is directly
+        measurable with the existing harness.
+      </li>
+      <li>
+        <strong>Maintain a top-K frontier</strong> and re-score only its members plus a sample of
+        the rest, since the loop consumes one pair per round but ranks thousands.
+      </li>
+      <li>
+        <strong>Incremental re-scoring</strong>, exploiting the fact that AdaBoost's weight update
+        touches only the sign structure of the previous round's errors.
+      </li>
+    </ul>
+
+    <p>
+      Two smaller items also remain open: M2, the quadratic convergence check — which
+      mfeat-factors, at 135 models, is now the first case large enough to make worth measuring —
+      and M4, the status field that always reports a warning.
+    </p>
+    <p>
+      And one open question that is not about speed: <code>analisis_portabilidad_tests.md</code>
+      leaves the cross-platform claim demonstrated on macOS arm64 only. Generating the golden
+      files on Linux and diffing them byte for byte is what would let the two-tier test
+      architecture collapse into a single exact suite.
+    </p>
+  </section>
+
+  <footer>
+    Audit and fixes performed with Claude Code · profiler and results under
+    benchmark/xba2de_profile/
+  </footer>
+
+</div>

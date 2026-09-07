@@ -1,0 +1,75 @@
+{
+  "beta": 1.0,
+  "cases": [
+    {
+      "label": "arff letter",
+      "n_classes": 26,
+      "n_features": 16,
+      "n_samples": 20000,
+      "primitives_ms": {
+        "conditional_entropy3": 1.209292,
+        "conditional_mutual_information": 22.853749999999998,
+        "entropy": 0.122459,
+        "mutual_information": 21.465042
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 10.787890916,
+        "legacy_cmi_s": 2.785810916,
+        "n_pairs": 120
+      },
+      "xsp2de": {
+        "fit_s": 0.195777042,
+        "predict_s": 0.006409458
+      }
+    },
+    {
+      "label": "arff spambase",
+      "n_classes": 2,
+      "n_features": 57,
+      "n_samples": 4601,
+      "primitives_ms": {
+        "conditional_entropy3": 0.035833000000000004,
+        "conditional_mutual_information": 5.072875,
+        "entropy": 0.047708,
+        "mutual_information": 5.0843750000000005
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 31.983800542,
+        "legacy_cmi_s": 8.1467435,
+        "n_pairs": 1596
+      },
+      "xsp2de": {
+        "fit_s": 0.138930292,
+        "predict_s": 0.001570583
+      }
+    },
+    {
+      "label": "arff mfeat-factors",
+      "n_classes": 10,
+      "n_features": 216,
+      "n_samples": 2000,
+      "primitives_ms": {
+        "conditional_entropy3": 0.064,
+        "conditional_mutual_information": 2.19075,
+        "entropy": 0.041792,
+        "mutual_information": 2.1381669999999997
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 209.326541709,
+        "legacy_cmi_s": 53.582308958,
+        "n_pairs": 23220
+      },
+      "xsp2de": {
+        "fit_s": 0.242356958,
+        "predict_s": 0.003224
+      }
+    }
+  ],
+  "label": "big-base",
+  "reps": 1,
+  "skip_full": true,
+  "threads": 1
+}

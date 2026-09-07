@@ -1,0 +1,239 @@
+{
+  "beta": 1.0,
+  "cases": [
+    {
+      "label": "arff iris",
+      "n_classes": 3,
+      "n_features": 4,
+      "n_samples": 150,
+      "primitives_ms": {
+        "conditional_entropy3": 0.004084,
+        "conditional_mutual_information": 0.004458,
+        "entropy": 0.0067079999999999996,
+        "mutual_information": 0.0065
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 7.9834e-05,
+        "legacy_cmi_s": 5.9125e-05,
+        "n_pairs": 6
+      },
+      "xba2de": {
+        "accuracy": 0.9800000190734863,
+        "edges": 54,
+        "fit_s": 0.003341417,
+        "n_models": 6,
+        "nodes": 30,
+        "notes": [
+          "Number of models: 6"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 8.959e-06,
+        "predict_s": 0.000114375
+      }
+    },
+    {
+      "label": "arff liver-disorders",
+      "n_classes": 2,
+      "n_features": 6,
+      "n_samples": 345,
+      "primitives_ms": {
+        "conditional_entropy3": 0.00175,
+        "conditional_mutual_information": 0.00475,
+        "entropy": 0.003917,
+        "mutual_information": 0.005458
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.000158833,
+        "legacy_cmi_s": 0.000111208,
+        "n_pairs": 15
+      },
+      "xba2de": {
+        "accuracy": 0.6318840384483337,
+        "edges": 15,
+        "fit_s": 0.008280291,
+        "n_models": 1,
+        "nodes": 7,
+        "notes": [
+          "Convergence threshold reached & 14 models eliminated",
+          "Number of models: 1"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 8e-06,
+        "predict_s": 9.3709e-05
+      }
+    },
+    {
+      "label": "arff glass",
+      "n_classes": 6,
+      "n_features": 9,
+      "n_samples": 214,
+      "primitives_ms": {
+        "conditional_entropy3": 0.004542,
+        "conditional_mutual_information": 0.0043749999999999995,
+        "entropy": 0.004167,
+        "mutual_information": 0.005667
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.000320542,
+        "legacy_cmi_s": 0.000187708,
+        "n_pairs": 36
+      },
+      "xba2de": {
+        "accuracy": 0.836448609828949,
+        "edges": 408,
+        "fit_s": 0.006472083,
+        "n_models": 17,
+        "nodes": 170,
+        "notes": [
+          "Pairs not used in train: 19",
+          "Number of models: 17"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 1.1083e-05,
+        "predict_s": 0.000150875
+      }
+    },
+    {
+      "label": "arff ecoli",
+      "n_classes": 8,
+      "n_features": 7,
+      "n_samples": 336,
+      "primitives_ms": {
+        "conditional_entropy3": 0.006375,
+        "conditional_mutual_information": 0.006583,
+        "entropy": 0.0049169999999999995,
+        "mutual_information": 0.006583
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.000237959,
+        "legacy_cmi_s": 0.000159292,
+        "n_pairs": 21
+      },
+      "xba2de": {
+        "accuracy": 0.8928571343421936,
+        "edges": 378,
+        "fit_s": 0.013125458,
+        "n_models": 21,
+        "nodes": 168,
+        "notes": [
+          "Number of models: 21"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 1.0042e-05,
+        "predict_s": 0.000138875
+      }
+    },
+    {
+      "label": "arff heart-statlog",
+      "n_classes": 2,
+      "n_features": 13,
+      "n_samples": 270,
+      "primitives_ms": {
+        "conditional_entropy3": 0.002875,
+        "conditional_mutual_information": 0.003917,
+        "entropy": 0.0045000000000000005,
+        "mutual_information": 0.006084
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.000619083,
+        "legacy_cmi_s": 0.000418208,
+        "n_pairs": 78
+      },
+      "xba2de": {
+        "accuracy": 0.8518518805503845,
+        "edges": 36,
+        "fit_s": 0.010231667,
+        "n_models": 1,
+        "nodes": 14,
+        "notes": [
+          "Convergence threshold reached & 15 models eliminated",
+          "Pairs not used in train: 62",
+          "Number of models: 1"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 1.4917e-05,
+        "predict_s": 0.000142834
+      }
+    },
+    {
+      "label": "arff diabetes",
+      "n_classes": 2,
+      "n_features": 8,
+      "n_samples": 768,
+      "primitives_ms": {
+        "conditional_entropy3": 0.020375,
+        "conditional_mutual_information": 0.019292,
+        "entropy": 0.004167,
+        "mutual_information": 0.007
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.000740667,
+        "legacy_cmi_s": 0.000490708,
+        "n_pairs": 28
+      },
+      "xba2de": {
+        "accuracy": 0.8307291865348816,
+        "edges": 21,
+        "fit_s": 0.014612542,
+        "n_models": 1,
+        "nodes": 9,
+        "notes": [
+          "Convergence threshold reached & 15 models eliminated",
+          "Pairs not used in train: 12",
+          "Number of models: 1"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 1.7e-05,
+        "predict_s": 0.00018825
+      }
+    },
+    {
+      "label": "arff kdd_JapaneseVowels",
+      "n_classes": 9,
+      "n_features": 14,
+      "n_samples": 9961,
+      "primitives_ms": {
+        "conditional_entropy3": 0.6074579999999999,
+        "conditional_mutual_information": 0.6082919999999999,
+        "entropy": 0.043958000000000004,
+        "mutual_information": 0.052292
+      },
+      "select_k_pairs": {
+        "beta": 1.0,
+        "joint_relevance_s": 0.030566583,
+        "legacy_cmi_s": 0.026808791,
+        "n_pairs": 91
+      },
+      "xba2de": {
+        "accuracy": 0.9948800206184387,
+        "edges": 3549,
+        "fit_s": 6.640189167,
+        "n_models": 91,
+        "nodes": 1365,
+        "notes": [
+          "Number of models: 91"
+        ]
+      },
+      "xsp2de": {
+        "fit_s": 0.001335084,
+        "predict_s": 0.001221458
+      }
+    }
+  ],
+  "label": "real-opt",
+  "reps": 3,
+  "skip_full": false,
+  "threads": 1
+}

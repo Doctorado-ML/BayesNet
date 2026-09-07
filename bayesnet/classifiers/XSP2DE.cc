@@ -11,6 +11,7 @@
 #include <limits>
 #include <algorithm>
 #include <numeric>
+#include <functional>  // std::cref
 #include <stdexcept>
 #include <iostream>
 #include "bayesnet/utils/TensorUtils.h"
@@ -134,15 +135,20 @@ void XSp2de::buildModel(const torch::Tensor &weights)
 void XSp2de::trainModel(const torch::Tensor &weights, 
                         const bayesnet::Smoothing_t smoothing)
 {
-  // Accumulate raw counts
+  // Accumulate raw counts. Read through raw accessors: indexing the tensor per
+  // value (dataset[f][i].item<int>()) costs an ATen dispatch each time, m*n of
+  // them per fit, and the boosting loop refits a model every round.
+  auto data = dataset.to(torch::kInt32).contiguous();
+  auto dataData = data.accessor<int, 2>();
+  auto weights_ = weights.to(torch::kFloat64).contiguous();
+  auto weightsData = weights_.accessor<double, 1>();
+  std::vector<int> instance(nFeatures_ + 1);
   for (int i = 0; i < m; i++) {
-    std::vector<int> instance(nFeatures_ + 1);
     for (int f = 0; f < nFeatures_; f++) {
-      instance[f] = dataset[f][i].item<int>();
+      instance[f] = dataData[f][i];
     }
-    instance[nFeatures_] = dataset[-1][i].item<int>();  // class
-    double w = weights[i].item<double>();
-    addSample(instance, w);
+    instance[nFeatures_] = dataData[nFeatures_][i];  // class
+    addSample(instance, weightsData[i]);
   }
 
   // Store the smoothing strategy; the per-cell pseudocount is derived per table
@@ -309,35 +315,28 @@ void XSp2de::computeProbabilities()
     int childBlockSizeF   = fCard * statesClass_;
 
     int blockSize = fCard * sp1Card_ * sp2Card_ * statesClass_;
+    std::vector<double> sumSp1Sp2C(statesClass_);
     for (int sp1Val = 0; sp1Val < sp1Card_; sp1Val++) {
       for (int sp2Val = 0; sp2Val < sp2Card_; sp2Val++) {
+        int base = offset
+                 + sp1Val*childBlockSizeSp2
+                 + sp2Val*childBlockSizeF;
+        // The denominator is the count of (sp1Val,sp2Val,c), i.e. the child
+        // block summed over childVal. It does not depend on childVal, so it is
+        // computed once per (sp1Val,sp2Val) instead of once per cell -- that
+        // inner re-summation made this loop O(fCard^2).
+        std::fill(sumSp1Sp2C.begin(), sumSp1Sp2C.end(), 0.0);
+        for (int cv = 0; cv < fCard; cv++) {
+          for (int c = 0; c < statesClass_; c++) {
+            sumSp1Sp2C[c] += childCounts_[base + cv*statesClass_ + c];
+          }
+        }
         for (int childVal = 0; childVal < fCard; childVal++) {
           for (int c = 0; c < statesClass_; c++) {
             // index in childCounts_
-            int idx = offset
-                    + sp1Val*childBlockSizeSp2
-                    + sp2Val*childBlockSizeF
-                    + childVal*statesClass_
-                    + c;
+            int idx = base + childVal*statesClass_ + c;
             double num = childCounts_[idx] + aChild;
-            // denominator is the count of (sp1Val,sp2Val,c) plus alpha * fCard
-            // We can find that by summing childVal dimension, but we already
-            // have it in childCounts_[...] or we can re-check the superparent 
-            // counts if your approach is purely hierarchical. 
-            // Here we'll do it like the XSpode approach: sp1&sp2 are 
-            // conditionally independent given c, so denominators come from 
-            // summing the relevant block or we treat sp1,sp2 as "parents."
-            // A simpler approach: 
-            double sumSp1Sp2C = 0.0;
-            // sum over all childVal:
-            for (int cv = 0; cv < fCard; cv++) {
-              int idx2 = offset
-                       + sp1Val*childBlockSizeSp2
-                       + sp2Val*childBlockSizeF
-                       + cv*statesClass_ + c;
-              sumSp1Sp2C += childCounts_[idx2];
-            }
-            double denom = sumSp1Sp2C + aChild * fCard;
+            double denom = sumSp1Sp2C[c] + aChild * fCard;
             childProbs_[idx] = (denom <= 0.0 ? 0.0 : num / denom);
           }
         }
@@ -463,7 +462,9 @@ std::vector<std::vector<double>> XSp2de::predict_proba(std::vector<std::vector<i
   for (int begin = 0; begin < test_size; begin += chunk_size) {
     int chunk = std::min(chunk_size, test_size - begin);
     semaphore_.acquire();
-    threads.emplace_back(worker, test_data, begin, chunk, sample_size, 
+    // std::cref: without it std::thread copies the whole test set into every
+    // chunk's argument tuple, i.e. O(m^2 * n) bytes over the m/150 chunks.
+    threads.emplace_back(worker, std::cref(test_data), begin, chunk, sample_size,
                          std::ref(probabilities));
   }
   for (auto &th : threads) {

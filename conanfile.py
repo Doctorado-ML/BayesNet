@@ -59,12 +59,12 @@ class BayesNetConan(ConanFile):
         # Core dependencies
         self.requires("libtorch/2.7.1")
         self.requires("nlohmann_json/3.11.3")
-        self.requires("folding/1.1.2")  # Custom package
-        self.requires("fimdlp/2.1.3")  # Custom package
+        self.requires("folding/2.0.0")  # Custom package
+        self.requires("fimdlp/3.0.0")  # Custom package
 
     def build_requirements(self):
         self.build_requires("cmake/[>=3.27]")
-        self.test_requires("arff-files/1.2.1")  # Custom package
+        self.test_requires("arff-files/2.0.0")  # Custom package
         self.test_requires("catch2/3.8.1")
 
     def layout(self):

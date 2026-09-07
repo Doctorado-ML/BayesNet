@@ -9,6 +9,7 @@
 #include <catch2/generators/catch_generators.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
 #include "TestUtils.h"
+#include "bayesnet/config.h"
 #include "bayesnet/classifiers/KDB.h"
 #include "bayesnet/classifiers/KDBLd.h"
 #include "bayesnet/classifiers/SPODE.h"
@@ -20,7 +21,10 @@
 #include "bayesnet/ensembles/AODELd.h"
 #include "bayesnet/ensembles/BoostAODE.h"
 
-const std::string ACTUAL_VERSION = "1.2.3";
+// Read the version CMake configures into bayesnet/config.h rather than
+// repeating it here, where it went stale at the 1.2.3 -> 1.3.0 bump and failed
+// for every classifier until someone noticed.
+const std::string ACTUAL_VERSION = { project_version.begin(), project_version.end() };
 
 TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
 {
@@ -53,7 +57,7 @@ TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
                                                       {{"glass", "SPODE"}, 0.775701},
                                                       {{"glass", "TAN"}, 0.827103},
                                                       {{"glass", "AODELd"}, 0.799065411f},
-                                                      {{"glass", "KDBLd"}, 0.864485979f},
+                                                      {{"glass", "KDBLd"}, 0.869158864f},
                                                       {{"glass", "SPODELd"}, 0.780373812f},
                                                       {{"glass", "TANLd"}, 0.831775725f},
                                                       {{"glass", "BoostAODE"}, 0.84579f},
@@ -169,15 +173,15 @@ TEST_CASE("Model predict_proba", "[Models]")
                                                             {0.00386239, 0.913919, 0.0822185},
                                                             {0.0244389, 0.966447, 0.00911374},
                                                             {0.003135, 0.991799, 0.0050661} });
-    auto res_prob_baode = std::vector<std::vector<double>>({ {0.0112349, 0.962274, 0.0264907},
-                                                            {0.00371025, 0.950592, 0.0456973},
-                                                            {0.00371025, 0.950592, 0.0456973},
-                                                            {0.00371025, 0.950592, 0.0456973},
-                                                            {0.00369275, 0.84967, 0.146637},
-                                                            {0.0252205, 0.113564, 0.861215},
-                                                            {0.0284828, 0.770524, 0.200993},
-                                                            {0.0213182, 0.857189, 0.121493},
-                                                            {0.00868436, 0.949494, 0.0418215} });
+    auto res_prob_baode = std::vector<std::vector<double>>({ {0.00800967314, 0.966667431, 0.0253228956},
+                                                            {0.00576347848, 0.948156315, 0.0460802062},
+                                                            {0.00576347848, 0.948156315, 0.0460802062},
+                                                            {0.00576347848, 0.948156315, 0.0460802062},
+                                                            {0.00228832697, 0.893974795, 0.103736878},
+                                                            {0.013111047, 0.475678299, 0.511210654},
+                                                            {0.0314151454, 0.778697711, 0.189887143},
+                                                            {0.0221914438, 0.848656948, 0.129151608},
+                                                            {0.00882470278, 0.944789745, 0.0463855523} });
     auto res_prob_tanld = std::vector<std::vector<double>>({ {0.000597557, 0.9957, 0.00370254},
                                                             {0.000731377, 0.997914, 0.0013544},
                                                             {0.000731377, 0.997914, 0.0013544},
@@ -205,8 +209,15 @@ TEST_CASE("Model predict_proba", "[Models]")
                                                             {0.0023632, 0.976631, 0.0210063 },
                                                             {0.00189194, 0.992853, 0.00525538 },
                                                             {0.00189194, 0.992853, 0.00525538, } });
-    auto res_prob_voting = std::vector<std::vector<double>>(
-        { {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0}, {0, 0, 1}, {0, 1, 0}, {0, 1, 0}, {0, 1, 0} });
+    auto res_prob_voting = std::vector<std::vector<double>>({ {0, 1, 0},
+                                                             {0, 1, 0},
+                                                             {0, 1, 0},
+                                                             {0, 1, 0},
+                                                             {0, 1, 0},
+                                                             {0, 0.44687739, 0.553122699},
+                                                             {0, 1, 0},
+                                                             {0, 1, 0},
+                                                             {0, 1, 0} });
     std::map<std::string, std::vector<std::vector<double>>> res_prob{ {"TAN", res_prob_tan},
                                                                      {"SPODE", res_prob_spode},
                                                                      {"BoostAODEproba", res_prob_baode},

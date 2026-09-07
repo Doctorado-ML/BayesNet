@@ -167,12 +167,13 @@ namespace bayesnet {
         auto Xtd = torch::zeros_like(X, torch::kInt32);
         for (int i = 0; i < X.size(0); ++i) {
             auto Xt = std::vector<float>(X[i].data_ptr<float>(), X[i].data_ptr<float>() + X.size(1));
-            std::vector<int> Xd;
             if (wasNumeric[i]) {
                 auto Xd = discretizers[pFeatures[i]]->transform(Xt);
                 Xtd.index_put_({ i }, torch::tensor(Xd, torch::kInt32));
             } else {
-                Xtd.index_put_({ i }, Xf[i].to(torch::kInt32));
+                // Categorical features are copied as they are, but from the
+                // samples being predicted, not from the training data (Xf).
+                Xtd.index_put_({ i }, X[i].to(torch::kInt32));
             }
         }
         return Xtd;

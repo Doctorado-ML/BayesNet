@@ -5,6 +5,7 @@
 // ***************************************************************
 
 #include <pthread.h>
+#include <functional>  // std::cref
 #include <thread>
 #include "XA2DE.h"
 #include "bayesnet/utils/TensorUtils.h"
@@ -88,7 +89,9 @@ namespace bayesnet {
         for (int begin = 0; begin < test_size; begin += chunk_size) {
             int chunk = std::min(chunk_size, test_size - begin);
             semaphore_.acquire();
-            threads.emplace_back(worker, test_data, begin, chunk, sample_size, std::ref(probabilities));
+            // std::cref: without it std::thread copies the whole test set into
+            // every chunk's argument tuple, i.e. O(m^2 * n) bytes over the m/150 chunks.
+            threads.emplace_back(worker, std::cref(test_data), begin, chunk, sample_size, std::ref(probabilities));
         }
         for (auto& thread : threads) {
             thread.join();

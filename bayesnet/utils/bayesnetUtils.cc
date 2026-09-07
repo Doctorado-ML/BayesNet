@@ -7,13 +7,21 @@
 
 #include "bayesnetUtils.h"
 namespace bayesnet {
-    // Return the indices in descending order
+    // Return the indices in descending order.
+    // Equal scores are ordered by index. Without that the comparator is not a
+    // total order, and the standard leaves the relative order of equivalent
+    // elements to std::sort's implementation: libstdc++ and libc++ then rank
+    // tied features differently and the selection diverges by platform. Exact
+    // ties are common here (many pairs have a mutual information of exactly 0).
     std::vector<int> argsort(std::vector<double>& nums)
     {
         int n = nums.size();
         std::vector<int> indices(n);
         iota(indices.begin(), indices.end(), 0);
-        sort(indices.begin(), indices.end(), [&nums](int i, int j) {return nums[i] > nums[j];});
+        sort(indices.begin(), indices.end(), [&nums](int i, int j) {
+            if (nums[i] != nums[j]) return nums[i] > nums[j];
+            return i < j;
+            });
         return indices;
     }
     std::vector<std::vector<double>> tensorToVectorDouble(torch::Tensor& dtensor)
