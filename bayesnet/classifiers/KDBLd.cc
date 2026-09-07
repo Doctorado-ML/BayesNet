@@ -14,14 +14,14 @@ namespace bayesnet {
         validHyperparameters.push_back("k");
         validHyperparameters.push_back("theta");
     }
-    KDBLd& KDBLd::fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
+    KDBLd& KDBLd::fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, std::map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
         checkInput(X_, y_);
         Xf = X_;
         y = y_;
         return commonFit(features_, className_, states_, smoothing);
     }
-    KDBLd& KDBLd::fit(torch::Tensor& dataset, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
+    KDBLd& KDBLd::fit(torch::Tensor& dataset, const std::vector<std::string>& features_, const std::string& className_, std::map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
         if (!torch::is_floating_point(dataset)) {
             throw std::runtime_error("Dataset must be a floating point tensor");
@@ -31,7 +31,7 @@ namespace bayesnet {
         return commonFit(features_, className_, states_, smoothing);
     }
 
-    KDBLd& KDBLd::commonFit(const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
+    KDBLd& KDBLd::commonFit(const std::vector<std::string>& features_, const std::string& className_, std::map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
         features = features_;
         className = className_;

@@ -22,16 +22,16 @@ public:
     RawDatasets(const std::string& file_name, bool discretize_, int num_samples_ = 0, bool shuffle_ = false, bool class_last = true, bool debug = false);
     torch::Tensor Xt, yt, dataset, weights;
     torch::Tensor X_train, y_train, X_test, y_test;
-    std::vector<vector<int>> Xv;
+    std::vector<std::vector<int>> Xv;
     std::vector<int> yv;
     std::vector<double> weightsv;
-    std::vector<string> features;
+    std::vector<std::string> features;
     std::string className;
     std::vector<bool> is_numeric; // indicates whether each feature is numeric
-    map<std::string, std::vector<int>> states;
+    std::map<std::string, std::vector<int>> states;
     //catalog holds the mapping between dataset names and their corresponding indices of numeric features (-1) means all are numeric 
     //and an empty vector means none are numeric
-    map<std::string, std::vector<int>> catalog;
+    std::map<std::string, std::vector<int>> catalog;
     int nSamples, classNumStates;
     double epsilon = 1e-5;
     bool discretize;
@@ -90,9 +90,9 @@ private:
         }
         return result;
     }
-    map<std::string, int> discretizeDataset(std::vector<mdlp::samples_t>& X);
+    std::map<std::string, int> discretizeDataset(std::vector<mdlp::samples_t>& X);
     void loadDataset(const std::string& name, bool class_last);
-    map<std::string, std::vector<int>> loadCatalog();
+    std::map<std::string, std::vector<int>> loadCatalog();
 };
 
 #endif //TEST_UTILS_H

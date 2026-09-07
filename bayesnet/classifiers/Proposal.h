@@ -24,22 +24,22 @@ namespace bayesnet {
         void checkInput(const torch::Tensor& X, const torch::Tensor& y);
         torch::Tensor prepareX(torch::Tensor& X);
         // fit_local_discretization is only called by aodeld
-        map<std::string, std::vector<int>> fit_local_discretization(const torch::Tensor& y, map<std::string, std::vector<int>> states);
+        std::map<std::string, std::vector<int>> fit_local_discretization(const torch::Tensor& y, std::map<std::string, std::vector<int>> states);
         // Iterative discretization method
         template<typename Classifier>
-        map<std::string, std::vector<int>> iterativeLocalDiscretization(
+        std::map<std::string, std::vector<int>> iterativeLocalDiscretization(
             const torch::Tensor& y,
             Classifier* classifier,
             torch::Tensor& dataset,
             const std::vector<std::string>& features,
             const std::string& className,
-            const map<std::string, std::vector<int>>& initialStates,
+            const std::map<std::string, std::vector<int>>& initialStates,
             const Smoothing_t smoothing,
             bool alreadyDiscretized = false
         );
         torch::Tensor Xf; // X continuous nxm tensor
         torch::Tensor y; // y discrete nx1 tensor
-        map<std::string, std::unique_ptr<mdlp::Discretizer>> discretizers;
+        std::map<std::string, std::unique_ptr<mdlp::Discretizer>> discretizers;
         // MDLP parameters
         struct {
             size_t min_length = 3; // Minimum length of the interval to consider it in mdlp
@@ -59,7 +59,7 @@ namespace bayesnet {
         torch::Tensor& pDataset; // (n+1)xm tensor, needs to be passed to spodes in fit_disc
         std::vector<bool> wasNumeric; //needs to be passed to spodes in fit_disc
     private:
-        map<std::string, std::vector<int>> localDiscretizationProposal(const map<std::string, std::vector<int>>& states, Network& model);
+        std::map<std::string, std::vector<int>> localDiscretizationProposal(const std::map<std::string, std::vector<int>>& states, Network& model);
         std::vector<int> factorize(const std::vector<std::string>& labels_t);
         std::vector<std::string>& notes; // Notes during fit from BaseClassifier
         std::vector<std::string>& pFeatures;

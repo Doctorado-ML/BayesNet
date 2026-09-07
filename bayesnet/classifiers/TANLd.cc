@@ -12,14 +12,14 @@ namespace bayesnet {
     {
         validHyperparameters = validHyperparameters_ld; // Inherits the valid hyperparameters from Proposal
     }
-    TANLd& TANLd::fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
+    TANLd& TANLd::fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, std::map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
         checkInput(X_, y_);
         Xf = X_;
         y = y_;
         return commonFit(features_, className_, states_, smoothing);
     }
-    TANLd& TANLd::fit(torch::Tensor& dataset, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
+    TANLd& TANLd::fit(torch::Tensor& dataset, const std::vector<std::string>& features_, const std::string& className_, std::map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
         if (!torch::is_floating_point(dataset)) {
             throw std::runtime_error("Dataset must be a floating point tensor");
@@ -29,7 +29,7 @@ namespace bayesnet {
         return commonFit(features_, className_, states_, smoothing);
     }
 
-    TANLd& TANLd::commonFit(const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
+    TANLd& TANLd::commonFit(const std::vector<std::string>& features_, const std::string& className_, std::map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
         features = features_;
         className = className_;

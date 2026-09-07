@@ -14,9 +14,9 @@ namespace bayesnet {
     public:
         explicit SPODELd(int root);
         virtual ~SPODELd() = default;
-        SPODELd& fit(torch::Tensor& X, torch::Tensor& y, const std::vector<std::string>& features, const std::string& className, map<std::string, std::vector<int>>& states, const Smoothing_t smoothing) override;
-        SPODELd& fit(torch::Tensor& dataset, const std::vector<std::string>& features, const std::string& className, map<std::string, std::vector<int>>& states, const Smoothing_t smoothing) override;
-        SPODELd& commonFit(const std::vector<std::string>& features, const std::string& className, map<std::string, std::vector<int>>& states, const Smoothing_t smoothing);
+        SPODELd& fit(torch::Tensor& X, torch::Tensor& y, const std::vector<std::string>& features, const std::string& className, std::map<std::string, std::vector<int>>& states, const Smoothing_t smoothing) override;
+        SPODELd& fit(torch::Tensor& dataset, const std::vector<std::string>& features, const std::string& className, std::map<std::string, std::vector<int>>& states, const Smoothing_t smoothing) override;
+        SPODELd& commonFit(const std::vector<std::string>& features, const std::string& className, std::map<std::string, std::vector<int>>& states, const Smoothing_t smoothing);
         std::vector<std::string> graph(const std::string& name = "SPODELd") const override;
         void setHyperparameters(const nlohmann::json& hyperparameters_) override
         {

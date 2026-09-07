@@ -39,7 +39,7 @@ TEST_CASE("Features Selected", "[FeatureSelection]")
 
     SECTION("Test features selected, scores and sizes")
     {
-        map<pair<std::string, std::string>, pair<std::vector<int>, std::vector<double>>> results = {
+        std::map<std::pair<std::string, std::string>, std::pair<std::vector<int>, std::vector<double>>> results = {
             { {"glass", "CFS"}, { { 2, 3, 5, 6, 7, 1, 0, 8, 4 }, {0.365513, 0.42895, 0.46186, 0.481897, 0.500943, 0.504027, 0.505625, 0.493256, 0.478226} } },
             { {"iris", "CFS"}, { { 3, 2, 0, 1 }, {0.870521, 0.890375, 0.84104719, 0.799310961} } },
             { {"ecoli", "CFS"}, { { 5, 0, 6, 1, 4, 2, 3 }, {0.512319, 0.565381, 0.61824, 0.637094, 0.637759, 0.633802, 0.598266} } },

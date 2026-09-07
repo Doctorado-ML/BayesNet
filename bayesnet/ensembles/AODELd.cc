@@ -11,7 +11,7 @@ namespace bayesnet {
     {
         validHyperparameters = validHyperparameters_ld; // Inherits the valid hyperparameters from Proposal
     }
-    AODELd& AODELd::fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
+    AODELd& AODELd::fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, std::map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing)
     {
         checkInput(X_, y_);
         features = features_;

@@ -28,7 +28,7 @@ const std::string ACTUAL_VERSION = { project_version.begin(), project_version.en
 
 TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
 {
-    map<pair<std::string, std::string>, float> scores{// Diabetes
+    std::map<std::pair<std::string, std::string>, float> scores{// Diabetes
                                                       {{"diabetes", "AODE"}, 0.82161},
                                                       {{"diabetes", "KDB"}, 0.852865},
                                                       {{"diabetes", "XSPODE"}, 0.631510437f},

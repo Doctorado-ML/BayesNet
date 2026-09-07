@@ -67,13 +67,13 @@ namespace bayesnet {
         }
     }
     // Fit method for single classifier
-    map<std::string, std::vector<int>> Proposal::localDiscretizationProposal(const map<std::string, std::vector<int>>& oldStates, Network& model)
+    std::map<std::string, std::vector<int>> Proposal::localDiscretizationProposal(const std::map<std::string, std::vector<int>>& oldStates, Network& model)
     {
         // order of local discretization is important. no good 0, 1, 2...
         // although we rediscretize features after the local discretization of every feature
         auto order = model.topological_sort();
         auto& nodes = model.getNodes();
-        map<std::string, std::vector<int>> states = oldStates;
+        std::map<std::string, std::vector<int>> states = oldStates;
         std::vector<int> indicesToReDiscretize;
         bool upgrade = false; // Flag to check if we need to upgrade the model
         for (auto feature : order) {
@@ -95,7 +95,7 @@ namespace bayesnet {
             std::vector<std::string> yJoinParents(Xf.size(1));
             for (auto idx : indices) {
                 for (int i = 0; i < Xf.size(1); ++i) {
-                    yJoinParents[i] += "$" + to_string(pDataset.index({ idx, i }).item<int>());
+                    yJoinParents[i] += "$" + std::to_string(pDataset.index({ idx, i }).item<int>());
                 }
             }
             auto yxv = factorize(yJoinParents);
@@ -119,7 +119,7 @@ namespace bayesnet {
         }
         return states;
     }
-    map<std::string, std::vector<int>> Proposal::fit_local_discretization(const torch::Tensor& y, map<std::string, std::vector<int>> states)
+    std::map<std::string, std::vector<int>> Proposal::fit_local_discretization(const torch::Tensor& y, std::map<std::string, std::vector<int>> states)
     {
         // Discretize the continuous input data and build pDataset (Classifier::dataset)
         // We expect to have in states for numeric features an empty vector and for discretized features a vector of states
@@ -194,19 +194,19 @@ namespace bayesnet {
     }
 
     template<typename Classifier>
-    map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization(
+    std::map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization(
         const torch::Tensor& y,
         Classifier* classifier,
         torch::Tensor& dataset,
         const std::vector<std::string>& features,
         const std::string& className,
-        const map<std::string, std::vector<int>>& initialStates,
+        const std::map<std::string, std::vector<int>>& initialStates,
         Smoothing_t smoothing,
         bool alreadyDiscretized
     )
     {
         // Phase 1: Initial discretization (same as original)
-        map<std::string, std::vector<int>> currentStates;
+        std::map<std::string, std::vector<int>> currentStates;
         if (alreadyDiscretized) {
             // Only ADOELd shall discretize the dataset to save time to all spodes
             currentStates = initialStates;
@@ -250,14 +250,14 @@ namespace bayesnet {
     }
 
     // Explicit template instantiation for common classifier types
-    template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<KDB>(
+    template std::map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<KDB>(
         const torch::Tensor&, KDB*, torch::Tensor&, const std::vector<std::string>&,
-        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t, bool);
+        const std::string&, const std::map<std::string, std::vector<int>>&, Smoothing_t, bool);
 
-    template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<TAN>(
+    template std::map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<TAN>(
         const torch::Tensor&, TAN*, torch::Tensor&, const std::vector<std::string>&,
-        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t, bool);
-    template map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<SPODE>(
+        const std::string&, const std::map<std::string, std::vector<int>>&, Smoothing_t, bool);
+    template std::map<std::string, std::vector<int>> Proposal::iterativeLocalDiscretization<SPODE>(
         const torch::Tensor&, SPODE*, torch::Tensor&, const std::vector<std::string>&,
-        const std::string&, const map<std::string, std::vector<int>>&, Smoothing_t, bool);
+        const std::string&, const std::map<std::string, std::vector<int>>&, Smoothing_t, bool);
 }

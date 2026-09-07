@@ -14,19 +14,19 @@
 TEST_CASE("Metrics Test", "[Metrics]")
 {
     std::string file_name = GENERATE("glass", "iris", "ecoli", "diabetes");
-    map<std::string, pair<int, std::vector<int>>> resultsKBest = {
+    std::map<std::string, std::pair<int, std::vector<int>>> resultsKBest = {
         {"glass", {7, { 0, 1, 7, 6, 3, 5, 2 }}},
         {"iris", {3, { 0, 3, 2 }} },
         {"ecoli", {6, { 2, 4, 1, 0, 6, 5 }}},
         {"diabetes", {2, { 7, 1 }}}
     };
-    map<std::string, double> resultsMI = {
+    std::map<std::string, double> resultsMI = {
         {"glass", 0.12805398},
         {"iris", 0.3158139948},
         {"ecoli", 0.0089431099},
         {"diabetes", 0.0345470614}
     };
-    map<pair<std::string, int>, std::vector<pair<int, int>>> resultsMST = {
+    std::map<std::pair<std::string, int>, std::vector<std::pair<int, int>>> resultsMST = {
         { {"glass", 0}, { {0, 6}, {0, 5}, {0, 3}, {3, 4}, {5, 1}, {5, 8}, {6, 2}, {6, 7} } },
         { {"glass", 1}, { {1, 5}, {5, 0}, {5, 8}, {0, 6}, {0, 3}, {3, 4}, {6, 2}, {6, 7} } },
         { {"iris", 0}, { {0, 1}, {0, 2}, {1, 3} } },

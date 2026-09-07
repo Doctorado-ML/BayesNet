@@ -15,7 +15,7 @@ namespace bayesnet {
     public:
         AODELd(bool predict_voting = true);
         virtual ~AODELd() = default;
-        AODELd& fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing) override;
+        AODELd& fit(torch::Tensor& X_, torch::Tensor& y_, const std::vector<std::string>& features_, const std::string& className_, std::map<std::string, std::vector<int>>& states_, const Smoothing_t smoothing) override;
         std::vector<std::string> graph(const std::string& name = "AODELd") const override;
         void setHyperparameters(const nlohmann::json& hyperparameters_) override
         {

@@ -18,7 +18,7 @@
 const double threshold = 1e-4;
 void buildModel(bayesnet::Network& net, const std::vector<std::string>& features, const std::string& className)
 {
-    std::vector<pair<int, int>> network = { {0, 1}, {0, 2}, {1, 3} };
+    std::vector<std::pair<int, int>> network = { {0, 1}, {0, 2}, {1, 3} };
     for (const auto& feature : features) {
         net.addNode(feature);
     }
@@ -51,10 +51,10 @@ TEST_CASE("Test Bayesian Network", "[Network]")
         net.addNode("C");
         net.addEdge("A", "B");
         net.addEdge("B", "C");
-        REQUIRE(net.getEdges() == std::vector<pair<std::string, std::string>>{ {"A", "B"}, { "B", "C" } });
+        REQUIRE(net.getEdges() == std::vector<std::pair<std::string, std::string>>{ {"A", "B"}, { "B", "C" } });
         REQUIRE(net.getNumEdges() == 2);
         net.addEdge("A", "C");
-        REQUIRE(net.getEdges() == std::vector<pair<std::string, std::string>>{ {"A", "B"}, { "A", "C" }, { "B", "C" } });
+        REQUIRE(net.getEdges() == std::vector<std::pair<std::string, std::string>>{ {"A", "B"}, { "A", "C" }, { "B", "C" } });
         REQUIRE(net.getNumEdges() == 3);
     }
     SECTION("Test getNodes")
@@ -76,7 +76,7 @@ TEST_CASE("Test Bayesian Network", "[Network]")
         buildModel(net, raw.features, raw.className);
         buildModel(net2, raw.features, raw.className);
         buildModel(net3, raw.features, raw.className);
-        std::vector<pair<std::string, std::string>> edges = {
+        std::vector<std::pair<std::string, std::string>> edges = {
             {"class", "sepallength"}, {"class", "sepalwidth"}, {"class", "petallength"},
             {"class", "petalwidth" }, {"sepallength", "sepalwidth"}, {"sepallength", "petallength"},
             {"sepalwidth", "petalwidth"}

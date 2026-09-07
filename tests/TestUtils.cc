@@ -82,9 +82,9 @@ RawDatasets::RawDatasets(const std::string& file_name, bool discretize_, int num
         std::cout << to_string();
 }
 
-map<std::string, int> RawDatasets::discretizeDataset(std::vector<mdlp::samples_t>& X)
+std::map<std::string, int> RawDatasets::discretizeDataset(std::vector<mdlp::samples_t>& X)
 {
-    map<std::string, int> maxes;
+    std::map<std::string, int> maxes;
     auto fimdlp = mdlp::CPPFImdlp();
     for (int i = 0; i < X.size(); i++) {
         mdlp::labels_t xd;
@@ -102,10 +102,10 @@ map<std::string, int> RawDatasets::discretizeDataset(std::vector<mdlp::samples_t
     return maxes;
 }
 
-map<std::string, std::vector<int>> RawDatasets::loadCatalog()
+std::map<std::string, std::vector<int>> RawDatasets::loadCatalog()
 {
-    map<std::string, std::vector<int>> catalogNames;
-    ifstream catalog(Paths::datasets() + "all.txt");
+    std::map<std::string, std::vector<int>> catalogNames;
+    std::ifstream catalog(Paths::datasets() + "all.txt");
     std::vector<int> numericFeaturesIdx;
     if (!catalog.is_open()) {
         throw std::invalid_argument("Unable to open catalog file. [" + Paths::datasets() + +"all.txt" + "]");
