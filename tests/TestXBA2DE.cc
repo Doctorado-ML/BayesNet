@@ -10,6 +10,8 @@
 #include <catch2/matchers/catch_matchers.hpp>
 #include "TestUtils.h"
 #include "bayesnet/ensembles/XBA2DE.h"
+#include "bayesnet/classifiers/XSP2DE.h"
+#include <algorithm>
 #include <iostream>
 #define DUMP(tag, clf) do { std::cerr << "GOLDEN[" << tag << "] nodes=" << (clf).getNumberOfNodes() \
     << " edges=" << (clf).getNumberOfEdges() << " states=" << (clf).getNumberOfStates() \
@@ -25,7 +27,7 @@ TEST_CASE("Normal test", "[XBA2DE]")
     REQUIRE(clf.getNumberOfNodes() == 30);
     REQUIRE(clf.getNumberOfEdges() == 54);
     REQUIRE(clf.getNotes().size() == 1);
-    REQUIRE(clf.getVersion() == "0.9.7");
+    REQUIRE(clf.getVersion() == "0.9.8");
     // iris has 4 features -> C(4,2)=6 distinct pairs; each used once (no repeat),
     // so training stops on pair exhaustion, not convergence.
     REQUIRE(clf.getNotes()[0] == "Number of models: 6");
@@ -153,4 +155,55 @@ TEST_CASE("Beta joint-relevance criterion", "[XBA2DE]")
     REQUIRE(signature(false, 0.0) == signature(true, 1.0));
     // beta=0 (marginal-relevance sum) is a different ranking -> different ensemble.
     REQUIRE(signature(true, 0.0) != signature(true, 1.0));
+}
+TEST_CASE("Working memory budget", "[XBA2DE]")
+{
+    auto raw = RawDatasets("glass", true);
+
+    // The budget is a size, so it must be non-negative.
+    auto bad = bayesnet::XBA2DE();
+    REQUIRE_THROWS_AS(bad.setHyperparameters({ {"max_memory_gb", -1.0} }), std::invalid_argument);
+
+    // Reference run: no budget at all.
+    bayesnet::XBA2DE unlimited;
+    unlimited.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+
+    // max_memory_gb = 0 means unlimited, so it must reproduce the reference run
+    // exactly: the accounting is inert and no note mentions memory.
+    bayesnet::XBA2DE zero;
+    zero.setHyperparameters({ {"max_memory_gb", 0.0} });
+    zero.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    REQUIRE(zero.getNumberOfNodes() == unlimited.getNumberOfNodes());
+    REQUIRE(zero.getNumberOfEdges() == unlimited.getNumberOfEdges());
+    REQUIRE(zero.getNotes() == unlimited.getNotes());
+    REQUIRE(zero.score(raw.Xt, raw.yt) == Catch::Approx(unlimited.score(raw.Xt, raw.yt)));
+
+    // A budget too small for even the first model is an error, not a silent
+    // empty ensemble: one byte cannot hold any XSp2de.
+    bayesnet::XBA2DE tiny;
+    tiny.setHyperparameters({ {"max_memory_gb", 1.0 / (1 << 30)} });
+    REQUIRE_THROWS_AS(tiny.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing),
+                      std::runtime_error);
+
+    // A budget that fits some models but not all. Size it from the models
+    // themselves -- the peak of the most expensive pair, times three -- so the
+    // test does not hardcode the absolute footprint of a glass model: at least
+    // one model always fits (no throw) and far fewer than the 36 pairs of glass do.
+    std::vector<int> stateCounts;
+    for (const auto& feature : raw.features) stateCounts.push_back((int)raw.states.at(feature).size());
+    size_t worstPair = 0;
+    for (size_t i = 0; i < stateCounts.size(); ++i)
+        for (size_t j = i + 1; j < stateCounts.size(); ++j)
+            worstPair = std::max(worstPair,
+                bayesnet::XSp2de::estimateFootprint(stateCounts, (int)raw.states.at(raw.className).size(), (int)i, (int)j));
+
+    bayesnet::XBA2DE limited;
+    limited.setHyperparameters({ {"max_memory_gb", 3.0 * (double)worstPair / (double)(1ULL << 30)} });
+    limited.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    DUMP("Memory-limited", limited);
+    REQUIRE(limited.getNumberOfNodes() < unlimited.getNumberOfNodes());
+    REQUIRE(limited.getStatus() == bayesnet::WARNING);
+    auto notes = limited.getNotes();
+    REQUIRE(std::any_of(notes.begin(), notes.end(), [](const std::string& n) {
+        return n.rfind("Memory limit reached:", 0) == 0; }));
 }

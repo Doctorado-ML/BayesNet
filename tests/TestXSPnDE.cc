@@ -171,3 +171,27 @@ TEST_CASE("Joint superparents model (XSP2DE)", "[XSP2DE]")
   REQUIRE(clfInd.getNumberOfEdges() == 8);
   REQUIRE(clfJoint.to_string() != clfInd.to_string());
 }
+TEST_CASE("Memory footprint estimate is an upper bound", "[XSP2DE]")
+{
+  auto raw = RawDatasets("iris", true);
+
+  std::vector<int> stateCounts;
+  for (const auto &feature : raw.features) stateCounts.push_back((int)raw.states.at(feature).size());
+  int statesClass = (int)raw.states.at(raw.className).size();
+
+  // XBA2DE's memory budget rests on this: the estimate, fed with the ensemble's
+  // `states` map, never underestimates what a fitted model really holds. It cannot,
+  // because the model derives its own cardinalities from the training fold (whose
+  // per-feature maxima can only be smaller) and because the estimate covers the peak
+  // (childCounts_ + childProbs_) while a fitted model has already released the counts.
+  for (size_t i = 0; i < stateCounts.size(); ++i) {
+    for (size_t j = i + 1; j < stateCounts.size(); ++j) {
+      bayesnet::XSp2de clf((int)i, (int)j);
+      clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+      INFO("pair (" << i << ", " << j << ")");
+      REQUIRE(bayesnet::XSp2de::estimateFootprint(stateCounts, statesClass, (int)i, (int)j)
+              >= clf.memoryFootprint());
+      REQUIRE(clf.memoryFootprint() > 0);
+    }
+  }
+}

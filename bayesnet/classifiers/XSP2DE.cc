@@ -13,6 +13,7 @@
 #include <numeric>
 #include <functional>  // std::cref
 #include <stdexcept>
+#include <type_traits>
 #include <iostream>
 #include "bayesnet/utils/TensorUtils.h"
 
@@ -344,6 +345,61 @@ void XSp2de::computeProbabilities()
     }
     offset += blockSize;
   }
+
+  // childCounts_ is dead from here on: every consumer downstream reads
+  // childProbs_. It is the dominant block of the model (states_[sp1] *
+  // states_[sp2] * statesClass_ * sum of the children cardinalities), so
+  // releasing it roughly halves what a fitted model holds -- which is what
+  // lets XBA2DE's memory budget fit about twice as many models.
+  std::vector<double>().swap(childCounts_);
+}
+
+// --------------------------------------
+// Memory accounting
+// --------------------------------------
+size_t XSp2de::memoryFootprint() const
+{
+  auto bytes = [](const auto &v) {
+    return v.capacity() * sizeof(typename std::decay_t<decltype(v)>::value_type);
+  };
+  return sizeof(*this)
+       + bytes(states_) + bytes(childOffsets_)
+       + bytes(classCounts_) + bytes(classPriors_)
+       + bytes(sp1FeatureCounts_) + bytes(sp1FeatureProbs_)
+       + bytes(sp2FeatureCounts_) + bytes(sp2FeatureProbs_)
+       + bytes(spPairCounts_) + bytes(spPairProbs_)
+       + bytes(childCounts_) + bytes(childProbs_);
+}
+
+size_t XSp2de::estimateFootprint(const std::vector<int> &states, int statesClass, int sp1, int sp2)
+{
+  const size_t nFeatures = states.size();
+  if (sp1 < 0 || sp2 < 0 || static_cast<size_t>(sp1) >= nFeatures || static_cast<size_t>(sp2) >= nFeatures) {
+    throw std::invalid_argument("XSp2de::estimateFootprint: superparent index out of range");
+  }
+  const size_t c = static_cast<size_t>(statesClass);
+  const size_t s1 = static_cast<size_t>(states[sp1]);
+  const size_t s2 = static_cast<size_t>(states[sp2]);
+
+  // Sum of the cardinalities of the children, i.e. every feature but the two
+  // superparents. The child tables are blocked per child, so their total size
+  // is (s1 * s2 * c) times this sum.
+  size_t childCardinalities = 0;
+  for (size_t f = 0; f < nFeatures; ++f) {
+    if (static_cast<int>(f) == sp1 || static_cast<int>(f) == sp2) continue;
+    childCardinalities += static_cast<size_t>(states[f]);
+  }
+
+  const size_t d = sizeof(double);
+  size_t total = sizeof(XSp2de);
+  total += 2 * nFeatures * sizeof(int);        // states_, childOffsets_
+  total += 2 * c * d;                          // classCounts_, classPriors_
+  total += 2 * s1 * c * d;                     // sp1FeatureCounts_/Probs_
+  total += 2 * s2 * c * d;                     // sp2FeatureCounts_/Probs_
+  total += 2 * s1 * s2 * c * d;                // spPairCounts_/Probs_
+  // Peak: childCounts_ and childProbs_ are both alive inside computeProbabilities.
+  total += 2 * s1 * s2 * c * childCardinalities * d;
+  return total;
 }
 
 // --------------------------------------
@@ -593,8 +649,8 @@ std::string XSp2de::to_string() const
   for (auto v : sp1FeatureCounts_) oss << v << " ";
   oss << "\nsp2FeatureCounts_ (size=" << sp2FeatureCounts_.size() << ")\n";
   for (auto v : sp2FeatureCounts_) oss << v << " ";
-  oss << "\nchildCounts_ (size=" << childCounts_.size() << ")\n";
-  for (auto v : childCounts_) oss << v << " ";
+  oss << "\nchildProbs_ (size=" << childProbs_.size() << ")\n";
+  for (auto v : childProbs_) oss << v << " ";
 
   oss << "\nchildOffsets_:\n";
   for (auto c : childOffsets_) oss << c << " ";

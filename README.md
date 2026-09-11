@@ -144,6 +144,12 @@ make sample fname=tests/data/iris.arff model=AODE  # Use specific model
 
 #### - XBA2DE
 
+Accepts `max_memory_gb`, a working-memory budget for the ensemble in gigabytes
+(1 GB = 2^30 bytes, default `0.0` = unlimited). It bounds what the accumulated
+`XSp2de` models hold, and acts as an exit condition of the boosting loop: when
+the next model no longer fits, training stops and the classifier records a
+`Memory limit reached` note with `status = WARNING`.
+
 ### With Local Discretization
 
 #### - TANLd
