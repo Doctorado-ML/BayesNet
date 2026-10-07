@@ -556,6 +556,87 @@ residuo de 1e-18 es decisivo en cuanto alimenta un desempate exacto. Las dos
 cosas tienen que ir juntas — desempates totales **y** ceros exactos donde la
 matemática dice cero.
 
+## 7.quinquies. Cierre: `KDBLd` sobre glass, y un bug encontrado de paso
+
+Fecha: 2026-10-07
+
+Segunda corrida en macOS con el arreglo del §7.quater: **138 de 139 casos pasan**.
+
+- **El MST de glass pasa.** El arreglo de las identidades degeneradas cierra la
+  causa 2 en las dos plataformas.
+- **Los dos tests de invariante pasan en macOS.** Es la confirmación directa del
+  mecanismo: la MI de una feature constante es ahora cero exacto también en arm64.
+- Queda `KDBLd` sobre glass: 186/214 en macOS, 185/214 en Linux.
+
+### Por qué `KDBLd` se relaja en vez de arreglarse
+
+No hay ninguna decisión en el filo en esa ruta. Medido todo en Linux:
+
+| Decisión | Mínimo medido | Ruido de float32 |
+|---|---|---|
+| Márgenes MDLP de la discretización local (320 decisiones) | 9.9e-05 relativo | 6e-8 |
+| Hueco del ranking `mi` que ordena los nodos de KDB | 1.2e-03 relativo | |
+| Comparaciones contra `theta` de KDB (357 decisiones) | 5.9e-03 relativo | |
+| Sensibilidad del score a perturbar la entrada | 185/214 hasta 1e-3 | |
+
+Tres o cuatro órdenes de margen en todas. Y ya estaba descartado (§7.ter) que
+fueran empates en el argmax de la predicción, la versión de fimdlp, el criterio de
+convergencia (es estructural), `factorize` o `topological_sort`. El residuo de MI
+del §7.quater tampoco era: alimentaba el `argmax` de `add_m_edges`, pero
+eliminarlo no movió este valor.
+
+Lo que queda es el orden de reducción en float32 de libtorch sobre arm64, en un
+sitio donde **no hay una identidad exacta que imponer**: a diferencia del empate
+del MST, aquí no existe un valor canónico que elegir. La discretización local es
+una iteración de punto fijo, y dos modelos que difieren en una muestra son los dos
+igual de válidos.
+
+Así que la aserción deja de fijar cinco decimales y pasa a decir lo que de verdad
+se puede afirmar: **el score no se desvía más de una muestra**. El margen es de
+muestra y media, porque exactamente `1/nSamples` pasaría con 1.2e-8 de holgura
+(los dos lados son el redondeo a float32 de `k/nSamples`) y eso no es una cota
+útil; dos muestras ya sería demasiado flojo para detectar una regresión.
+
+Es el único valor de la suite con trato especial, y está localizado en una rama
+`if` con el motivo escrito al lado.
+
+### Bug encontrado de paso: `conditionalMutualInformation` no es simétrica
+
+`I(X;Y|C)` es simétrica en X e Y por definición. La implementación no lo es:
+
+```
+iris:   6 de 6 pares asimétricos, diferencia máxima 1.32
+glass: 36 de 36 pares asimétricos, diferencia máxima 0.81
+
+  I(0;1|C) = 0                      I(1;0|C) = 0.9967
+  I(1;3|C) = 1.3185                 I(3;1|C) = 0
+```
+
+La causa está en los papeles de `first` y `second` dentro del
+`conditionalEntropy` de 4 argumentos. El comentario que lo encabeza dice
+`H(X|Y,C) = sum_{y,c} p(x,c) H(X|Y=y,C=c)`, pero el código indexa
+`keyJoint = (first, labels, second)` y `keyMarginal = (first, labels)`, de modo que
+`p_y_given_xc = p(second | first, labels)` y lo que acumula es
+**`H(second | first, labels)`**, no `H(first | second, labels)`.
+
+`conditionalMutualInformation` lo resta de `H(first | labels)`:
+
+```
+implementado:  H(first|labels) - H(second|first,labels)
+correcto:      H(first|labels) - H(first|second,labels)
+```
+
+Las dos formas válidas de la identidad son `H(X|C) - H(X|Y,C)` y
+`H(Y|C) - H(Y|X,C)`; esta mezcla una de cada. Se ve claro en glass con la feature
+constante: `I(0;4|C) = 0.81` es simplemente `H(X0|C)`, porque
+`H(Si|X0,C) = 0`. No es una información mutua.
+
+**No se ha arreglado en esta pasada**: está fuera del alcance (hacer la suite
+portable) y tocarlo mueve el ranking de pares de `SelectKPairs`, y con él los
+valores esperados de `BoostA2DE` y `XBA2DE`. Queda anotado para decidirlo aparte.
+Nótese que el §2 midió los empates del ranking de pares sobre esta función, así
+que esos números habría que rehacerlos si se corrige.
+
 ## 8. Reproducir las mediciones
 
 Las mediciones 1 y 2 usan un programa aislado que llama a `Metrics`
