@@ -13,6 +13,7 @@
 #include <iomanip>
 #include "XBA2DE.h"
 #include "bayesnet/classifiers/XSP2DE.h"
+#include "bayesnet/utils/bayesnetUtils.h"
 
 namespace bayesnet {
 
@@ -126,7 +127,7 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
         // Step 1: Build ranking with mutual information
         pairSelection = metrics.SelectKPairs(weights_, featuresExcluded, ascending, 0, beta_); // Get all the pairs sorted by joint relevance
         if (order_algorithm == Orders.RAND) {
-            std::shuffle(pairSelection.begin(), pairSelection.end(), g);
+            deterministicShuffle(pairSelection.begin(), pairSelection.end(), g);
         }
         // Remove pairs already used (boosting without replacement of pairs).
         pairSelection.erase(std::remove_if(pairSelection.begin(), pairSelection.end(),

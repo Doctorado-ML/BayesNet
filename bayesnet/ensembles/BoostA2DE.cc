@@ -8,6 +8,7 @@
 #include <tuple>
 #include <folding.hpp>
 #include "BoostA2DE.h"
+#include "bayesnet/utils/bayesnetUtils.h"
 
 namespace bayesnet {
 
@@ -84,7 +85,7 @@ namespace bayesnet {
             // Step 1: Build ranking with mutual information
             pairSelection = metrics.SelectKPairs(weights_, featuresUsed, ascending, 0); // Get all the pairs sorted
             if (order_algorithm == Orders.RAND) {
-                std::shuffle(pairSelection.begin(), pairSelection.end(), g);
+                deterministicShuffle(pairSelection.begin(), pairSelection.end(), g);
             }
             int k = bisection ? pow(2, tolerance) : 1;
             int counter = 0; // The model counter of the current pack

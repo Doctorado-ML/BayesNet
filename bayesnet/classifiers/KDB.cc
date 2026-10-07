@@ -83,7 +83,17 @@ namespace bayesnet {
         bool exit_cond = k == 0;
         int num = 0;
         while (!exit_cond) {
-            auto max_minfo = argmax(cond_w.index({ idx, "..." })).item<int>();
+            // First maximal value, broken by the lowest index. torch::argmax is
+            // documented to return the first one, but whole blocks of this row tie at
+            // 0 (a feature left with a single state after discretization has zero
+            // conditional mutual information with every other), and which index comes
+            // back then depends on how the reduction is split rather than on the data.
+            auto row = cond_w.index({ idx, "..." }).contiguous();
+            auto rowData = row.accessor<float, 1>();
+            int max_minfo = 0;
+            for (int j = 1; j < row.size(0); ++j) {
+                if (rowData[j] > rowData[max_minfo]) max_minfo = j;
+            }
             auto belongs = find(S.begin(), S.end(), max_minfo) != S.end();
             if (belongs && cond_w.index({ idx, max_minfo }).item<float>() > theta) {
                 try {

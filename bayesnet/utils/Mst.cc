@@ -40,8 +40,16 @@ namespace bayesnet {
     }
     void Graph::kruskal_algorithm()
     {
-        // sort the edges ordered on decreasing weight
-        stable_sort(G.begin(), G.end(), [](const auto& left, const auto& right) {return left.first > right.first;});
+        // Sort the edges on decreasing weight. Equal weights are broken by the
+        // (u, v) endpoints so that the order is a total one: whole blocks of edges
+        // tie here (every edge of a feature left with a single state after
+        // discretization scores exactly 0), and which of them enters the tree
+        // decided the result. Leaving that to stable_sort made it depend on the
+        // order addEdge happened to be called in.
+        std::stable_sort(G.begin(), G.end(), [](const auto& left, const auto& right) {
+            if (left.first != right.first) return left.first > right.first;
+            return left.second < right.second;
+            });
         for (int i = 0; i < G.size(); i++) {
             int uSt, vEd;
             uSt = find_set(G[i].second.first);

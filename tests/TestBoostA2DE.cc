@@ -95,7 +95,7 @@ TEST_CASE("Order asc, desc & random", "[BoostA2DE]")
 {
     auto raw = RawDatasets("glass", true);
     std::map<std::string, double> scores{
-        {"asc", 0.799065411f }, { "desc", 0.813084f }, { "rand", 0.855140209f }
+        {"asc", 0.799065411f }, { "desc", 0.813084126f }, { "rand", 0.850467265f }
     };
     for (const std::string& order : { "asc", "desc", "rand" }) {
         auto clf = bayesnet::BoostA2DE();
@@ -163,12 +163,12 @@ TEST_CASE("Bisection Best", "[BoostA2DE]")
         {"convergence_best", true},
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 465);
-    REQUIRE(clf.getNumberOfEdges() == 1116);
+    REQUIRE(clf.getNumberOfNodes() == 570);
+    REQUIRE(clf.getNumberOfEdges() == 1368);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 15 models eliminated");
     REQUIRE(clf.getNotes().at(1) == "Pairs not used in train: 83");
-    REQUIRE(clf.getNotes().at(2) == "Number of models: 31");
+    REQUIRE(clf.getNotes().at(2) == "Number of models: 38");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
     REQUIRE(score == Catch::Approx(0.983333349f).epsilon(raw.epsilon));

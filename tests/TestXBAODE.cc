@@ -86,7 +86,7 @@ TEST_CASE("Test used features in train note and score", "[XBAODE]")
 TEST_CASE("Order asc, desc & random", "[XBAODE]")
 {
     auto raw = RawDatasets("glass", true);
-    std::map<std::string, double> scores{ {"asc", 0.83645f}, {"desc", 0.84579f}, {"rand", 0.84112} };
+    std::map<std::string, double> scores{ {"asc", 0.83644861}, {"desc", 0.84579438}, {"rand", 0.850467265} };
     for (const std::string& order : { "asc", "desc", "rand" }) {
         auto clf = bayesnet::XBAODE();
         clf.setHyperparameters({
@@ -150,11 +150,10 @@ TEST_CASE("Bisection Best", "[XBAODE]")
         {"convergence_best", false},
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 75);
-    REQUIRE(clf.getNumberOfEdges() == 145);
-    REQUIRE(clf.getNotes().size() == 2);
-    REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 9 models eliminated");
-    REQUIRE(clf.getNotes().at(1) == "Number of models: 5");
+    REQUIRE(clf.getNumberOfNodes() == 210);
+    REQUIRE(clf.getNumberOfEdges() == 406);
+    REQUIRE(clf.getNotes().size() == 1);
+    REQUIRE(clf.getNotes().at(0) == "Number of models: 14");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
     REQUIRE(score == Catch::Approx(0.995833337f).epsilon(raw.epsilon));
@@ -173,13 +172,13 @@ TEST_CASE("Bisection Best vs Last", "[XBAODE]")
     clf.setHyperparameters(hyperparameters);
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_best = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score_best == Catch::Approx(0.980000019f).epsilon(raw.epsilon));
+    REQUIRE(score_best == Catch::Approx(0.99000001f).epsilon(raw.epsilon));
     // Now we will set the hyperparameter to use the last accuracy
     hyperparameters["convergence_best"] = false;
     clf.setHyperparameters(hyperparameters);
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
     auto score_last = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score_last == Catch::Approx(0.99000001f).epsilon(raw.epsilon));
+    REQUIRE(score_last == Catch::Approx(0.99333334f).epsilon(raw.epsilon));
 }
 TEST_CASE("Block Update", "[XBAODE]")
 {

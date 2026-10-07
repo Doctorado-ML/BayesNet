@@ -222,6 +222,246 @@ Sin ese contraste, la conclusión de este estudio es que **no queda ninguna
 fuente de divergencia conocida por encima de 1e-13**, lo que hace la
 unificación muy probable pero no demostrada.
 
+El contraste en Linux ya está hecho: ver §7.bis para la medida y §7.ter
+para las causas y el arreglo. Sale, salvo un valor.
+
+## 7.bis. Contraste en Linux — primera medida
+
+Fecha: 2026-10-07
+Plataforma: Linux x86_64 (Fedora 43), g++ 15.3.1 / libstdc++, libtorch 2.7.1,
+build Debug vía `make buildd`.
+Ramas medidas: `main` en `d64e64a` y `feat/xba2de-memory-budget` en `1483664`,
+en la misma máquina y con el mismo toolchain.
+
+Los valores esperados que hay hoy en la suite se regeneraron en **macOS arm64**
+(§6.bis), así que «falla en Linux» significa aquí **«diverge de macOS»**, sin
+pronunciarse sobre qué plataforma tiene razón.
+
+| | casos | aserciones | fallos |
+|---|---:|---:|---:|
+| `main` (d64e64a) | 135 | 1962 | **9** |
+| `feat/xba2de-memory-budget` (1483664) | 137 | 1983 | **9** |
+
+Los 9 fallos son **los mismos** en las dos ramas, con las mismas expansiones.
+
+**Respuesta a la pregunta del §7: la unificación todavía no se cumple.** Los
+pasos 1–3 eliminaron las fuentes que atacaban, pero queda al menos una
+divergencia por encima del umbral de decisión. El paso 2 del plan («generar los
+golden en las dos plataformas y comprobar que son idénticos byte a byte») no se
+puede cerrar aún, y el `SKIP` de `TestGolden.cc` sigue siendo necesario.
+
+### Los 9 fallos
+
+| Test | Dataset | Linux | macOS (esperado) |
+|---|---|---|---|
+| `Metrics / Test Maximum Spanning Tree` | glass, raíz 0 | arista `(0, 4)` | arista `(3, 4)` |
+| `XBA2DE / Bisection Best` | kdd_JapaneseVowels | 135 nodos | 240 |
+| `XBA2DE / Bisection Best vs Last` | kdd_JapaneseVowels | 0.990000 | 0.983333 |
+| `XBAODE / Bisection Best` | kdd_JapaneseVowels | 30 nodos | 75 |
+| `XBAODE / Bisection Best vs Last` | kdd_JapaneseVowels | 0.990000 | 0.980000 |
+| `BoostAODE / Bisection Best` | kdd_JapaneseVowels | 30 nodos | 75 |
+| `BoostAODE / Bisection Best vs Last` | kdd_JapaneseVowels | 0.986667 | 0.990000 |
+| `BoostA2DE / Bisection Best` | kdd_JapaneseVowels | 60 nodos | 465 |
+| `Models / KDBLd` | glass | 0.864486 | 0.869159 |
+
+Nueve es una **cota inferior**: `REQUIRE` aborta la sección, así que el MST de
+glass con raíz 1 y los tres datasets restantes del bucle de `KDBLd` no llegaron
+a evaluarse.
+
+### Lecturas
+
+**1. Los fallos se concentran exactamente donde el §2 predijo.** Solo aparecen
+dos datasets: kdd_JapaneseVowels, que tiene el menor hueco de decisión de toda
+la tabla (3.4e-04 en el ranking de pares) y 10 empates exactos de 91; y glass,
+con 15 empates de 36. Ningún fallo en iris, ecoli, diabetes, heart-statlog ni
+liver-disorders. El mecanismo sigue siendo el (1) de la sección 1 —
+desempates—, no el (2).
+
+**2. Las divergencias de nodos son divergencias en el número de modelos**, no
+en la estructura de un modelo. Con 14 features cada modelo aporta 15 nodos, así
+que: XBA2DE 9 modelos vs 16; XBAODE y BoostAODE 2 vs 5; BoostA2DE 4 vs 31. Una
+sola decisión que se bifurca al principio la amplifica el bucle de boosting
+hasta parar en un punto completamente distinto. Esto explica por qué un fallo
+tan grande no contradice el margen de 1e-14 medido en el §3: no hace falta
+mucho para cambiar el primer desempate.
+
+**3. El MST de glass es la pista más valiosa, y contradice el inventario del
+§5.** Ahí se dio por descartado `Mst::kruskal_algorithm` porque usa
+`stable_sort` sobre una entrada construida en orden de índices. Si eso fuera
+suficiente, un empate exacto se resolvería igual en las dos plataformas. Que
+`(0, 4)` y `(3, 4)` se intercambien implica una de dos cosas, y conviene
+averiguar cuál:
+
+- los pesos de `conditionalEdge` para esas dos aristas **no** son exactamente
+  iguales, y difieren entre plataformas lo bastante para invertir la
+  comparación — lo que situaría el ruido muy por encima de los 6.4e-14 del §3; o
+- la entrada de `kruskal_algorithm` no es tan determinista como se supuso.
+
+Es un caso mínimo y aislado (una llamada, sin boosting, sin folds), así que es
+el sitio por donde empezar.
+
+**4. `KDBLd` sobre glass es un mecanismo independiente.** 0.864486 = 185/214 y
+0.869159 = 186/214: **una sola muestra** clasificada distinto. `KDBLd` es
+discretización local (fimdlp), un camino que no pasa por los rankings ni por el
+bucle de boosting. Que caiga `KDBLd` y no `KDB`, `TANLd` ni `AODELd` apunta a la
+discretización iterativa, no a los selectores. Es una segunda fuente, fuera del
+inventario del §5.
+
+### Contraejemplo útil: un valor que sí es portable
+
+La rama `feat/xba2de-memory-budget` añade un test que imprime una línea
+`GOLDEN[Memory-limited]` con nodos, aristas, estados, notas y la huella de
+memoria acumulada. Esa línea sale **byte a byte idéntica** en macOS arm64 y en
+Linux x86_64:
+
+```
+GOLDEN[Memory-limited] nodes=90 edges=216 states=2187 notes=3 || Memory limit reached: 9 models built, 0.10 MiB used of 0.12 MiB budget || Pairs not used in train: 27 || Number of models: 9
+```
+
+Interesa porque es sobre glass, con sus 15 empates, y porque la contabilidad de
+memoria depende de `capacity()` de vectores de libstdc++ y de `sizeof` de las
+estructuras: ni el presupuesto ni el punto de corte se mueven. Es decir, la
+divergencia no está en todo el pipeline, está en decisiones concretas.
+
+### Reproducir
+
+```bash
+find . -name "*.gcda" -delete        # los .gcda viejos ensucian la salida
+make buildd
+cd build_Debug/tests && ./TestBayesNet
+```
+
+Para el contraste con la línea base, lo mismo tras `git checkout d64e64a`.
+
+## 7.ter. Causas y arreglo
+
+Fecha: 2026-10-07
+
+El §7.bis dejó nueve fallos sin explicar. Ocho tienen causa identificada y
+arreglada; el noveno sigue abierto. La suite pasa en Linux: **2021 aserciones en
+137 casos, 0 fallos**.
+
+### Causa 1 — `std::shuffle` en el helper de tests (7 de los 9)
+
+`ShuffleArffFiles` (`tests/TestUtils.cc`) elegía el submuestreo así:
+
+```cpp
+std::mt19937 g{ 173 };
+std::shuffle(indices.begin(), indices.end(), g);
+```
+
+**Es el mismo defecto que folding 1.1.x** (fila #1 del inventario del §5, que se
+dio por «eliminada» cuando se arregló en la dependencia): el estándar no
+especifica el algoritmo de `std::shuffle`, solo que el resultado sea uniforme.
+Compilando el mismo programa con las dos bibliotecas estándar en esta máquina:
+
+| `std::shuffle(mt19937{173})`, n=1200 | primeros índices | checksum FNV |
+|---|---|---|
+| libstdc++ 20260722 | 609 547 894 399 905 487 440 78 35 95 | `8ea4c51c676bfcd5` |
+| libc++ 210108 | 229 782 610 828 605 664 327 698 884 154 | `41655d5f0b1df965` |
+| Fisher-Yates especificado | 183 179 412 875 128 387 222 265 1192 528 | `be0c5d85347ca05d` en las dos |
+
+Los siete tests que submuestrean con `shuffle=true` **no entrenaban sobre
+casi-empates: entrenaban sobre conjuntos de filas distintos**. Eso explica por
+qué las divergencias eran tan grandes (2 modelos frente a 5, 4 frente a 31) y
+por qué los valores que Linux producía eran exactamente los que `bf4b0cf`
+sustituyó: esa regeneración no arregló nada, cambió la plataforma de referencia
+de esos nueve de Linux a macOS.
+
+La correlación es exacta: los 7 call sites con `shuffle=true` son los 7 tests de
+bisección que fallaban, y los 3 que usan `num_samples` sin shuffle
+(`mfeat-factors`, `spambase`) pasaban.
+
+El mismo `std::shuffle` estaba **en la librería**, detrás de `order = "rand"`, en
+`BoostAODE`, `BoostA2DE`, `XBAODE` y `XBA2DE`. Los cuatro usan ahora
+`bayesnet::deterministicShuffle` (`bayesnet/utils/bayesnetUtils.h`),
+deliberadamente el mismo Fisher-Yates + `bounded_rand` de Lemire que
+`folding::detail::shuffle`.
+
+### Causa 2 — el MST de glass: un empate a ocho, no ruido numérico
+
+La sospecha del §7.bis («los pesos difieren, el ruido está por encima de
+6.4e-14») era falsa. Medido: en glass, **las ocho aristas de la feature 4 (`Si`)
+valen exactamente `0x00000000`**, porque MDLP deja `Si` con un solo estado y
+`mutualInformation` de una variable constante es cero exacto. El empate es
+exacto, no aproximado.
+
+Comprobaciones que descartan las alternativas:
+
+- `Si` es constante también en fimdlp 2.1.3, 3.0.0 y 3.0.1 (mismos cortes
+  frontera `{69.81, 75.41}`, cero cortes internos), así que no es un cambio de
+  versión de la dependencia.
+- El margen de la decisión MDLP que rechaza cortar `Si` es `ig = 0.1192` frente a
+  `term = 0.1254`, **5e-2 relativo**. No es frágil: el mínimo sobre las 36
+  decisiones de glass es 5e-2.
+- `CPPFImdlp::sortIndices` usa `stable_sort` con orden total (empate en X roto
+  por y, y el resto por índice), así que la discretización es determinista.
+
+Con ocho aristas exactamente empatadas, la que entra en el árbol la decidía el
+orden en que `addEdge` se llamó, que `stable_sort` preservaba. **El §5 descartó
+`Mst::kruskal_algorithm` por usar `stable_sort`, y eso era insuficiente**:
+estable no es lo mismo que total. El comparador es ahora un orden total (peso
+descendente, luego los extremos `(u, v)`), así que el resultado queda definido
+por los datos. `{0, 4}` y `{3, 4}` son los dos árboles de expansión máxima
+válidos; `{0, 4}` es el canónico bajo ese orden.
+
+Por la misma razón se hicieron totales dos desempates más que el §6.bis no
+cubrió:
+
+| Sitio | Qué decidía el empate | Arreglo |
+|---|---|---|
+| `TAN::buildModel` | la raíz, con un `sort` que solo comparaba la MI | desempate por índice de feature |
+| `KDB::add_m_edges` | el siguiente padre, con `torch::argmax` sobre filas empatadas a 0 | barrido explícito al primer máximo |
+
+`torch::argmax` documenta devolver el primer máximo, pero lo decide su estrategia
+de reducción. En Linux ya devolvía el primero (el arreglo no mueve ningún valor),
+de modo que es defensivo.
+
+### Lo que queda abierto — `KDBLd` sobre glass
+
+Linux da 0.864486 (185 de 214); el valor regenerado en macOS era 0.869159 (186).
+**Una sola muestra**, y no he localizado el mecanismo. Descartado:
+
+- No hay empates en el argmax de la predicción (0 de 214 muestras).
+- No es sensibilidad numérica: el score es 185/214 con perturbaciones relativas
+  de la entrada de 0, 1e-7, 1e-6, 1e-5, 1e-4 y 1e-3. No está en el filo.
+- No son los márgenes MDLP de la discretización local: 320 decisiones, margen
+  relativo mínimo **9.9e-05**, tres órdenes por encima del ruido de float32
+  (6e-8). Ojo: `precision_t` de fimdlp es `float`, así que ese es el umbral
+  relevante, no el 1e-14 del §3.
+- No es fimdlp 3.0.0 vs 3.0.1 (cortes idénticos en los diez datasets).
+- No es el criterio de convergencia del bucle iterativo: compara estructuras
+  (`previousModel == classifier->getModel()`), no números.
+- `factorize` numera con `std::map` en orden de inserción y `topological_sort` no
+  usa contenedores desordenados, así que ninguno de los dos aporta orden
+  arbitrario.
+
+Lo que queda son mecanismos dentro de libtorch que no se pueden probar sin la
+otra plataforma: orden de reducción en float32 sobre arm64 frente a x86_64. El
+valor del test es ahora el de Linux, coherente con el resto de la regeneración.
+**Pendiente: correr la suite en macOS.** Si este único valor vuelve a divergir,
+lo honesto es no fijarlo con `epsilon(1e-5)`.
+
+### Inventario del §5, actualizado
+
+| # | Fuente | Estado |
+|---|---|---|
+| 1 | `std::shuffle` en `folding` 1.1.x | Resuelta en folding 2.0.0 |
+| 1.bis | **`std::shuffle` en `ShuffleArffFiles` y en los cuatro Boost (`order = "rand"`)** | **Resuelta aquí** — era la dominante |
+| 2 | `std::sort` con empates en `argsort`, `SelectKBestWeighted`, `SelectKPairs` | Resuelta en §6.bis |
+| 2.bis | **Empates en `kruskal_algorithm`, `TAN::buildModel` y `KDB::add_m_edges`** | **Resuelta aquí** — el §5 los había descartado |
+| 3 | Orden de iteración de `unordered_map` en `conditionalEntropy` | Resuelta en §6.bis |
+| 4 | `entropy()` en float32 | Resuelta en §6.bis |
+| 5 | Peso leído como `double` y como `float` | Resuelta en §6.bis |
+| 6 | Kernels de libtorch, arm64 vs x86_64 | Inherente; es la sospecha que queda para `KDBLd`/glass |
+
+Revisados y **descartados** en esta pasada: `Node::minFill` construye un
+`unordered_set` pero solo consume el tamaño de las combinaciones, que no depende
+del orden; `featureIndexMap` en `Node::computeCPT` solo se consulta por clave;
+`Network::isCyclic` usa sus `unordered_set` solo para pertenencia; los `sort` de
+`Network::operator==` ordenan pares completos; los de `BayesMetrics` líneas 147 y
+160 ordenan `double` sueltos.
+
 ## 8. Reproducir las mediciones
 
 Las mediciones 1 y 2 usan un programa aislado que llama a `Metrics`
