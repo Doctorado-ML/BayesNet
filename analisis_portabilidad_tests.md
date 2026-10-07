@@ -638,11 +638,10 @@ Las dos formas válidas de la identidad son `H(X|C) - H(X|Y,C)` y
 constante: `I(0;4|C) = 0.81` es simplemente `H(X0|C)`, porque
 `H(Si|X0,C) = 0`. No es una información mutua.
 
-**No se ha arreglado en esta pasada**: está fuera del alcance (hacer la suite
-portable) y tocarlo mueve el ranking de pares de `SelectKPairs`, y con él los
-valores esperados de `BoostA2DE` y `XBA2DE`. Queda anotado para decidirlo aparte.
-Nótese que el §2 midió los empates del ranking de pares sobre esta función, así
-que esos números habría que rehacerlos si se corrige.
+**Arreglado**: ver §7.sexies. Mueve el ranking de pares de `SelectKPairs` y con él
+los valores esperados de `BoostA2DE` y `XBA2DE`. Nótese que el §2 midió los
+empates del ranking de pares sobre esta función, así que esos números habría que
+rehacerlos.
 
 ### Tercera corrida en macOS: verde
 
@@ -657,6 +656,92 @@ las 66 aserciones relajadas a 0.08 — eso vive en `v2/phase-0-golden-tests`. Lo
 sí se ha demostrado es la condición que haría innecesaria esa arquitectura de dos
 niveles: la suite exacta coincide en las dos plataformas. Colapsar los dos niveles
 es trabajo para esa otra rama.
+
+## 7.sexies. `conditionalMutualInformation`: el arreglo y lo que mueve
+
+Fecha: 2026-10-07
+
+El bug anotado en el §7.quinquies, arreglado.
+
+### El error
+
+```cpp
+// antes
+keyJoint    = (first, labels, second)
+keyMarginal = (first, labels)          // <-- el marginal sobre el condicionado equivocado
+p_y_given_xc = jointFreq / marginalCount[keyMarginal]   // p(second | first, labels)
+```
+
+El condicionante debe ser `(Y,C)` y la variable medida `X`, así que el marginal va
+sobre `(second, labels)`. Tal como estaba, la función devolvía `H(Y|X,C)` en vez de
+`H(X|Y,C)` — los dos papeles intercambiados — y tanto
+`conditionalMutualInformation` como `SelectKPairs` lo restan de `H(X|C)`. Las dos
+formas válidas de la identidad son `H(X|C) - H(X|Y,C)` y `H(Y|C) - H(Y|X,C)`; esto
+mezclaba una de cada, de modo que el resultado no era una información mutua.
+
+```cpp
+// después
+keyJoint    = (first, second, labels)   // en el mismo orden que la identidad
+keyMarginal = (second, labels)
+p_x_given_yc = jointFreq / marginalCount[(y, c)]
+```
+
+### Dos comprobaciones independientes
+
+1. **Simetría.** `I(X;Y|C)` es simétrica por definición. Antes: los 6 pares de iris
+   y los 36 de glass discrepaban al intercambiar argumentos, hasta 1.32. Después:
+   simétrica a ~3e-15 (los dos sentidos pasan por cantidades intermedias distintas,
+   así que la igualdad exacta no es exigible), y **exacta** en los 8 pares que
+   involucran la feature constante, por las identidades degeneradas.
+2. **Coincidencia con `conditionalEdge`.** Esa función calcula la misma cantidad por
+   un camino sin relación, `Σ_c p(c)·I(Xi;Xj|C=c)`. En iris, ahora:
+
+   | par | `conditionalMutualInformation` | peso de `conditionalEdge` |
+   |---|---|---|
+   | (0,1) | 0.096928648 | 0.09692864865 |
+   | (0,2) | 0.0821388783 | 0.08213888109 |
+   | (1,2) | 0.0658413624 | 0.06584136188 |
+
+   Coinciden a 8 dígitos. Antes discrepaban por completo. Es la confirmación más
+   fuerte de que la fórmula corregida es la correcta.
+
+### Ceros exactos, otra vez
+
+Se añaden a la versión de 4 argumentos las mismas dos identidades degeneradas que
+el §7.quater puso en la de 2, y por el mismo motivo: con la fórmula corregida, un
+par que incluya una feature constante vale cero, y el §2 midió **15 empates exactos
+de 36** en el ranking de pares de glass. Como `SelectKPairs` resuelve esos empates
+por `(i,j)`, los ceros tienen que ser exactos en las dos plataformas, no «lo que
+difieran dos implementaciones de `H(X|C)`». La rama de `Y` constante devuelve
+precisamente la llamada que el llamante va a restar.
+
+### Alcance y dirección de los valores
+
+El `conditionalEntropy` de 4 argumentos no lo usa nadie más que `SelectKPairs` y
+`conditionalMutualInformation`, así que solo se mueven los ensembles de pares.
+**Intactos**: `BoostAODE`, `XBAODE`, `A2DE`, `AODE`, `TAN`, `KDB`, `SPODE` y las
+variantes `Ld` — ordenan features sueltas o pasan por `conditionalEdge`.
+
+| Test | Antes | Después | |
+|---|---|---|---|
+| `BoostA2DE` basic (diabetes) | 333 nodos, 37 modelos, 0.911458 | 378, 42, 0.917969 | sube |
+| `BoostA2DE` FCBF (glass) | 210 nodos, 21 modelos | 120, 12 | menos modelos |
+| `BoostA2DE` voting (iris) | 0.960000 | 0.966667 | sube |
+| `BoostA2DE` asc / desc / rand (glass) | 0.799065 / 0.813084 / 0.850467 | 0.813084 / 0.780374 / 0.850467 | sube / baja / igual |
+| `BoostA2DE` bisección (kdd) | 570 nodos, 38 modelos, 0.983333 | 585, 39, 0.970833 | baja |
+| `BoostA2DE` graph (iris) | 52 líneas | 13 | modelo menor |
+| `XBA2DE` asc / desc / rand (glass) | 0.808411 / 0.836449 / 0.827103 | 0.817757 / 0.822430 / 0.831776 | sube / baja / sube |
+| `XBA2DE` bisección (kdd) | 195 nodos, 13 modelos, 0.987500 | 180, 12, 0.995833 | sube |
+| `XBA2DE` best / last (kdd) | 0.980000 / 0.980000 | 0.983333 / 0.990000 | suben |
+| `XBA2DE` memory-limited (glass) | 90 nodos, 9 modelos | 60, 6 | menos modelos |
+
+Siete suben, cuatro bajan, uno igual. Son particiones únicas sobre datasets
+pequeños, así que ningún movimiento individual demuestra nada: lo que importa es
+que el criterio de ordenación ahora **es** una información mutua. Los valores de
+`[Metrics]` son los que más se mueven: las CMI de iris pasan del rango 0–1.32 al
+0.02–0.10, que es la escala correcta, y el ranking de pares se reordena del todo.
+
+Suite en Linux: 2120 aserciones en 139 casos, verde.
 
 ## 8. Reproducir las mediciones
 

@@ -144,12 +144,12 @@ TEST_CASE("Conditional Entropy", "[Metrics]")
     auto raw = RawDatasets("iris", true);
     bayesnet::Metrics metrics(raw.dataset, raw.features, raw.className, raw.classNumStates);
     auto expected = std::map<std::pair<int, int>, double>{
-        { { 0, 1 }, 1.32674 },
-        { { 0, 2 }, 0.236253 },
-        { { 0, 3 }, 0.1202 },
-        { { 1, 2 }, 0.252551 },
-        { { 1, 3 }, 0.10515 },
-        { { 2, 3 }, 0.108323 },
+        { { 0, 1 }, 0.427020291 },
+        { { 0, 2 }, 0.44181006 },
+        { { 0, 3 }, 0.503108294 },
+        { { 1, 2 }, 1.35782975 },
+        { { 1, 3 }, 1.38778032 },
+        { { 2, 3 }, 0.285674619 },
     };
     for (int i = 0; i < raw.features.size() - 1; ++i) {
         for (int j = i + 1; j < raw.features.size(); ++j) {
@@ -163,12 +163,12 @@ TEST_CASE("Conditional Mutual Information", "[Metrics]")
     auto raw = RawDatasets("iris", true);
     bayesnet::Metrics metrics(raw.dataset, raw.features, raw.className, raw.classNumStates);
     auto expected = std::map<std::pair<int, int>, double>{
-        { { 0, 1 }, 0.0 },
-        { { 0, 2 }, 0.287696 },
-        { { 0, 3 }, 0.403749 },
-        { { 1, 2 }, 1.17112 },
-        { { 1, 3 }, 1.31852 },
-        { { 2, 3 }, 0.210068 },
+        { { 0, 1 }, 0.096928648 },
+        { { 0, 2 }, 0.0821388783 },
+        { { 0, 3 }, 0.0208406446 },
+        { { 1, 2 }, 0.0658413624 },
+        { { 1, 3 }, 0.0358907881 },
+        { { 2, 3 }, 0.0327172475 },
     };
     for (int i = 0; i < raw.features.size() - 1; ++i) {
         for (int j = i + 1; j < raw.features.size(); ++j) {
@@ -184,12 +184,12 @@ TEST_CASE("Select K Pairs descending", "[Metrics]")
     std::vector<int> empty;
     auto results = metrics.SelectKPairs(raw.weights, empty, false);
     auto expected = std::vector<std::pair<std::pair<int, int>, double>>{
-        { { 1, 3 }, 1.31852 },
-        { { 1, 2 }, 1.17112 },
-        { { 0, 3 }, 0.403749 },
-        { { 0, 2 }, 0.287696 },
-        { { 2, 3 }, 0.210068 },
-        { { 0, 1 }, 0.0 },
+        { { 0, 1 }, 0.096928648 },
+        { { 0, 2 }, 0.0821388783 },
+        { { 1, 2 }, 0.0658413624 },
+        { { 1, 3 }, 0.0358907881 },
+        { { 2, 3 }, 0.0327172475 },
+        { { 0, 3 }, 0.0208406446 },
     };
     auto scores = metrics.getScoresKPairs();
     for (int i = 0; i < results.size(); ++i) {
@@ -212,12 +212,12 @@ TEST_CASE("Select K Pairs ascending", "[Metrics]")
     std::vector<int> empty;
     auto results = metrics.SelectKPairs(raw.weights, empty, true);
     auto expected = std::vector<std::pair<std::pair<int, int>, double>>{
-        { { 0, 1 }, 0.0 },
-        { { 2, 3 }, 0.210068 },
-        { { 0, 2 }, 0.287696 },
-        { { 0, 3 }, 0.403749 },
-        { { 1, 2 }, 1.17112 },
-        { { 1, 3 }, 1.31852 },
+        { { 0, 3 }, 0.0208406446 },
+        { { 2, 3 }, 0.0327172475 },
+        { { 1, 3 }, 0.0358907881 },
+        { { 1, 2 }, 0.0658413624 },
+        { { 0, 2 }, 0.0821388783 },
+        { { 0, 1 }, 0.096928648 },
     };
     auto scores = metrics.getScoresKPairs();
     for (int i = 0; i < results.size(); ++i) {
@@ -240,7 +240,7 @@ TEST_CASE("Select K Pairs with features excluded", "[Metrics]")
     std::vector<int> excluded = { 0, 3 };
     auto results = metrics.SelectKPairs(raw.weights, excluded, true);
     auto expected = std::vector<std::pair<std::pair<int, int>, double>>{
-        { { 1, 2 }, 1.17112 },
+        { { 1, 2 }, 0.0658413624 },
     };
     auto scores = metrics.getScoresKPairs();
     for (int i = 0; i < results.size(); ++i) {
@@ -263,9 +263,9 @@ TEST_CASE("Select K Pairs with number of pairs descending", "[Metrics]")
     std::vector<int> empty;
     auto results = metrics.SelectKPairs(raw.weights, empty, false, 3);
     auto expected = std::vector<std::pair<std::pair<int, int>, double>>{
-        { { 1, 3 }, 1.31852 },
-        { { 1, 2 }, 1.17112 },
-        { { 0, 3 }, 0.403749 }
+        { { 0, 1 }, 0.096928648 },
+        { { 0, 2 }, 0.0821388783 },
+        { { 1, 2 }, 0.0658413624 }
     };
     auto scores = metrics.getScoresKPairs();
     REQUIRE(results.size() == 3);
@@ -288,9 +288,9 @@ TEST_CASE("Select K Pairs with number of pairs ascending", "[Metrics]")
     std::vector<int> empty;
     auto results = metrics.SelectKPairs(raw.weights, empty, true, 3);
     auto expected = std::vector<std::pair<std::pair<int, int>, double>>{
-        { { 0, 3 }, 0.403749 },
-        { { 1, 2 }, 1.17112 },
-        { { 1, 3 }, 1.31852 }
+        { { 1, 2 }, 0.0658413624 },
+        { { 0, 2 }, 0.0821388783 },
+        { { 0, 1 }, 0.096928648 }
     };
     auto scores = metrics.getScoresKPairs();
     REQUIRE(results.size() == 3);
