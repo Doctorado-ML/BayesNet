@@ -207,6 +207,16 @@ nada más, lo que confirma que los otros valores no dependían de desempates.
 
 ## 7. Verificación pendiente
 
+> **RESUELTO (2026-10-07).** La suite es única y exacta en las dos plataformas:
+> **2120 aserciones en 139 casos, verde en Linux x86_64/libstdc++ y en macOS
+> arm64/libc++, con el mismo recuento de aserciones en las dos.** El recorrido
+> está en §7.bis (la primera medida en Linux), §7.ter (la causa dominante,
+> `std::shuffle`), §7.quater (la que faltaba, ceros exactos en la MI) y
+> §7.quinquies (el único valor que se relaja, y un bug encontrado de paso).
+> Hicieron falta tres cosas, no una: desempates **totales**, ceros **exactos**
+> donde la matemática dice cero, y una aserción que afirme lo que se puede
+> afirmar cuando no hay valor canónico que imponer.
+
 Todo lo anterior se midió en macOS arm64. Falta el contraste directo en Linux,
 que es la única prueba definitiva de que la unificación funciona. El plan sería:
 
@@ -538,15 +548,12 @@ Estos dos habrían atrapado el fallo en macOS sin necesidad de un valor esperado
   los pesos iguales el árbol tiene que ser `{0,1} {0,2} {0,3}`, y el resultado no
   puede depender del orden en que se añaden las aristas.
 
-### Lo que sigue abierto
+### Lo que seguía abierto
 
-`KDBLd` sobre glass: macOS 186/214, Linux 185/214. El residuo que acabamos de
-eliminar alimentaba también el `argmax` de `KDB::add_m_edges` a través de
-`conditionalEdge`, así que es plausible que este arreglo lo cierre, pero no está
-comprobado: hay que volver a correr la suite en macOS. Si persiste, lo descartado
-en el §7.ter sigue descartado y la sospecha vuelve a ser el orden de reducción en
-float32 de libtorch sobre arm64, esta vez en un sitio sin identidad exacta que
-imponer.
+`KDBLd` sobre glass: macOS 186/214, Linux 185/214. El residuo eliminado aquí
+alimentaba también el `argmax` de `KDB::add_m_edges` a través de
+`conditionalEdge`, pero quitarlo **no** movió este valor. Se cierra en el
+§7.quinquies, relajándolo en vez de arreglándolo, con el motivo medido.
 
 ### Inventario, corregido
 
@@ -636,6 +643,20 @@ portable) y tocarlo mueve el ranking de pares de `SelectKPairs`, y con él los
 valores esperados de `BoostA2DE` y `XBA2DE`. Queda anotado para decidirlo aparte.
 Nótese que el §2 midió los empates del ranking de pares sobre esta función, así
 que esos números habría que rehacerlos si se corrige.
+
+### Tercera corrida en macOS: verde
+
+Con la aserción de `KDBLd` acotada a una muestra: **2120 aserciones en 139 casos,
+todo pasa**, el mismo recuento exacto que en Linux. No queda ninguna aserción con
+trato por plataforma ni ningún valor esperado que dependa de dónde se generó.
+
+Nota sobre el plan original del §7: los pasos 2 y 3 («generar los golden en las dos
+plataformas y comprobar que los ficheros son idénticos») no se han ejecutado tal
+cual porque esta rama no tiene ni `TestGolden.cc` ni el `SKIP` por plataforma ni
+las 66 aserciones relajadas a 0.08 — eso vive en `v2/phase-0-golden-tests`. Lo que
+sí se ha demostrado es la condición que haría innecesaria esa arquitectura de dos
+niveles: la suite exacta coincide en las dos plataformas. Colapsar los dos niveles
+es trabajo para esa otra rama.
 
 ## 8. Reproducir las mediciones
 
