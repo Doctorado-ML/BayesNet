@@ -37,6 +37,35 @@ TEST_CASE("MST::insertElement tests", "[MST]")
     }
 }
 
+// kruskal_algorithm must order equal weights by endpoints, not by the order
+// addEdge happened to be called in: stable_sort alone preserved the insertion
+// order, which made the tree depend on the caller rather than on the data.
+TEST_CASE("The maximum spanning tree breaks weight ties by endpoints", "[MST]")
+{
+    const int n = 4;
+    SECTION("All weights equal")
+    {
+        auto features = std::vector<std::string>{ "a", "b", "c", "d" };
+        auto weights = torch::ones({ n, n });
+        auto result = bayesnet::MST(features, weights, 0).maximumSpanningTree();
+        // With every weight tied, the lowest (u, v) pairs win: {0,1}, {0,2}, {0,3}
+        REQUIRE(result == std::vector<std::pair<int, int>>{ {0, 1}, { 0, 2 }, { 0, 3 } });
+    }
+    SECTION("The result does not depend on the order the edges are added in")
+    {
+        auto features = std::vector<std::string>{ "a", "b", "c", "d" };
+        auto weights = torch::zeros({ n, n });
+        // one distinct weight, the rest tied at zero
+        weights[1][2] = 0.5;
+        weights[2][1] = 0.5;
+        auto forward = bayesnet::MST(features, weights, 0).maximumSpanningTree();
+        // Feeding the transpose builds the same complete graph; only the weights
+        // read per (i, j) could differ, and this matrix is symmetric, so the tree
+        // has to come out identical
+        auto result = bayesnet::MST(features, weights.t().contiguous(), 0).maximumSpanningTree();
+        REQUIRE(result == forward);
+    }
+}
 TEST_CASE("MST::reorder tests", "[MST]")
 {
     bayesnet::MST mst({}, torch::tensor({}), 0);

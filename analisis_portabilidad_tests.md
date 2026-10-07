@@ -397,6 +397,10 @@ Comprobaciones que descartan las alternativas:
 - `CPPFImdlp::sortIndices` usa `stable_sort` con orden total (empate en X roto
   por y, y el resto por índice), así que la discretización es determinista.
 
+> **Corrección (§7.quater)**: el empate es exacto en Linux, pero *no* en macOS.
+> Hacer total el comparador era necesario y no suficiente; faltaba garantizar que
+> los pesos empatados valen cero exacto en las dos plataformas. Ver §7.quater.
+
 Con ocho aristas exactamente empatadas, la que entra en el árbol la decidía el
 orden en que `addEdge` se llamó, que `stable_sort` preservaba. **El §5 descartó
 `Mst::kruskal_algorithm` por usar `stable_sort`, y eso era insuficiente**:
@@ -461,6 +465,96 @@ del orden; `featureIndexMap` en `Node::computeCPT` solo se consulta por clave;
 `Network::isCyclic` usa sus `unordered_set` solo para pertenencia; los `sort` de
 `Network::operator==` ordenan pares completos; los de `BayesMetrics` líneas 147 y
 160 ordenan `double` sueltos.
+
+## 7.quater. La vuelta de macOS: el empate no era exacto en las dos plataformas
+
+Fecha: 2026-10-07
+
+Corrida la suite en macOS con los arreglos del §7.ter: **135 de 137 casos pasan**.
+
+- Los **siete casos de bisección pasan**, y las líneas GOLDEN coinciden byte a byte
+  con Linux (`nodes=195 edges=507 states=18382`, 13 modelos, `score=0.9875`,
+  `order-rand 0.827103`). El arreglo de `std::shuffle` está verificado en las dos
+  plataformas; esa causa queda cerrada.
+- El **MST de glass seguía divergiendo**, ya con el comparador total. Y eso es una
+  deducción forzada: si el orden es total y macOS elige `(3, 4)` en vez de `(0, 4)`,
+  entonces en macOS `peso(3,4) > peso(0,4)`. **Las aristas de `Si` no valían cero
+  exacto allí.** La afirmación del §7.ter de que no podían diferir era errónea.
+
+### El mecanismo real
+
+Las ocho aristas de `Si` se calculan en dos direcciones distintas, según de qué
+lado caiga `Si` en `doCombinations`:
+
+| Par | Llamada | Vale cero porque |
+|---|---|---|
+| `(0,4) (1,4) (2,4) (3,4)` | `mutualInformation(X, Si)` | `H(X) - H(X\|Si)` y `H(X\|Si)` debe valer **exactamente** `H(X)` |
+| `(4,5) (4,6) (4,7) (4,8)` | `mutualInformation(Si, X)` | `H(Si) - H(Si\|X)` y ambos son cero |
+
+La primera es la frágil: `H(X)` lo calcula `entropy()` con `bincount` y operaciones
+de ATen, y `H(X|Si)` lo calcula `conditionalEntropy()` con una tabla densa y un
+bucle secuencial. **Son dos implementaciones de la misma cantidad**, y
+`mutualInformation` las resta. Que coincidieran bit a bit era un accidente del
+build: en x86_64/libstdc++ sí, en arm64 no, y el residuo de ~1e-18 sobrevive al
+`std::max(..., 0.0)` cuando cae del lado positivo.
+
+Medido en Linux: `bincount` de ATen y la suma secuencial coinciden bit a bit en
+las 145 celdas de glass, que es justo por lo que aquí salía cero exacto.
+
+### El arreglo
+
+Dos identidades declaradas en `conditionalEntropy`, en vez de dejarlas salir de la
+aritmética:
+
+```cpp
+if (firstMax == first.min().item<int>())  return 0;                       // X constante: H(X|Y) = 0
+if (second.max() == second.min())         return entropy(firstFeature, weights); // Y constante: H(X|Y) = H(X)
+```
+
+La segunda devuelve **la misma llamada** que `mutualInformation` va a restar, así
+que la diferencia es cero exacto por construcción, en cualquier plataforma y con
+cualquier orden de reducción. No mueve ningún valor en Linux y cuesta tres
+reducciones de ATen más por llamada, sin efecto medible: `[XBA2DE]` tarda 31,45 s
+con el arreglo y 31,46 s sin él.
+
+Un intento intermedio **que no sirvió** y conviene no repetir: derivar el marginal
+de la propia tabla conjunta en vez de `bincount`. Hace `conditionalEntropy`
+autoconsistente, pero rompe la coincidencia con `entropy()`, que es la que de
+verdad importa porque es la que se resta — y con eso aparecía un residuo de
+6.74e-18 en las aristas `(4,0)`, `(4,2)` y `(4,3)` **en Linux**, donde antes no
+había ninguno. La lección: lo que tiene que coincidir no es cada función consigo
+misma, sino las dos que se restan entre sí.
+
+### Tests que fijan la invariante, no el golden
+
+Estos dos habrían atrapado el fallo en macOS sin necesidad de un valor esperado:
+
+- `[Metrics]` «A constant feature has exactly zero mutual information»: comprueba
+  primero que `Si` es constante y luego que `entropy`, `mutualInformation` en las
+  dos direcciones, `conditionalMutualInformation` y las entradas de
+  `conditionalEdge` valen **cero exacto** (comparado con `==`, no con `Approx`), y
+  también por clase, que es lo que `conditionalEdge` acumula.
+- `[MST]` «The maximum spanning tree breaks weight ties by endpoints»: con todos
+  los pesos iguales el árbol tiene que ser `{0,1} {0,2} {0,3}`, y el resultado no
+  puede depender del orden en que se añaden las aristas.
+
+### Lo que sigue abierto
+
+`KDBLd` sobre glass: macOS 186/214, Linux 185/214. El residuo que acabamos de
+eliminar alimentaba también el `argmax` de `KDB::add_m_edges` a través de
+`conditionalEdge`, así que es plausible que este arreglo lo cierre, pero no está
+comprobado: hay que volver a correr la suite en macOS. Si persiste, lo descartado
+en el §7.ter sigue descartado y la sospecha vuelve a ser el orden de reducción en
+float32 de libtorch sobre arm64, esta vez en un sitio sin identidad exacta que
+imponer.
+
+### Inventario, corregido
+
+La fila 6 del §5 («kernels de libtorch y aritmética arm64 vs x86_64 — inherente,
+pero irrelevante: queda a 1e-14») era demasiado optimista. No es irrelevante: un
+residuo de 1e-18 es decisivo en cuanto alimenta un desempate exacto. Las dos
+cosas tienen que ir juntas — desempates totales **y** ceros exactos donde la
+matemática dice cero.
 
 ## 8. Reproducir las mediciones
 

@@ -250,10 +250,25 @@ namespace bayesnet {
         if (numSamples == 0)
             return 0;
 
+        // Two degenerate cases, stated as the identities they are instead of left to
+        // fall out of the arithmetic. Both produce whole blocks of edges that tie at
+        // exactly zero, and the tie-break in kruskal_algorithm is what then defines
+        // the spanning tree, so "near zero" is not good enough: any residue turns the
+        // tie into an ordering. H(X|Y) cannot be left to agree with H(X) by accident
+        // either -- entropy() sums through ATen and the table below sums
+        // sequentially, two implementations of the same quantity that mutualInformation
+        // subtracts from one another. They matched on x86_64 and did not on arm64,
+        // which is what made glass's spanning tree platform dependent.
+        const int firstMax = first.max().item<int>();
+        if (firstMax == first.min().item<int>())
+            return 0;                                    // X constant: H(X|Y) = 0
+        if (second.max().item<int>() == second.min().item<int>())
+            return entropy(firstFeature, weights);       // Y constant: H(X|Y) = H(X)
+
         auto featureCounts = second.bincount(weights_).to(torch::kFloat64).contiguous();
         auto featureCountsData = featureCounts.accessor<double, 1>();
         int numSecondStates = static_cast<int>(featureCounts.size(0));
-        int numFirstStates = first.max().item<int>() + 1;
+        int numFirstStates = firstMax + 1;
 
         // jointWeight accumulates the weight of every (second, first) cell;
         // observed marks the cells that actually occur, which is what the
