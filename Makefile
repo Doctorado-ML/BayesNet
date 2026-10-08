@@ -20,6 +20,16 @@ GCOV_TOOL =
 # llvm-cov emulates gcov 4.2, which reports no function end lines, so lcov derives
 # them and got an inconsistent result inside a libtorch header -- a file the old
 # --remove chain was going to discard two commands later anyway.
+# The rest of the capture below is a no-op with gcc, which reports function end
+# lines and names no function __cxx_global_var_init. With llvm-cov it is needed:
+# - clang's static initialisers are reported at line 0, which lcov rejects as a
+#   format error, so they are erased;
+# - deriving end lines guesses wrong around inline header functions, and the
+#   resulting "function hit but no line hit" cannot be repaired afterwards, so
+#   derivation is off (lcov then warns 'unsupported', which is ignored);
+# - without end lines lcov still attributes a few lines to the wrong function;
+#   the --add-tracefile pass repairs those hit flags once, so summary, genhtml
+#   and updatebadge all read a consistent coverage.info.
 cov_exclude = '/usr/*' 'lib/*' 'include/*' 'libtorch/*' 'tests/*' \
 	'bayesnet/utils/loguru.*' '/opt/miniconda/*' '*/.conan2/*'
 genhtml = genhtml
@@ -183,15 +193,23 @@ coverage: ## Build the instrumented tests, run them and generate the report
 	@echo ">>> Building report..."
 	@cd $(f_coverage)/tests; \
 	$(lcov) --directory CMakeFiles --capture --demangle-cpp \
-		--ignore-errors source,source,unused,unused \
+		--ignore-errors source,source,unused,unused,unsupported,unsupported \
+		--rc derive_function_end_line=0 --erase-functions '^__cxx_global_var_init' \
 		$(addprefix --exclude ,$(cov_exclude)) $(GCOV_TOOL) \
-		--output-file coverage.info >capture.log 2>&1 || { \
+		--output-file capture.info >capture.log 2>&1 || { \
 		echo ">>> lcov could not capture the coverage data. Last lines of" ; \
 		echo ">>> $(f_coverage)/tests/capture.log:" ; \
 		tail -20 capture.log ; \
 		echo ">>> .gcda files present: $$(find . -name '*.gcda' | wc -l | tr -d ' ')" ; \
 		echo ">>> If lcov's gcov cannot read what the compiler wrote, pass your own:" ; \
 		echo ">>>   make coverage GCOV_TOOL=\"--gcov-tool /path/to/llvm-gcov.sh\"" ; \
+		exit 1 ; \
+	}; \
+	$(lcov) --add-tracefile capture.info --ignore-errors inconsistent,inconsistent \
+		--output-file coverage.info >>capture.log 2>&1 || { \
+		echo ">>> lcov could not consolidate the capture. Last lines of" ; \
+		echo ">>> $(f_coverage)/tests/capture.log:" ; \
+		tail -20 capture.log ; \
 		exit 1 ; \
 	}; \
 	$(lcov) --summary coverage.info
