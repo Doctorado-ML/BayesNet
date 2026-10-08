@@ -31,6 +31,7 @@ endif (CMAKE_BUILD_TYPE STREQUAL "Debug")
 # -------
 option(ENABLE_TESTING "Unit testing build"                       OFF)
 option(ENABLE_BENCHMARK "Build the performance profilers"        OFF)
+option(ENABLE_COVERAGE "Instrument the tests for gcov/lcov"      OFF)
     
 find_package(Torch CONFIG REQUIRED)
 if(NOT TARGET torch::torch)
@@ -72,10 +73,22 @@ target_link_libraries(bayesnet
 # -------
 if (ENABLE_TESTING)
     MESSAGE(STATUS "Testing enabled")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -fno-elide-constructors")
-    if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
-        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-default-inline")
-    endif()
+    # Coverage instrumentation is opt-in because it is expensive to run, not just to
+    # build: with GCC it makes the suite 16x slower (31s -> 508s on an x86_64 Debug
+    # build), which is the difference between a test loop you run on every edit and
+    # one you avoid. Clang's is far cheaper, which is why this only became obvious
+    # when the same suite took 2 minutes on macOS. `make test` builds without it and
+    # `make coverage` builds with it, in its own directory so neither forces the
+    # other to recompile. The two accompanying flags exist to serve gcov as well --
+    # they keep constructors and member functions from being elided or inlined so
+    # that lines are attributed to the right place -- so they are opt-in too.
+    if (ENABLE_COVERAGE)
+        MESSAGE(STATUS "Coverage instrumentation enabled")
+        set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -fno-elide-constructors")
+        if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+            set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-default-inline")
+        endif()
+    endif (ENABLE_COVERAGE)
     find_package(Catch2 CONFIG REQUIRED)
     find_package(arff-files CONFIG REQUIRED)
     enable_testing()

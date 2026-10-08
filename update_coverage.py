@@ -4,22 +4,20 @@
 # SPDX-License-Identifier: MIT
 # ***************************************************************
 
-import subprocess
 import sys
 
 readme_file = "README.md"
 print("Updating coverage...")
 # Generate badge line
-output = subprocess.check_output(
-    "lcov --summary " + sys.argv[1] + "/coverage.info",
-    shell=True,
-)
-value = output.decode("utf-8").strip()
-percentage = 0
-for line in value.splitlines():
-    if "lines" in line:
-        percentage = float(line.split(":")[1].split("%")[0])
-        break
+coverage_file = sys.argv[1] + "/coverage.info"
+lines_found = lines_hit = 0
+with open(coverage_file, "r") as coverage:
+    for line in coverage:
+        if line.startswith("LF:"):
+            lines_found += int(line[3:])
+        elif line.startswith("LH:"):
+            lines_hit += int(line[3:])
+percentage = round(100 * lines_hit / lines_found, 1) if lines_found else 0
 print(f"Coverage: {percentage}%")
 if percentage < 90:
     print("⛔Coverage is less than 90%. I won't update the badge.")

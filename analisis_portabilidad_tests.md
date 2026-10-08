@@ -207,6 +207,16 @@ nada más, lo que confirma que los otros valores no dependían de desempates.
 
 ## 7. Verificación pendiente
 
+> **RESUELTO (2026-10-07).** La suite es única y exacta en las dos plataformas:
+> **2120 aserciones en 139 casos, verde en Linux x86_64/libstdc++ y en macOS
+> arm64/libc++, con el mismo recuento de aserciones en las dos.** El recorrido
+> está en §7.bis (la primera medida en Linux), §7.ter (la causa dominante,
+> `std::shuffle`), §7.quater (la que faltaba, ceros exactos en la MI) y
+> §7.quinquies (el único valor que se relaja, y un bug encontrado de paso).
+> Hicieron falta tres cosas, no una: desempates **totales**, ceros **exactos**
+> donde la matemática dice cero, y una aserción que afirme lo que se puede
+> afirmar cuando no hay valor canónico que imponer.
+
 Todo lo anterior se midió en macOS arm64. Falta el contraste directo en Linux,
 que es la única prueba definitiva de que la unificación funciona. El plan sería:
 
@@ -221,6 +231,547 @@ arquitectura de dos niveles puede colapsarse en una sola suite exacta.
 Sin ese contraste, la conclusión de este estudio es que **no queda ninguna
 fuente de divergencia conocida por encima de 1e-13**, lo que hace la
 unificación muy probable pero no demostrada.
+
+El contraste en Linux ya está hecho: ver §7.bis para la medida y §7.ter
+para las causas y el arreglo. Sale, salvo un valor.
+
+## 7.bis. Contraste en Linux — primera medida
+
+Fecha: 2026-10-07
+Plataforma: Linux x86_64 (Fedora 43), g++ 15.3.1 / libstdc++, libtorch 2.7.1,
+build Debug vía `make buildd`.
+Ramas medidas: `main` en `d64e64a` y `feat/xba2de-memory-budget` en `1483664`,
+en la misma máquina y con el mismo toolchain.
+
+Los valores esperados que hay hoy en la suite se regeneraron en **macOS arm64**
+(§6.bis), así que «falla en Linux» significa aquí **«diverge de macOS»**, sin
+pronunciarse sobre qué plataforma tiene razón.
+
+| | casos | aserciones | fallos |
+|---|---:|---:|---:|
+| `main` (d64e64a) | 135 | 1962 | **9** |
+| `feat/xba2de-memory-budget` (1483664) | 137 | 1983 | **9** |
+
+Los 9 fallos son **los mismos** en las dos ramas, con las mismas expansiones.
+
+**Respuesta a la pregunta del §7: la unificación todavía no se cumple.** Los
+pasos 1–3 eliminaron las fuentes que atacaban, pero queda al menos una
+divergencia por encima del umbral de decisión. El paso 2 del plan («generar los
+golden en las dos plataformas y comprobar que son idénticos byte a byte») no se
+puede cerrar aún, y el `SKIP` de `TestGolden.cc` sigue siendo necesario.
+
+### Los 9 fallos
+
+| Test | Dataset | Linux | macOS (esperado) |
+|---|---|---|---|
+| `Metrics / Test Maximum Spanning Tree` | glass, raíz 0 | arista `(0, 4)` | arista `(3, 4)` |
+| `XBA2DE / Bisection Best` | kdd_JapaneseVowels | 135 nodos | 240 |
+| `XBA2DE / Bisection Best vs Last` | kdd_JapaneseVowels | 0.990000 | 0.983333 |
+| `XBAODE / Bisection Best` | kdd_JapaneseVowels | 30 nodos | 75 |
+| `XBAODE / Bisection Best vs Last` | kdd_JapaneseVowels | 0.990000 | 0.980000 |
+| `BoostAODE / Bisection Best` | kdd_JapaneseVowels | 30 nodos | 75 |
+| `BoostAODE / Bisection Best vs Last` | kdd_JapaneseVowels | 0.986667 | 0.990000 |
+| `BoostA2DE / Bisection Best` | kdd_JapaneseVowels | 60 nodos | 465 |
+| `Models / KDBLd` | glass | 0.864486 | 0.869159 |
+
+Nueve es una **cota inferior**: `REQUIRE` aborta la sección, así que el MST de
+glass con raíz 1 y los tres datasets restantes del bucle de `KDBLd` no llegaron
+a evaluarse.
+
+### Lecturas
+
+**1. Los fallos se concentran exactamente donde el §2 predijo.** Solo aparecen
+dos datasets: kdd_JapaneseVowels, que tiene el menor hueco de decisión de toda
+la tabla (3.4e-04 en el ranking de pares) y 10 empates exactos de 91; y glass,
+con 15 empates de 36. Ningún fallo en iris, ecoli, diabetes, heart-statlog ni
+liver-disorders. El mecanismo sigue siendo el (1) de la sección 1 —
+desempates—, no el (2).
+
+**2. Las divergencias de nodos son divergencias en el número de modelos**, no
+en la estructura de un modelo. Con 14 features cada modelo aporta 15 nodos, así
+que: XBA2DE 9 modelos vs 16; XBAODE y BoostAODE 2 vs 5; BoostA2DE 4 vs 31. Una
+sola decisión que se bifurca al principio la amplifica el bucle de boosting
+hasta parar en un punto completamente distinto. Esto explica por qué un fallo
+tan grande no contradice el margen de 1e-14 medido en el §3: no hace falta
+mucho para cambiar el primer desempate.
+
+**3. El MST de glass es la pista más valiosa, y contradice el inventario del
+§5.** Ahí se dio por descartado `Mst::kruskal_algorithm` porque usa
+`stable_sort` sobre una entrada construida en orden de índices. Si eso fuera
+suficiente, un empate exacto se resolvería igual en las dos plataformas. Que
+`(0, 4)` y `(3, 4)` se intercambien implica una de dos cosas, y conviene
+averiguar cuál:
+
+- los pesos de `conditionalEdge` para esas dos aristas **no** son exactamente
+  iguales, y difieren entre plataformas lo bastante para invertir la
+  comparación — lo que situaría el ruido muy por encima de los 6.4e-14 del §3; o
+- la entrada de `kruskal_algorithm` no es tan determinista como se supuso.
+
+Es un caso mínimo y aislado (una llamada, sin boosting, sin folds), así que es
+el sitio por donde empezar.
+
+**4. `KDBLd` sobre glass es un mecanismo independiente.** 0.864486 = 185/214 y
+0.869159 = 186/214: **una sola muestra** clasificada distinto. `KDBLd` es
+discretización local (fimdlp), un camino que no pasa por los rankings ni por el
+bucle de boosting. Que caiga `KDBLd` y no `KDB`, `TANLd` ni `AODELd` apunta a la
+discretización iterativa, no a los selectores. Es una segunda fuente, fuera del
+inventario del §5.
+
+### Contraejemplo útil: un valor que sí es portable
+
+La rama `feat/xba2de-memory-budget` añade un test que imprime una línea
+`GOLDEN[Memory-limited]` con nodos, aristas, estados, notas y la huella de
+memoria acumulada. Esa línea sale **byte a byte idéntica** en macOS arm64 y en
+Linux x86_64:
+
+```
+GOLDEN[Memory-limited] nodes=90 edges=216 states=2187 notes=3 || Memory limit reached: 9 models built, 0.10 MiB used of 0.12 MiB budget || Pairs not used in train: 27 || Number of models: 9
+```
+
+Interesa porque es sobre glass, con sus 15 empates, y porque la contabilidad de
+memoria depende de `capacity()` de vectores de libstdc++ y de `sizeof` de las
+estructuras: ni el presupuesto ni el punto de corte se mueven. Es decir, la
+divergencia no está en todo el pipeline, está en decisiones concretas.
+
+### Reproducir
+
+```bash
+find . -name "*.gcda" -delete        # los .gcda viejos ensucian la salida
+make buildd
+cd build_Debug/tests && ./TestBayesNet
+```
+
+Para el contraste con la línea base, lo mismo tras `git checkout d64e64a`.
+
+## 7.ter. Causas y arreglo
+
+Fecha: 2026-10-07
+
+El §7.bis dejó nueve fallos sin explicar. Ocho tienen causa identificada y
+arreglada; el noveno sigue abierto. La suite pasa en Linux: **2021 aserciones en
+137 casos, 0 fallos**.
+
+### Causa 1 — `std::shuffle` en el helper de tests (7 de los 9)
+
+`ShuffleArffFiles` (`tests/TestUtils.cc`) elegía el submuestreo así:
+
+```cpp
+std::mt19937 g{ 173 };
+std::shuffle(indices.begin(), indices.end(), g);
+```
+
+**Es el mismo defecto que folding 1.1.x** (fila #1 del inventario del §5, que se
+dio por «eliminada» cuando se arregló en la dependencia): el estándar no
+especifica el algoritmo de `std::shuffle`, solo que el resultado sea uniforme.
+Compilando el mismo programa con las dos bibliotecas estándar en esta máquina:
+
+| `std::shuffle(mt19937{173})`, n=1200 | primeros índices | checksum FNV |
+|---|---|---|
+| libstdc++ 20260722 | 609 547 894 399 905 487 440 78 35 95 | `8ea4c51c676bfcd5` |
+| libc++ 210108 | 229 782 610 828 605 664 327 698 884 154 | `41655d5f0b1df965` |
+| Fisher-Yates especificado | 183 179 412 875 128 387 222 265 1192 528 | `be0c5d85347ca05d` en las dos |
+
+Los siete tests que submuestrean con `shuffle=true` **no entrenaban sobre
+casi-empates: entrenaban sobre conjuntos de filas distintos**. Eso explica por
+qué las divergencias eran tan grandes (2 modelos frente a 5, 4 frente a 31) y
+por qué los valores que Linux producía eran exactamente los que `bf4b0cf`
+sustituyó: esa regeneración no arregló nada, cambió la plataforma de referencia
+de esos nueve de Linux a macOS.
+
+La correlación es exacta: los 7 call sites con `shuffle=true` son los 7 tests de
+bisección que fallaban, y los 3 que usan `num_samples` sin shuffle
+(`mfeat-factors`, `spambase`) pasaban.
+
+El mismo `std::shuffle` estaba **en la librería**, detrás de `order = "rand"`, en
+`BoostAODE`, `BoostA2DE`, `XBAODE` y `XBA2DE`. Los cuatro usan ahora
+`bayesnet::deterministicShuffle` (`bayesnet/utils/bayesnetUtils.h`),
+deliberadamente el mismo Fisher-Yates + `bounded_rand` de Lemire que
+`folding::detail::shuffle`.
+
+### Causa 2 — el MST de glass: un empate a ocho, no ruido numérico
+
+La sospecha del §7.bis («los pesos difieren, el ruido está por encima de
+6.4e-14») era falsa. Medido: en glass, **las ocho aristas de la feature 4 (`Si`)
+valen exactamente `0x00000000`**, porque MDLP deja `Si` con un solo estado y
+`mutualInformation` de una variable constante es cero exacto. El empate es
+exacto, no aproximado.
+
+Comprobaciones que descartan las alternativas:
+
+- `Si` es constante también en fimdlp 2.1.3, 3.0.0 y 3.0.1 (mismos cortes
+  frontera `{69.81, 75.41}`, cero cortes internos), así que no es un cambio de
+  versión de la dependencia.
+- El margen de la decisión MDLP que rechaza cortar `Si` es `ig = 0.1192` frente a
+  `term = 0.1254`, **5e-2 relativo**. No es frágil: el mínimo sobre las 36
+  decisiones de glass es 5e-2.
+- `CPPFImdlp::sortIndices` usa `stable_sort` con orden total (empate en X roto
+  por y, y el resto por índice), así que la discretización es determinista.
+
+> **Corrección (§7.quater)**: el empate es exacto en Linux, pero *no* en macOS.
+> Hacer total el comparador era necesario y no suficiente; faltaba garantizar que
+> los pesos empatados valen cero exacto en las dos plataformas. Ver §7.quater.
+
+Con ocho aristas exactamente empatadas, la que entra en el árbol la decidía el
+orden en que `addEdge` se llamó, que `stable_sort` preservaba. **El §5 descartó
+`Mst::kruskal_algorithm` por usar `stable_sort`, y eso era insuficiente**:
+estable no es lo mismo que total. El comparador es ahora un orden total (peso
+descendente, luego los extremos `(u, v)`), así que el resultado queda definido
+por los datos. `{0, 4}` y `{3, 4}` son los dos árboles de expansión máxima
+válidos; `{0, 4}` es el canónico bajo ese orden.
+
+Por la misma razón se hicieron totales dos desempates más que el §6.bis no
+cubrió:
+
+| Sitio | Qué decidía el empate | Arreglo |
+|---|---|---|
+| `TAN::buildModel` | la raíz, con un `sort` que solo comparaba la MI | desempate por índice de feature |
+| `KDB::add_m_edges` | el siguiente padre, con `torch::argmax` sobre filas empatadas a 0 | barrido explícito al primer máximo |
+
+`torch::argmax` documenta devolver el primer máximo, pero lo decide su estrategia
+de reducción. En Linux ya devolvía el primero (el arreglo no mueve ningún valor),
+de modo que es defensivo.
+
+### Lo que queda abierto — `KDBLd` sobre glass
+
+Linux da 0.864486 (185 de 214); el valor regenerado en macOS era 0.869159 (186).
+**Una sola muestra**, y no he localizado el mecanismo. Descartado:
+
+- No hay empates en el argmax de la predicción (0 de 214 muestras).
+- No es sensibilidad numérica: el score es 185/214 con perturbaciones relativas
+  de la entrada de 0, 1e-7, 1e-6, 1e-5, 1e-4 y 1e-3. No está en el filo.
+- No son los márgenes MDLP de la discretización local: 320 decisiones, margen
+  relativo mínimo **9.9e-05**, tres órdenes por encima del ruido de float32
+  (6e-8). Ojo: `precision_t` de fimdlp es `float`, así que ese es el umbral
+  relevante, no el 1e-14 del §3.
+- No es fimdlp 3.0.0 vs 3.0.1 (cortes idénticos en los diez datasets).
+- No es el criterio de convergencia del bucle iterativo: compara estructuras
+  (`previousModel == classifier->getModel()`), no números.
+- `factorize` numera con `std::map` en orden de inserción y `topological_sort` no
+  usa contenedores desordenados, así que ninguno de los dos aporta orden
+  arbitrario.
+
+Lo que queda son mecanismos dentro de libtorch que no se pueden probar sin la
+otra plataforma: orden de reducción en float32 sobre arm64 frente a x86_64. El
+valor del test es ahora el de Linux, coherente con el resto de la regeneración.
+**Pendiente: correr la suite en macOS.** Si este único valor vuelve a divergir,
+lo honesto es no fijarlo con `epsilon(1e-5)`.
+
+### Inventario del §5, actualizado
+
+| # | Fuente | Estado |
+|---|---|---|
+| 1 | `std::shuffle` en `folding` 1.1.x | Resuelta en folding 2.0.0 |
+| 1.bis | **`std::shuffle` en `ShuffleArffFiles` y en los cuatro Boost (`order = "rand"`)** | **Resuelta aquí** — era la dominante |
+| 2 | `std::sort` con empates en `argsort`, `SelectKBestWeighted`, `SelectKPairs` | Resuelta en §6.bis |
+| 2.bis | **Empates en `kruskal_algorithm`, `TAN::buildModel` y `KDB::add_m_edges`** | **Resuelta aquí** — el §5 los había descartado |
+| 3 | Orden de iteración de `unordered_map` en `conditionalEntropy` | Resuelta en §6.bis |
+| 4 | `entropy()` en float32 | Resuelta en §6.bis |
+| 5 | Peso leído como `double` y como `float` | Resuelta en §6.bis |
+| 6 | Kernels de libtorch, arm64 vs x86_64 | Inherente; es la sospecha que queda para `KDBLd`/glass |
+
+Revisados y **descartados** en esta pasada: `Node::minFill` construye un
+`unordered_set` pero solo consume el tamaño de las combinaciones, que no depende
+del orden; `featureIndexMap` en `Node::computeCPT` solo se consulta por clave;
+`Network::isCyclic` usa sus `unordered_set` solo para pertenencia; los `sort` de
+`Network::operator==` ordenan pares completos; los de `BayesMetrics` líneas 147 y
+160 ordenan `double` sueltos.
+
+## 7.quater. La vuelta de macOS: el empate no era exacto en las dos plataformas
+
+Fecha: 2026-10-07
+
+Corrida la suite en macOS con los arreglos del §7.ter: **135 de 137 casos pasan**.
+
+- Los **siete casos de bisección pasan**, y las líneas GOLDEN coinciden byte a byte
+  con Linux (`nodes=195 edges=507 states=18382`, 13 modelos, `score=0.9875`,
+  `order-rand 0.827103`). El arreglo de `std::shuffle` está verificado en las dos
+  plataformas; esa causa queda cerrada.
+- El **MST de glass seguía divergiendo**, ya con el comparador total. Y eso es una
+  deducción forzada: si el orden es total y macOS elige `(3, 4)` en vez de `(0, 4)`,
+  entonces en macOS `peso(3,4) > peso(0,4)`. **Las aristas de `Si` no valían cero
+  exacto allí.** La afirmación del §7.ter de que no podían diferir era errónea.
+
+### El mecanismo real
+
+Las ocho aristas de `Si` se calculan en dos direcciones distintas, según de qué
+lado caiga `Si` en `doCombinations`:
+
+| Par | Llamada | Vale cero porque |
+|---|---|---|
+| `(0,4) (1,4) (2,4) (3,4)` | `mutualInformation(X, Si)` | `H(X) - H(X\|Si)` y `H(X\|Si)` debe valer **exactamente** `H(X)` |
+| `(4,5) (4,6) (4,7) (4,8)` | `mutualInformation(Si, X)` | `H(Si) - H(Si\|X)` y ambos son cero |
+
+La primera es la frágil: `H(X)` lo calcula `entropy()` con `bincount` y operaciones
+de ATen, y `H(X|Si)` lo calcula `conditionalEntropy()` con una tabla densa y un
+bucle secuencial. **Son dos implementaciones de la misma cantidad**, y
+`mutualInformation` las resta. Que coincidieran bit a bit era un accidente del
+build: en x86_64/libstdc++ sí, en arm64 no, y el residuo de ~1e-18 sobrevive al
+`std::max(..., 0.0)` cuando cae del lado positivo.
+
+Medido en Linux: `bincount` de ATen y la suma secuencial coinciden bit a bit en
+las 145 celdas de glass, que es justo por lo que aquí salía cero exacto.
+
+### El arreglo
+
+Dos identidades declaradas en `conditionalEntropy`, en vez de dejarlas salir de la
+aritmética:
+
+```cpp
+if (firstMax == first.min().item<int>())  return 0;                       // X constante: H(X|Y) = 0
+if (second.max() == second.min())         return entropy(firstFeature, weights); // Y constante: H(X|Y) = H(X)
+```
+
+La segunda devuelve **la misma llamada** que `mutualInformation` va a restar, así
+que la diferencia es cero exacto por construcción, en cualquier plataforma y con
+cualquier orden de reducción. No mueve ningún valor en Linux y cuesta tres
+reducciones de ATen más por llamada, sin efecto medible: `[XBA2DE]` tarda 31,45 s
+con el arreglo y 31,46 s sin él.
+
+Un intento intermedio **que no sirvió** y conviene no repetir: derivar el marginal
+de la propia tabla conjunta en vez de `bincount`. Hace `conditionalEntropy`
+autoconsistente, pero rompe la coincidencia con `entropy()`, que es la que de
+verdad importa porque es la que se resta — y con eso aparecía un residuo de
+6.74e-18 en las aristas `(4,0)`, `(4,2)` y `(4,3)` **en Linux**, donde antes no
+había ninguno. La lección: lo que tiene que coincidir no es cada función consigo
+misma, sino las dos que se restan entre sí.
+
+### Tests que fijan la invariante, no el golden
+
+Estos dos habrían atrapado el fallo en macOS sin necesidad de un valor esperado:
+
+- `[Metrics]` «A constant feature has exactly zero mutual information»: comprueba
+  primero que `Si` es constante y luego que `entropy`, `mutualInformation` en las
+  dos direcciones, `conditionalMutualInformation` y las entradas de
+  `conditionalEdge` valen **cero exacto** (comparado con `==`, no con `Approx`), y
+  también por clase, que es lo que `conditionalEdge` acumula.
+- `[MST]` «The maximum spanning tree breaks weight ties by endpoints»: con todos
+  los pesos iguales el árbol tiene que ser `{0,1} {0,2} {0,3}`, y el resultado no
+  puede depender del orden en que se añaden las aristas.
+
+### Lo que seguía abierto
+
+`KDBLd` sobre glass: macOS 186/214, Linux 185/214. El residuo eliminado aquí
+alimentaba también el `argmax` de `KDB::add_m_edges` a través de
+`conditionalEdge`, pero quitarlo **no** movió este valor. Se cierra en el
+§7.quinquies, relajándolo en vez de arreglándolo, con el motivo medido.
+
+### Inventario, corregido
+
+La fila 6 del §5 («kernels de libtorch y aritmética arm64 vs x86_64 — inherente,
+pero irrelevante: queda a 1e-14») era demasiado optimista. No es irrelevante: un
+residuo de 1e-18 es decisivo en cuanto alimenta un desempate exacto. Las dos
+cosas tienen que ir juntas — desempates totales **y** ceros exactos donde la
+matemática dice cero.
+
+## 7.quinquies. Cierre: `KDBLd` sobre glass, y un bug encontrado de paso
+
+Fecha: 2026-10-07
+
+Segunda corrida en macOS con el arreglo del §7.quater: **138 de 139 casos pasan**.
+
+- **El MST de glass pasa.** El arreglo de las identidades degeneradas cierra la
+  causa 2 en las dos plataformas.
+- **Los dos tests de invariante pasan en macOS.** Es la confirmación directa del
+  mecanismo: la MI de una feature constante es ahora cero exacto también en arm64.
+- Queda `KDBLd` sobre glass: 186/214 en macOS, 185/214 en Linux.
+
+### Por qué `KDBLd` se relaja en vez de arreglarse
+
+No hay ninguna decisión en el filo en esa ruta. Medido todo en Linux:
+
+| Decisión | Mínimo medido | Ruido de float32 |
+|---|---|---|
+| Márgenes MDLP de la discretización local (320 decisiones) | 9.9e-05 relativo | 6e-8 |
+| Hueco del ranking `mi` que ordena los nodos de KDB | 1.2e-03 relativo | |
+| Comparaciones contra `theta` de KDB (357 decisiones) | 5.9e-03 relativo | |
+| Sensibilidad del score a perturbar la entrada | 185/214 hasta 1e-3 | |
+
+Tres o cuatro órdenes de margen en todas. Y ya estaba descartado (§7.ter) que
+fueran empates en el argmax de la predicción, la versión de fimdlp, el criterio de
+convergencia (es estructural), `factorize` o `topological_sort`. El residuo de MI
+del §7.quater tampoco era: alimentaba el `argmax` de `add_m_edges`, pero
+eliminarlo no movió este valor.
+
+Lo que queda es el orden de reducción en float32 de libtorch sobre arm64, en un
+sitio donde **no hay una identidad exacta que imponer**: a diferencia del empate
+del MST, aquí no existe un valor canónico que elegir. La discretización local es
+una iteración de punto fijo, y dos modelos que difieren en una muestra son los dos
+igual de válidos.
+
+Así que la aserción deja de fijar cinco decimales y pasa a decir lo que de verdad
+se puede afirmar: **el score no se desvía más de una muestra**. El margen es de
+muestra y media, porque exactamente `1/nSamples` pasaría con 1.2e-8 de holgura
+(los dos lados son el redondeo a float32 de `k/nSamples`) y eso no es una cota
+útil; dos muestras ya sería demasiado flojo para detectar una regresión.
+
+Es el único valor de la suite con trato especial, y está localizado en una rama
+`if` con el motivo escrito al lado.
+
+### Bug encontrado de paso: `conditionalMutualInformation` no es simétrica
+
+`I(X;Y|C)` es simétrica en X e Y por definición. La implementación no lo es:
+
+```
+iris:   6 de 6 pares asimétricos, diferencia máxima 1.32
+glass: 36 de 36 pares asimétricos, diferencia máxima 0.81
+
+  I(0;1|C) = 0                      I(1;0|C) = 0.9967
+  I(1;3|C) = 1.3185                 I(3;1|C) = 0
+```
+
+La causa está en los papeles de `first` y `second` dentro del
+`conditionalEntropy` de 4 argumentos. El comentario que lo encabeza dice
+`H(X|Y,C) = sum_{y,c} p(x,c) H(X|Y=y,C=c)`, pero el código indexa
+`keyJoint = (first, labels, second)` y `keyMarginal = (first, labels)`, de modo que
+`p_y_given_xc = p(second | first, labels)` y lo que acumula es
+**`H(second | first, labels)`**, no `H(first | second, labels)`.
+
+`conditionalMutualInformation` lo resta de `H(first | labels)`:
+
+```
+implementado:  H(first|labels) - H(second|first,labels)
+correcto:      H(first|labels) - H(first|second,labels)
+```
+
+Las dos formas válidas de la identidad son `H(X|C) - H(X|Y,C)` y
+`H(Y|C) - H(Y|X,C)`; esta mezcla una de cada. Se ve claro en glass con la feature
+constante: `I(0;4|C) = 0.81` es simplemente `H(X0|C)`, porque
+`H(Si|X0,C) = 0`. No es una información mutua.
+
+**Arreglado**: ver §7.sexies. Mueve el ranking de pares de `SelectKPairs` y con él
+los valores esperados de `BoostA2DE` y `XBA2DE`. Nótese que el §2 midió los
+empates del ranking de pares sobre esta función, así que esos números habría que
+rehacerlos.
+
+### Tercera corrida en macOS: verde
+
+Con la aserción de `KDBLd` acotada a una muestra: **2120 aserciones en 139 casos,
+todo pasa**, el mismo recuento exacto que en Linux. No queda ninguna aserción con
+trato por plataforma ni ningún valor esperado que dependa de dónde se generó.
+
+Nota sobre el plan original del §7: los pasos 2 y 3 («generar los golden en las dos
+plataformas y comprobar que los ficheros son idénticos») no se han ejecutado tal
+cual porque esta rama no tiene ni `TestGolden.cc` ni el `SKIP` por plataforma ni
+las 66 aserciones relajadas a 0.08 — eso vive en `v2/phase-0-golden-tests`. Lo que
+sí se ha demostrado es la condición que haría innecesaria esa arquitectura de dos
+niveles: la suite exacta coincide en las dos plataformas. Colapsar los dos niveles
+es trabajo para esa otra rama.
+
+## 7.sexies. `conditionalMutualInformation`: el arreglo y lo que mueve
+
+Fecha: 2026-10-07
+
+El bug anotado en el §7.quinquies, arreglado.
+
+### El error
+
+```cpp
+// antes
+keyJoint    = (first, labels, second)
+keyMarginal = (first, labels)          // <-- el marginal sobre el condicionado equivocado
+p_y_given_xc = jointFreq / marginalCount[keyMarginal]   // p(second | first, labels)
+```
+
+El condicionante debe ser `(Y,C)` y la variable medida `X`, así que el marginal va
+sobre `(second, labels)`. Tal como estaba, la función devolvía `H(Y|X,C)` en vez de
+`H(X|Y,C)` — los dos papeles intercambiados — y tanto
+`conditionalMutualInformation` como `SelectKPairs` lo restan de `H(X|C)`. Las dos
+formas válidas de la identidad son `H(X|C) - H(X|Y,C)` y `H(Y|C) - H(Y|X,C)`; esto
+mezclaba una de cada, de modo que el resultado no era una información mutua.
+
+```cpp
+// después
+keyJoint    = (first, second, labels)   // en el mismo orden que la identidad
+keyMarginal = (second, labels)
+p_x_given_yc = jointFreq / marginalCount[(y, c)]
+```
+
+### Dos comprobaciones independientes
+
+1. **Simetría.** `I(X;Y|C)` es simétrica por definición. Antes: los 6 pares de iris
+   y los 36 de glass discrepaban al intercambiar argumentos, hasta 1.32. Después:
+   simétrica a ~3e-15 (los dos sentidos pasan por cantidades intermedias distintas,
+   así que la igualdad exacta no es exigible), y **exacta** en los 8 pares que
+   involucran la feature constante, por las identidades degeneradas.
+2. **Coincidencia con `conditionalEdge`.** Esa función calcula la misma cantidad por
+   un camino sin relación, `Σ_c p(c)·I(Xi;Xj|C=c)`. En iris, ahora:
+
+   | par | `conditionalMutualInformation` | peso de `conditionalEdge` |
+   |---|---|---|
+   | (0,1) | 0.096928648 | 0.09692864865 |
+   | (0,2) | 0.0821388783 | 0.08213888109 |
+   | (1,2) | 0.0658413624 | 0.06584136188 |
+
+   Coinciden a 8 dígitos. Antes discrepaban por completo. Es la confirmación más
+   fuerte de que la fórmula corregida es la correcta.
+
+### Ceros exactos, otra vez
+
+Se añaden a la versión de 4 argumentos las mismas dos identidades degeneradas que
+el §7.quater puso en la de 2, y por el mismo motivo: con la fórmula corregida, un
+par que incluya una feature constante vale cero, y el §2 midió **15 empates exactos
+de 36** en el ranking de pares de glass. Como `SelectKPairs` resuelve esos empates
+por `(i,j)`, los ceros tienen que ser exactos en las dos plataformas, no «lo que
+difieran dos implementaciones de `H(X|C)`». La rama de `Y` constante devuelve
+precisamente la llamada que el llamante va a restar.
+
+### Alcance y dirección de los valores
+
+El `conditionalEntropy` de 4 argumentos no lo usa nadie más que `SelectKPairs` y
+`conditionalMutualInformation`, así que solo se mueven los ensembles de pares.
+**Intactos**: `BoostAODE`, `XBAODE`, `A2DE`, `AODE`, `TAN`, `KDB`, `SPODE` y las
+variantes `Ld` — ordenan features sueltas o pasan por `conditionalEdge`.
+
+| Test | Antes | Después | |
+|---|---|---|---|
+| `BoostA2DE` basic (diabetes) | 333 nodos, 37 modelos, 0.911458 | 378, 42, 0.917969 | sube |
+| `BoostA2DE` FCBF (glass) | 210 nodos, 21 modelos | 120, 12 | menos modelos |
+| `BoostA2DE` voting (iris) | 0.960000 | 0.966667 | sube |
+| `BoostA2DE` asc / desc / rand (glass) | 0.799065 / 0.813084 / 0.850467 | 0.813084 / 0.780374 / 0.850467 | sube / baja / igual |
+| `BoostA2DE` bisección (kdd) | 570 nodos, 38 modelos, 0.983333 | 585, 39, 0.970833 | baja |
+| `BoostA2DE` graph (iris) | 52 líneas | 13 | modelo menor |
+| `XBA2DE` asc / desc / rand (glass) | 0.808411 / 0.836449 / 0.827103 | 0.817757 / 0.822430 / 0.831776 | sube / baja / sube |
+| `XBA2DE` bisección (kdd) | 195 nodos, 13 modelos, 0.987500 | 180, 12, 0.995833 | sube |
+| `XBA2DE` best / last (kdd) | 0.980000 / 0.980000 | 0.983333 / 0.990000 | suben |
+| `XBA2DE` memory-limited (glass) | 90 nodos, 9 modelos | 60, 6 | menos modelos |
+
+Siete suben, cuatro bajan, uno igual. Son particiones únicas sobre datasets
+pequeños, así que ningún movimiento individual demuestra nada: lo que importa es
+que el criterio de ordenación ahora **es** una información mutua. Los valores de
+`[Metrics]` son los que más se mueven: las CMI de iris pasan del rango 0–1.32 al
+0.02–0.10, que es la escala correcta, y el ranking de pares se reordena del todo.
+
+Suite en Linux: 2120 aserciones en 139 casos, verde.
+
+### Y un bucle infinito que esto destapó en macOS
+
+Cambiar el ranking de pares dejó al descubierto que **`BoostA2DE::trainModel` podía
+no terminar**. El bucle no tenía salida por agotamiento de pares: `pairSelection` se
+reconstruye entera con `SelectKPairs` en cada vuelta y nada la reducía, porque
+`featuresUsed` solo se lee y no existía registro de pares consumidos. Comparado con
+sus hermanos:
+
+| | ¿marca lo usado? | ¿sale por agotamiento? |
+|---|---|---|
+| `BoostAODE` | `featuresUsed.push_back` | sí |
+| `XBA2DE` | `pairsUsed.insert` + filtro | sí |
+| `BoostA2DE` | **no** | **no** |
+
+Con `convergence = false` y `bisection = false` —los hiperparámetros del test
+`Order asc, desc & random`— `tolerance` nunca se incrementa, así que la única salida
+era `epsilon_t > 0.5`. En Linux se alcanzaba; en macOS, con el ranking nuevo, dejó
+de alcanzarse y la suite se quedó colgada ahí hasta que se interrumpió a los 15
+minutos.
+
+El mismo defecto permitía **repetir pares**: en diabetes, 8 features dan 28 pares y
+reportaba «Number of models: 42». Tras replicar el `pairsUsed` de `XBA2DE` la cuenta
+cierra: diabetes con convergencia apagada consume sus 28 pares, y glass para por
+error ponderado en 20, 10 y 8 modelos con 16, 26 y 28 pares sin usar — 36 en los
+tres casos.
+
+Es un defecto preexistente y latente, no una consecuencia del arreglo de la CMI:
+ese solo cambió qué pares se eligen, y con ello la trayectoria de pesos que lo
+mantenía oculto.
 
 ## 8. Reproducir las mediciones
 

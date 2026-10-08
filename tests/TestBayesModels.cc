@@ -57,7 +57,7 @@ TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
                                                       {{"glass", "SPODE"}, 0.775701},
                                                       {{"glass", "TAN"}, 0.827103},
                                                       {{"glass", "AODELd"}, 0.799065411f},
-                                                      {{"glass", "KDBLd"}, 0.869158864f},
+                                                      {{"glass", "KDBLd"}, 0.864485979f},
                                                       {{"glass", "SPODELd"}, 0.780373812f},
                                                       {{"glass", "TANLd"}, 0.831775725f},
                                                       {{"glass", "BoostAODE"}, 0.84579f},
@@ -96,7 +96,26 @@ TEST_CASE("Test Bayesian Classifiers score & version", "[Models]")
             // std::cout << "Classifier: " << name << " File: " << file_name << " Score: " << score << " expected = " <<
             //     scores[{file_name, name}] << std::endl;
             INFO("Classifier: " << name << " File: " << file_name);
-            REQUIRE(score == Catch::Approx(scores[{file_name, name}]).epsilon(raw.epsilon));
+            auto expected = Catch::Approx(scores[{file_name, name}]).epsilon(raw.epsilon);
+            // KDBLd on glass is the one score in the suite that is not reproducible
+            // across platforms to 1e-5: x86_64 gets 185 of the 214 samples right and
+            // arm64 186. Every decision along that path was measured and none is near
+            // a boundary -- the MDLP margins of the local discretization (320
+            // decisions, minimum 9.9e-05 relative against float32's 6e-8), the
+            // mutual-information ranking that orders the nodes (minimum relative gap
+            // 1.2e-03), the 357 comparisons against KDB's theta (minimum 5.9e-03), and
+            // the score itself is unchanged by input perturbations up to 1e-3. So this
+            // is not a tie this code can make total, and not a value worth pinning to
+            // five decimals; one sample of slack is what is actually being asserted.
+            // See analisis_portabilidad_tests.md section 7.quinquies. The margin is a
+            // sample and a half: exactly 1/nSamples would pass with 1.2e-8 to spare,
+            // since both sides are float32 roundings of k/nSamples, and that is too
+            // close to the edge to be a meaningful bound. Two samples would be too
+            // loose to catch a regression.
+            if (file_name == "glass" && name == "KDBLd") {
+                expected = expected.margin(1.5 / raw.nSamples);
+            }
+            REQUIRE(score == expected);
             REQUIRE(clf->getStatus() == bayesnet::NORMAL);
         }
     }

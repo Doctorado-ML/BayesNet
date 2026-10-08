@@ -1,16 +1,21 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: viewcoverage coverage setup help install uninstall diagrams buildr buildd test clean updatebadge doc doc-install init clean-test debug release conan-create conan-upload conan-clean sample
+.PHONY: viewcoverage coverage coverage-setup setup help install uninstall diagrams buildr buildd test clean updatebadge doc doc-install init clean-test debug release conan-create conan-upload conan-clean sample
 
 f_release = build_Release
 f_debug = build_Debug
+f_coverage = build_Coverage
 f_diagrams = diagrams
 app_targets = bayesnet
 test_targets = TestBayesNet
 clang-uml = clang-uml
 plantuml = plantuml
-lcov = lcov
-genhtml = genhtml
+gcovr ?= gcovr
+ifeq ($(shell uname -s),Darwin)
+gcovr_gcov ?= xcrun llvm-cov gcov
+else
+gcovr_gcov ?= gcov
+endif
 dot = dot
 docsrcdir = docs/manual
 mansrcdir = docs/man3
@@ -29,24 +34,30 @@ YELLOW = \033[1;33m
 RED = \033[0;31m
 NC = \033[0m # No Color
 
-define ClearTests
+# Takes the build directory to clear, so that running one test target never
+# invalidates the other one's binary: they are separate trees now, and forcing a
+# relink of the build you did not ask for is pure waste on a machine without ccache.
+define ClearTestsIn
 	@for t in $(test_targets); do \
-		if [ -f $(f_debug)/tests/$$t ]; then \
-			echo ">>> Removing $$t..." ; \
-			rm -f $(f_debug)/tests/$$t ; \
+		if [ -f $(1)/tests/$$t ]; then \
+			echo ">>> Removing $(1)/tests/$$t..." ; \
+			rm -f $(1)/tests/$$t ; \
 		fi ; \
 	done
-	@nfiles="$(find . -name "*.gcda" -print0)" ; \
-	if test "${nfiles}" != "" ; then \
-		find . -name "*.gcda" -print0 | xargs -0 rm 2>/dev/null ;\
-	fi ; 
+	@# Stale .gcda from a previous run make the next one spew "cannot merge
+	@# previous GCDA file" for every object and hide the test output.
+	@if test -d $(1) ; then find $(1) -name "*.gcda" -delete ; fi
 endef
 
+# $(3) carries the -D flags verbatim, so a target can pass more than one. Spelling
+# them out beats "-D$(3)" with the names inside: that collapsed two definitions into
+# one, leaving ENABLE_TESTING set to the string "ON -DENABLE_COVERAGE=ON" and
+# ENABLE_COVERAGE never set at all.
 define setup_target
 	@echo ">>> Setup the project for $(1)..."
 	@if [ -d $(2) ]; then rm -fr $(2); fi
 	@conan install . --build=missing -of $(2) -s build_type=$(1)
-	@cmake -S . -B $(2) -DCMAKE_TOOLCHAIN_FILE=$(2)/build/$(1)/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=$(1) -D$(3)
+	@cmake -S . -B $(2) -DCMAKE_TOOLCHAIN_FILE=$(2)/build/$(1)/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=$(1) $(3)
 	@echo ">>> Will build using $(JOBS) parallel jobs"
 	@echo ">>> Done"
 endef
@@ -67,17 +78,17 @@ endef
 
 setup: ## Install dependencies for tests and coverage
 	@if [ "$(shell uname)" = "Darwin" ]; then \
-		brew install lcov; \
+		brew install gcovr; \
 	fi
 	@if [ "$(shell uname)" = "Linux" ]; then \
-		sudo dnf install lcov;\
+		sudo dnf install gcovr;\
 	fi
 	@echo "* You should install plantuml & graphviz for the diagrams"
 
 clean: ## Clean the project
 	@echo ">>> Cleaning the project..."
 	@if test -f CMakeCache.txt ; then echo "- Deleting CMakeCache.txt"; rm -f CMakeCache.txt; fi
-	@for folder in $(f_release) $(f_debug) vpcpkg_installed install_test ; do \
+	@for folder in $(f_release) $(f_debug) $(f_coverage) vpcpkg_installed install_test ; do \
 		if test -d "$$folder" ; then \
 			echo "- Deleting $$folder folder" ; \
 			rm -rf "$$folder"; \
@@ -90,10 +101,13 @@ clean: ## Clean the project
 # =============
 
 debug: ## Setup debug version using Conan
-	@$(call setup_target,"Debug","$(f_debug)","ENABLE_TESTING=ON")
+	@$(call setup_target,"Debug","$(f_debug)",-DENABLE_TESTING=ON)
 
 release: ## Setup release version using Conan
-	@$(call setup_target,"Release","$(f_release)","ENABLE_TESTING=OFF")
+	@$(call setup_target,"Release","$(f_release)",-DENABLE_TESTING=OFF)
+
+coverage-setup: ## Setup the instrumented build used by make coverage
+	@$(call setup_target,"Debug","$(f_coverage)",-DENABLE_TESTING=ON -DENABLE_COVERAGE=ON)
 
 buildd: ## Build the debug && test targets
 	@cmake --build $(f_debug) --config Debug -t $(app_targets) --parallel $(JOBS)
@@ -124,15 +138,16 @@ install: ## Install library
 # Test targets
 # ============
 
-clean-test: ## Clean the tests info
-	@echo ">>> Cleaning Debug BayesNet tests...";
-	$(call ClearTests)
+clean-test: ## Clean the tests info of both test builds
+	@echo ">>> Cleaning BayesNet tests...";
+	$(call ClearTestsIn,$(f_debug))
+	$(call ClearTestsIn,$(f_coverage))
 	@echo ">>> Done";
 
 opt = ""
 test: ## Run tests (opt="-s") to verbose output the tests, (opt="-c='Test Maximum Spanning Tree'") to run only that section
 	@echo ">>> Running BayesNet tests...";
-	@$(MAKE) clean-test
+	$(call ClearTestsIn,$(f_debug))
 	@cmake --build $(f_debug) -t $(test_targets) --parallel $(JOBS)
 	@for t in $(test_targets); do \
 		echo ">>> Running $$t...";\
@@ -144,44 +159,51 @@ test: ## Run tests (opt="-s") to verbose output the tests, (opt="-c='Test Maximu
 	done
 	@echo ">>> Done";
 
-coverage: ## Run tests and generate coverage report (build/index.html)
+coverage: ## Build the instrumented tests, run them and generate the report
 	@echo ">>> Building tests with coverage..."
-	@which $(lcov) || (echo ">>ease install lcov"; exit 1)
-	@if [ ! -f $(f_debug)/tests/coverage.info ] ; then $(MAKE) test ; fi
+	@which $(gcovr) >/dev/null || (echo ">>> Please install gcovr (make setup)"; exit 1)
+	@if [ ! -d $(f_coverage) ] ; then $(MAKE) coverage-setup ; fi
+	$(call ClearTestsIn,$(f_coverage))
+	@cmake --build $(f_coverage) -t $(test_targets) --parallel $(JOBS)
+	@echo ">>> Running instrumented tests..."
+	@for t in $(test_targets); do \
+		if [ -f $(f_coverage)/tests/$$t ]; then \
+			cd $(f_coverage)/tests ; \
+			./$$t ; \
+			cd ../.. ; \
+		fi ; \
+	done
 	@echo ">>> Building report..."
-	@cd $(f_debug)/tests; \
-	$(lcov) --directory CMakeFiles --capture --demangle-cpp --ignore-errors source,source --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info '/usr/*' --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info 'lib/*' --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info 'include/*' --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info 'libtorch/*' --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info 'tests/*' --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info 'bayesnet/utils/loguru.*' --ignore-errors unused --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info '/opt/miniconda/*' --ignore-errors unused --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info '*/.conan2/*' --ignore-errors unused --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --summary coverage.info
+	@mkdir -p $(f_coverage)/tests/coverage
+	@$(gcovr) --root . --object-directory $(f_coverage) \
+		--gcov-executable "$(gcovr_gcov)" \
+		--filter '$(CURDIR)/bayesnet/' \
+		--exclude '$(CURDIR)/bayesnet/utils/loguru.*' \
+		--html-details $(f_coverage)/tests/coverage/index.html \
+		--print-summary --lcov $(f_coverage)/tests/coverage.info \
+		$(f_coverage)
 	@$(MAKE) updatebadge
 	@echo ">>> Done";	
 
 viewcoverage: ## View the html coverage report
-	@which $(genhtml) >/dev/null || (echo ">>> Please install lcov (genhtml not found)"; exit 1)
+	@which $(gcovr) >/dev/null || (echo ">>> Please install gcovr (make setup)"; exit 1)
 	@if [ ! -d $(docsrcdir)/coverage ]; then mkdir -p $(docsrcdir)/coverage; fi
-	@if [ ! -f $(f_debug)/tests/coverage.info ]; then \
-		echo ">>> No coverage.info file found. Run make coverage first!"; \
+	@if [ ! -f $(f_coverage)/tests/coverage/index.html ]; then \
+		echo ">>> No gcovr HTML report found. Run make coverage first!"; \
 		exit 1; \
 	fi
-	@$(genhtml) $(f_debug)/tests/coverage.info --demangle-cpp --output-directory $(docsrcdir)/coverage --title "BayesNet Coverage Report" -s -k -f --legend >/dev/null 2>&1;
+	@cp -R $(f_coverage)/tests/coverage/. $(docsrcdir)/coverage/
 	@xdg-open $(docsrcdir)/coverage/index.html || open $(docsrcdir)/coverage/index.html 2>/dev/null
 	@echo ">>> Done";
 
 updatebadge: ## Update the coverage badge in README.md
-	@which python || (echo ">>> Please install python"; exit 1)
-	@if [ ! -f $(f_debug)/tests/coverage.info ]; then \
+	@which python3 >/dev/null || (echo ">>> Please install Python 3"; exit 1)
+	@if [ ! -f $(f_coverage)/tests/coverage.info ]; then \
 		echo ">>> No coverage.info file found. Run make coverage first!"; \
 		exit 1; \
 	fi
 	@echo ">>> Updating coverage badge..."
-	@env python update_coverage.py $(f_debug)/tests
+	@env python3 update_coverage.py $(f_coverage)/tests
 	@echo ">>> Done";
 
 # Documentation targets
@@ -273,6 +295,7 @@ info: ## Show project information
 	@printf "   $(YELLOW)make debug && make buildd$(NC)   - Build library for debug\n"
 	@printf "   $(YELLOW)make buildt$(NC)                 - Build the test targets\n"
 	@printf "   $(YELLOW)make test$(NC)                   - Build & Run tests\n"
+	@printf "   $(YELLOW)make coverage$(NC)               - Build & Run instrumented tests + report\n"
 	@printf "   $(YELLOW)Usage:$(NC) make help\n"
 	@echo ""
 	@printf "   $(YELLOW)Parallel Jobs:   $(GREEN)$(JOBS)$(NC)\n"

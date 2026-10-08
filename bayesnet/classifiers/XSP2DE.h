@@ -39,6 +39,21 @@ class XSp2de : public Classifier {
     int getClassNumStates() const override;
     int getNumberOfStates() const override;
 
+    // Bytes held by the probability/count tables of a *fitted* model, measured
+    // from the vectors' capacity. This is the RESIDENT footprint: computeProbabilities
+    // releases childCounts_, so it excludes that block. It deliberately ignores the
+    // `dataset` tensor (storage shared with the ensemble, does not scale with the
+    // number of models) and `metrics`: the budget is for the ensemble, not the process.
+    size_t memoryFootprint() const;
+
+    // Upper bound on the PEAK bytes a model for the pair (sp1, sp2) will hold while
+    // fitting, i.e. with both childCounts_ and childProbs_ alive. `states` is the
+    // per-feature cardinality vector and `statesClass` the number of class states.
+    // Feeding it the ensemble's `states` map yields an upper bound of the real
+    // footprint, because buildModel derives states_ from the training fold, whose
+    // per-feature maxima can only be smaller.
+    static size_t estimateFootprint(const std::vector<int> &states, int statesClass, int sp1, int sp2);
+
   protected:
     void buildModel(const torch::Tensor &weights) override;
     void trainModel(const torch::Tensor &weights, const bayesnet::Smoothing_t smoothing) override;

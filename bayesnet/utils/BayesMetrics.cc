@@ -250,10 +250,25 @@ namespace bayesnet {
         if (numSamples == 0)
             return 0;
 
+        // Two degenerate cases, stated as the identities they are instead of left to
+        // fall out of the arithmetic. Both produce whole blocks of edges that tie at
+        // exactly zero, and the tie-break in kruskal_algorithm is what then defines
+        // the spanning tree, so "near zero" is not good enough: any residue turns the
+        // tie into an ordering. H(X|Y) cannot be left to agree with H(X) by accident
+        // either -- entropy() sums through ATen and the table below sums
+        // sequentially, two implementations of the same quantity that mutualInformation
+        // subtracts from one another. They matched on x86_64 and did not on arm64,
+        // which is what made glass's spanning tree platform dependent.
+        const int firstMax = first.max().item<int>();
+        if (firstMax == first.min().item<int>())
+            return 0;                                    // X constant: H(X|Y) = 0
+        if (second.max().item<int>() == second.min().item<int>())
+            return entropy(firstFeature, weights);       // Y constant: H(X|Y) = H(X)
+
         auto featureCounts = second.bincount(weights_).to(torch::kFloat64).contiguous();
         auto featureCountsData = featureCounts.accessor<double, 1>();
         int numSecondStates = static_cast<int>(featureCounts.size(0));
-        int numFirstStates = first.max().item<int>() + 1;
+        int numFirstStates = firstMax + 1;
 
         // jointWeight accumulates the weight of every (second, first) cell;
         // observed marks the cells that actually occur, which is what the
@@ -291,24 +306,51 @@ namespace bayesnet {
         }
         return entropyValue;
     }
-    // H(X|Y,C) = sum_{y in Y, c in C} p(x,c) H(X|Y=y,C=c)
+    // H(X|Y,C) = -sum_{x,y,c} p(x,y,c) log p(x|y,c)
+    //
+    // The conditioning set is (Y,C) and the variable whose uncertainty is left is X,
+    // so the marginal has to be keyed on (y,c). It used to be keyed on (x,c), which
+    // made this return H(Y|X,C) instead -- the roles of the two features swapped.
+    // conditionalMutualInformation and SelectKPairs both subtract this from H(X|C),
+    // and the two valid forms of the identity are H(X|C) - H(X|Y,C) and
+    // H(Y|C) - H(Y|X,C); pairing H(X|C) with H(Y|X,C) mixes one of each. The visible
+    // symptom was that I(X;Y|C) came out asymmetric, which it cannot be: on glass all
+    // 36 pairs disagreed when the arguments were swapped, by up to 0.81.
     double Metrics::conditionalEntropy(const torch::Tensor& firstFeature, const torch::Tensor& secondFeature, const torch::Tensor& labels, const torch::Tensor& weights)
     {
         // Ensure the tensors are of the same length
         assert(firstFeature.size(0) == secondFeature.size(0) && firstFeature.size(0) == labels.size(0) && firstFeature.size(0) == weights.size(0));
+        int numSamples = firstFeature.size(0);
+        if (numSamples == 0)
+            return 0;
+
+        // The same two degenerate identities the two-argument overload states, and for
+        // the same reason: conditioning on a constant is vacuous, and the callers
+        // subtract this from H(X|C) computed by that *other* overload. Returning the
+        // very call they subtract makes I(X;Y|C) come out as exactly zero rather than
+        // as whatever ~1e-16 two different implementations of H(X|C) happen to differ
+        // by. Blocks of pairs tie at exactly zero that way -- 15 of the 36 on glass --
+        // and SelectKPairs' ranking is decided by the tie-break, so the zeros have to
+        // be exact on every platform.
+        if (firstFeature.max().item<int>() == firstFeature.min().item<int>())
+            return 0;                                              // X constant: H(X|Y,C) = 0
+        if (secondFeature.max().item<int>() == secondFeature.min().item<int>())
+            return conditionalEntropy(firstFeature, labels, weights); // Y constant: H(X|Y,C) = H(X|C)
+
         // Convert tensors to vectors for easier processing
         auto firstFeatureData = firstFeature.accessor<int, 1>();
         auto secondFeatureData = secondFeature.accessor<int, 1>();
         auto labelsData = labels.accessor<int, 1>();
         auto weightsData = weights.accessor<double, 1>();
-        int numSamples = firstFeature.size(0);
-        // Maps for joint and marginal probabilities
+        // Maps for joint and marginal probabilities. std::map rather than
+        // unordered_map so the accumulation order, and therefore the result, does not
+        // depend on the standard library.
         std::map<std::tuple<int, int, int>, double> jointCount;
         std::map<std::tuple<int, int>, double> marginalCount;
         // Compute joint and marginal counts
         for (int i = 0; i < numSamples; ++i) {
-            auto keyJoint = std::make_tuple(firstFeatureData[i], labelsData[i], secondFeatureData[i]);
-            auto keyMarginal = std::make_tuple(firstFeatureData[i], labelsData[i]);
+            auto keyJoint = std::make_tuple(firstFeatureData[i], secondFeatureData[i], labelsData[i]);
+            auto keyMarginal = std::make_tuple(secondFeatureData[i], labelsData[i]);
 
             jointCount[keyJoint] += weightsData[i];
             marginalCount[keyMarginal] += weightsData[i];
@@ -320,12 +362,10 @@ namespace bayesnet {
         // Compute the conditional entropy
         double conditionalEntropy = 0.0;
         for (const auto& [keyJoint, jointFreq] : jointCount) {
-            auto [x, c, y] = keyJoint;
-            auto keyMarginal = std::make_tuple(x, c);
-            //double p_xc = marginalCount[keyMarginal] / totalWeight;
-            double p_y_given_xc = jointFreq / marginalCount[keyMarginal];
-            if (p_y_given_xc > 0) {
-                conditionalEntropy -= (jointFreq / totalWeight) * std::log(p_y_given_xc);
+            auto [x, y, c] = keyJoint;
+            double p_x_given_yc = jointFreq / marginalCount[std::make_tuple(y, c)];
+            if (p_x_given_yc > 0) {
+                conditionalEntropy -= (jointFreq / totalWeight) * std::log(p_x_given_yc);
             }
         }
         return conditionalEntropy;

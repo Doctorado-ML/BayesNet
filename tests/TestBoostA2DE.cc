@@ -18,14 +18,14 @@ TEST_CASE("Build basic model", "[BoostA2DE]")
     auto raw = RawDatasets("diabetes", true);
     auto clf = bayesnet::BoostA2DE();
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 333);
-    REQUIRE(clf.getNumberOfEdges() == 666);
+    REQUIRE(clf.getNumberOfNodes() == 27);
+    REQUIRE(clf.getNumberOfEdges() == 54);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes()[0] == "Convergence threshold reached & 15 models eliminated");
-    REQUIRE(clf.getNotes()[1] == "Pairs not used in train: 20");
-    REQUIRE(clf.getNotes()[2] == "Number of models: 37");
+    REQUIRE(clf.getNotes()[1] == "Pairs not used in train: 10");
+    REQUIRE(clf.getNotes()[2] == "Number of models: 3");
     auto score = clf.score(raw.Xv, raw.yv);
-    REQUIRE(score == Catch::Approx(0.911458313).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.90234375).epsilon(raw.epsilon));
 }
 TEST_CASE("Feature_select IWSS", "[BoostA2DE]")
 {
@@ -45,12 +45,11 @@ TEST_CASE("Feature_select FCBF", "[BoostA2DE]")
     auto clf = bayesnet::BoostA2DE();
     clf.setHyperparameters({ {"select_features", "FCBF"}, {"threshold", 1e-7 } });
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 210);
-    REQUIRE(clf.getNumberOfEdges() == 441);
-    REQUIRE(clf.getNotes().size() == 3);
+    REQUIRE(clf.getNumberOfNodes() == 160);
+    REQUIRE(clf.getNumberOfEdges() == 336);
+    REQUIRE(clf.getNotes().size() == 2);
     REQUIRE(clf.getNotes()[0] == "Used features in initialization: 5 of 9 with FCBF");
-    REQUIRE(clf.getNotes()[1] == "Pairs not used in train: 4");
-    REQUIRE(clf.getNotes()[2] == "Number of models: 21");
+    REQUIRE(clf.getNotes()[1] == "Number of models: 16");
 }
 TEST_CASE("Test used features in train note and score", "[BoostA2DE]")
 {
@@ -86,16 +85,16 @@ TEST_CASE("Voting vs proba", "[BoostA2DE]")
     auto pred_voting = clf.predict_proba(raw.Xv);
     REQUIRE(score_proba == Catch::Approx(0.959999979).epsilon(raw.epsilon));
     REQUIRE(score_voting == Catch::Approx(0.959999979).epsilon(raw.epsilon));
-    REQUIRE(pred_voting[83][2] == Catch::Approx(0.526992559).epsilon(raw.epsilon));
-    REQUIRE(pred_proba[83][2] == Catch::Approx(0.4114456).epsilon(raw.epsilon));
-    REQUIRE(clf.dump_cpt().size() == 15864);
+    REQUIRE(pred_voting[83][2] == Catch::Approx(0.575567067).epsilon(raw.epsilon));
+    REQUIRE(pred_proba[83][2] == Catch::Approx(0.377594117).epsilon(raw.epsilon));
+    REQUIRE(clf.dump_cpt().size() == 21954);
     REQUIRE(clf.topological_order() == std::vector<std::string>());
 }
 TEST_CASE("Order asc, desc & random", "[BoostA2DE]")
 {
     auto raw = RawDatasets("glass", true);
     std::map<std::string, double> scores{
-        {"asc", 0.799065411f }, { "desc", 0.813084f }, { "rand", 0.855140209f }
+        {"asc", 0.855140209f }, { "desc", 0.82710278f }, { "rand", 0.84579438f }
     };
     for (const std::string& order : { "asc", "desc", "rand" }) {
         auto clf = bayesnet::BoostA2DE();
@@ -163,16 +162,16 @@ TEST_CASE("Bisection Best", "[BoostA2DE]")
         {"convergence_best", true},
         });
     clf.fit(raw.X_train, raw.y_train, raw.features, raw.className, raw.states, raw.smoothing);
-    REQUIRE(clf.getNumberOfNodes() == 465);
-    REQUIRE(clf.getNumberOfEdges() == 1116);
+    REQUIRE(clf.getNumberOfNodes() == 405);
+    REQUIRE(clf.getNumberOfEdges() == 972);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 15 models eliminated");
-    REQUIRE(clf.getNotes().at(1) == "Pairs not used in train: 83");
-    REQUIRE(clf.getNotes().at(2) == "Number of models: 31");
+    REQUIRE(clf.getNotes().at(1) == "Pairs not used in train: 49");
+    REQUIRE(clf.getNotes().at(2) == "Number of models: 27");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
-    REQUIRE(score == Catch::Approx(0.983333349f).epsilon(raw.epsilon));
-    REQUIRE(scoret == Catch::Approx(0.983333349f).epsilon(raw.epsilon));
+    REQUIRE(score == Catch::Approx(0.991666675f).epsilon(raw.epsilon));
+    REQUIRE(scoret == Catch::Approx(0.991666675f).epsilon(raw.epsilon));
 }
 TEST_CASE("Block Update", "[BoostA2DE]")
 {
@@ -189,7 +188,7 @@ TEST_CASE("Block Update", "[BoostA2DE]")
     REQUIRE(clf.getNumberOfEdges() == 165);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes()[0] == "Convergence threshold reached & 15 models eliminated");
-    REQUIRE(clf.getNotes()[1] == "Pairs not used in train: 1588");
+    REQUIRE(clf.getNotes()[1] == "Pairs not used in train: 1580");
     REQUIRE(clf.getNotes()[2] == "Number of models: 1");
     auto score = clf.score(raw.X_test, raw.y_test);
     auto scoret = clf.score(raw.X_test, raw.y_test);
@@ -210,7 +209,7 @@ TEST_CASE("Test graph b2a2de", "[BoostA2DE]")
     auto clf = bayesnet::BoostA2DE();
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
     auto graph = clf.graph();
-    REQUIRE(graph.size() == 52);
+    REQUIRE(graph.size() == 78);
     REQUIRE(graph[0] == "digraph BayesNet {\nlabel=<BayesNet BoostA2DE_0>\nfontsize=30\nfontcolor=blue\nlabelloc=t\nlayout=circo\n");
     REQUIRE(graph[1] == "\"class\" [shape=circle, fontcolor=red, fillcolor=lightblue, style=filled ] \n");
 }

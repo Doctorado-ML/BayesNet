@@ -6,6 +6,7 @@
 #include "XBAODE.h"
 #include "bayesnet/classifiers/XSPODE.h"
 #include "bayesnet/utils/TensorUtils.h"
+#include "bayesnet/utils/bayesnetUtils.h"
 #include <limits.h>
 #include <random>
 #include <tuple>
@@ -76,7 +77,7 @@ namespace bayesnet {
             // Step 1: Build ranking with mutual information
             auto featureSelection = metrics.SelectKBestWeighted(weights_, ascending, n); // Get all the features sorted
             if (order_algorithm == bayesnet::Orders.RAND) {
-                std::shuffle(featureSelection.begin(), featureSelection.end(), g);
+                bayesnet::deterministicShuffle(featureSelection.begin(), featureSelection.end(), g);
             }
             // Remove used features
             featureSelection.erase(remove_if(featureSelection.begin(), featureSelection.end(),

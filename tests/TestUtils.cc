@@ -7,6 +7,7 @@
 #include <random>
 #include <nlohmann/json.hpp>
 #include "TestUtils.h"
+#include "bayesnet/utils/bayesnetUtils.h"
 #include "bayesnet/config.h"
 
 class Paths {
@@ -34,8 +35,11 @@ public:
             auto indices = std::vector<int>(num_samples);
             std::iota(indices.begin(), indices.end(), 0);
             if (shuffle) {
+                // Not std::shuffle: the standard does not specify the algorithm, so
+                // libstdc++ and libc++ draw different permutations from the same seed
+                // and the subsample was a different set of rows on each platform.
                 std::mt19937 g{ 173 };
-                std::shuffle(indices.begin(), indices.end(), g);
+                bayesnet::deterministicShuffle(indices.begin(), indices.end(), g);
             }
             auto XX = std::vector<std::vector<float>>(n_features, std::vector<float>(num_samples));
             auto yy = std::vector<int>(num_samples);

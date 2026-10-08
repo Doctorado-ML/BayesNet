@@ -6,6 +6,7 @@
 
 #include "BoostAODE.h"
 #include "bayesnet/classifiers/SPODE.h"
+#include "bayesnet/utils/bayesnetUtils.h"
 #include <limits.h>
 // #include <loguru.cpp>
 // #include <loguru.hpp>
@@ -80,7 +81,7 @@ namespace bayesnet {
             // Step 1: Build ranking with mutual information
             auto featureSelection = metrics.SelectKBestWeighted(weights_, ascending, n); // Get all the features sorted
             if (order_algorithm == Orders.RAND) {
-                std::shuffle(featureSelection.begin(), featureSelection.end(), g);
+                deterministicShuffle(featureSelection.begin(), featureSelection.end(), g);
             }
             // Remove used features
             featureSelection.erase(remove_if(begin(featureSelection), end(featureSelection), [&](auto x) { return std::find(begin(featuresUsed), end(featuresUsed), x) != end(featuresUsed); }),

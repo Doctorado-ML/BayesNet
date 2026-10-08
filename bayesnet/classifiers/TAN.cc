@@ -34,7 +34,12 @@ namespace bayesnet {
             auto mi_value = metrics.mutualInformation(class_dataset, feature_dataset, weights);
             mi.push_back({ i, mi_value });
         }
-        sort(mi.begin(), mi.end(), [](const auto& left, const auto& right) {return left.second < right.second;});
+        // Equal mutual informations are broken by feature index, so the root picked
+        // below does not depend on std::sort's handling of equivalent elements
+        std::sort(mi.begin(), mi.end(), [](const auto& left, const auto& right) {
+            if (left.second != right.second) return left.second < right.second;
+            return left.first < right.first;
+            });
         auto root = parent == -1 ? mi[mi.size() - 1].first : parent;
         if (root >= static_cast<int>(features.size())) {
             throw std::invalid_argument("The parent node is not in the dataset");

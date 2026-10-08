@@ -27,8 +27,8 @@ TEST_CASE("Metrics Test", "[Metrics]")
         {"diabetes", 0.0345470614}
     };
     std::map<std::pair<std::string, int>, std::vector<std::pair<int, int>>> resultsMST = {
-        { {"glass", 0}, { {0, 6}, {0, 5}, {0, 3}, {3, 4}, {5, 1}, {5, 8}, {6, 2}, {6, 7} } },
-        { {"glass", 1}, { {1, 5}, {5, 0}, {5, 8}, {0, 6}, {0, 3}, {3, 4}, {6, 2}, {6, 7} } },
+        { {"glass", 0}, { {0, 6}, {0, 5}, {0, 3}, {0, 4}, {5, 1}, {5, 8}, {6, 2}, {6, 7} } },
+        { {"glass", 1}, { {1, 5}, {5, 0}, {5, 8}, {0, 6}, {0, 3}, {0, 4}, {6, 2}, {6, 7} } },
         { {"iris", 0}, { {0, 1}, {0, 2}, {1, 3} } },
         { {"iris", 1}, { {1, 0}, {1, 3}, {0, 2} } },
         { {"ecoli", 0}, { {0, 1}, {0, 2}, {1, 5}, {1, 3}, {5, 6}, {5, 4} } },
@@ -76,6 +76,47 @@ TEST_CASE("Metrics Test", "[Metrics]")
         }
     }
 }
+// A feature left with a single state by discretization carries no information, so
+// its mutual information must be *exactly* zero, not merely close to it: whole
+// blocks of edges then tie at zero and the tie-break in kruskal_algorithm is what
+// defines the spanning tree. Any noise here turns the tie into an ordering, and a
+// platform dependent one -- which is how glass's tree came out differently on
+// arm64 than on x86_64. The marginal in the two-argument conditionalEntropy used
+// to come from second.bincount(weights) while the joint came from a sequential
+// loop, two different summation orders over the same weights, and one ulp of
+// disagreement left ~1e-16 behind. Compared with == on purpose.
+TEST_CASE("A constant feature has exactly zero mutual information", "[Metrics]")
+{
+    auto raw = RawDatasets("glass", true);
+    bayesnet::Metrics metrics(raw.dataset, raw.features, raw.className, raw.classNumStates);
+    // Si is the constant one on glass; assert that rather than assume it
+    const int constantFeature = 4;
+    auto column = raw.dataset.index({ constantFeature, "..." });
+    REQUIRE(column.max().item<int>() == column.min().item<int>());
+
+    auto classes = raw.dataset.index({ -1, "..." });
+    for (int i = 0; i < static_cast<int>(raw.features.size()); ++i) {
+        if (i == constantFeature) continue;
+        auto other = raw.dataset.index({ i, "..." });
+        REQUIRE(metrics.entropy(column, raw.weights) == 0.0);
+        REQUIRE(metrics.mutualInformation(column, other, raw.weights) == 0.0);
+        REQUIRE(metrics.mutualInformation(other, column, raw.weights) == 0.0);
+        REQUIRE(metrics.conditionalMutualInformation(column, other, classes, raw.weights) == 0.0);
+        // and per class, which is what conditionalEdge accumulates
+        for (int value = 0; value < raw.classNumStates; ++value) {
+            auto mask = classes == value;
+            REQUIRE(metrics.mutualInformation(column.index({ mask }), other.index({ mask }),
+                raw.weights.index({ mask })) == 0.0);
+        }
+    }
+    // so every edge of that feature is exactly zero in the conditionalEdge matrix
+    auto weights_matrix = metrics.conditionalEdge(raw.weights);
+    for (int i = 0; i < static_cast<int>(raw.features.size()); ++i) {
+        if (i == constantFeature) continue;
+        REQUIRE(weights_matrix[constantFeature][i].item<float>() == 0.0f);
+        REQUIRE(weights_matrix[i][constantFeature].item<float>() == 0.0f);
+    }
+}
 TEST_CASE("Select all features ordered by Mutual Information", "[Metrics]")
 {
     auto raw = RawDatasets("iris", true);
@@ -103,12 +144,12 @@ TEST_CASE("Conditional Entropy", "[Metrics]")
     auto raw = RawDatasets("iris", true);
     bayesnet::Metrics metrics(raw.dataset, raw.features, raw.className, raw.classNumStates);
     auto expected = std::map<std::pair<int, int>, double>{
-        { { 0, 1 }, 1.32674 },
-        { { 0, 2 }, 0.236253 },
-        { { 0, 3 }, 0.1202 },
-        { { 1, 2 }, 0.252551 },
-        { { 1, 3 }, 0.10515 },
-        { { 2, 3 }, 0.108323 },
+        { { 0, 1 }, 0.427020291 },
+        { { 0, 2 }, 0.44181006 },
+        { { 0, 3 }, 0.503108294 },
+        { { 1, 2 }, 1.35782975 },
+        { { 1, 3 }, 1.38778032 },
+        { { 2, 3 }, 0.285674619 },
     };
     for (int i = 0; i < raw.features.size() - 1; ++i) {
         for (int j = i + 1; j < raw.features.size(); ++j) {
@@ -122,12 +163,12 @@ TEST_CASE("Conditional Mutual Information", "[Metrics]")
     auto raw = RawDatasets("iris", true);
     bayesnet::Metrics metrics(raw.dataset, raw.features, raw.className, raw.classNumStates);
     auto expected = std::map<std::pair<int, int>, double>{
-        { { 0, 1 }, 0.0 },
-        { { 0, 2 }, 0.287696 },
-        { { 0, 3 }, 0.403749 },
-        { { 1, 2 }, 1.17112 },
-        { { 1, 3 }, 1.31852 },
-        { { 2, 3 }, 0.210068 },
+        { { 0, 1 }, 0.096928648 },
+        { { 0, 2 }, 0.0821388783 },
+        { { 0, 3 }, 0.0208406446 },
+        { { 1, 2 }, 0.0658413624 },
+        { { 1, 3 }, 0.0358907881 },
+        { { 2, 3 }, 0.0327172475 },
     };
     for (int i = 0; i < raw.features.size() - 1; ++i) {
         for (int j = i + 1; j < raw.features.size(); ++j) {
@@ -143,12 +184,12 @@ TEST_CASE("Select K Pairs descending", "[Metrics]")
     std::vector<int> empty;
     auto results = metrics.SelectKPairs(raw.weights, empty, false);
     auto expected = std::vector<std::pair<std::pair<int, int>, double>>{
-        { { 1, 3 }, 1.31852 },
-        { { 1, 2 }, 1.17112 },
-        { { 0, 3 }, 0.403749 },
-        { { 0, 2 }, 0.287696 },
-        { { 2, 3 }, 0.210068 },
-        { { 0, 1 }, 0.0 },
+        { { 0, 1 }, 0.096928648 },
+        { { 0, 2 }, 0.0821388783 },
+        { { 1, 2 }, 0.0658413624 },
+        { { 1, 3 }, 0.0358907881 },
+        { { 2, 3 }, 0.0327172475 },
+        { { 0, 3 }, 0.0208406446 },
     };
     auto scores = metrics.getScoresKPairs();
     for (int i = 0; i < results.size(); ++i) {
@@ -171,12 +212,12 @@ TEST_CASE("Select K Pairs ascending", "[Metrics]")
     std::vector<int> empty;
     auto results = metrics.SelectKPairs(raw.weights, empty, true);
     auto expected = std::vector<std::pair<std::pair<int, int>, double>>{
-        { { 0, 1 }, 0.0 },
-        { { 2, 3 }, 0.210068 },
-        { { 0, 2 }, 0.287696 },
-        { { 0, 3 }, 0.403749 },
-        { { 1, 2 }, 1.17112 },
-        { { 1, 3 }, 1.31852 },
+        { { 0, 3 }, 0.0208406446 },
+        { { 2, 3 }, 0.0327172475 },
+        { { 1, 3 }, 0.0358907881 },
+        { { 1, 2 }, 0.0658413624 },
+        { { 0, 2 }, 0.0821388783 },
+        { { 0, 1 }, 0.096928648 },
     };
     auto scores = metrics.getScoresKPairs();
     for (int i = 0; i < results.size(); ++i) {
@@ -199,7 +240,7 @@ TEST_CASE("Select K Pairs with features excluded", "[Metrics]")
     std::vector<int> excluded = { 0, 3 };
     auto results = metrics.SelectKPairs(raw.weights, excluded, true);
     auto expected = std::vector<std::pair<std::pair<int, int>, double>>{
-        { { 1, 2 }, 1.17112 },
+        { { 1, 2 }, 0.0658413624 },
     };
     auto scores = metrics.getScoresKPairs();
     for (int i = 0; i < results.size(); ++i) {
@@ -222,9 +263,9 @@ TEST_CASE("Select K Pairs with number of pairs descending", "[Metrics]")
     std::vector<int> empty;
     auto results = metrics.SelectKPairs(raw.weights, empty, false, 3);
     auto expected = std::vector<std::pair<std::pair<int, int>, double>>{
-        { { 1, 3 }, 1.31852 },
-        { { 1, 2 }, 1.17112 },
-        { { 0, 3 }, 0.403749 }
+        { { 0, 1 }, 0.096928648 },
+        { { 0, 2 }, 0.0821388783 },
+        { { 1, 2 }, 0.0658413624 }
     };
     auto scores = metrics.getScoresKPairs();
     REQUIRE(results.size() == 3);
@@ -247,9 +288,9 @@ TEST_CASE("Select K Pairs with number of pairs ascending", "[Metrics]")
     std::vector<int> empty;
     auto results = metrics.SelectKPairs(raw.weights, empty, true, 3);
     auto expected = std::vector<std::pair<std::pair<int, int>, double>>{
-        { { 0, 3 }, 0.403749 },
-        { { 1, 2 }, 1.17112 },
-        { { 1, 3 }, 1.31852 }
+        { { 1, 2 }, 0.0658413624 },
+        { { 0, 2 }, 0.0821388783 },
+        { { 0, 1 }, 0.096928648 }
     };
     auto scores = metrics.getScoresKPairs();
     REQUIRE(results.size() == 3);
