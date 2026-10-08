@@ -10,29 +10,12 @@ app_targets = bayesnet
 test_targets = TestBayesNet
 clang-uml = clang-uml
 plantuml = plantuml
-lcov = lcov
-# Passed through to lcov --capture. Empty by default, so lcov picks its own gcov;
-# override when that gcov cannot read the .gcda the compiler wrote.
-GCOV_TOOL =
-# Everything that is not our own source, excluded while capturing rather than
-# removed afterwards. lcov has to parse a file before it can drop it later, and
-# parsing a dependency's headers is what broke the capture on macOS: Apple's
-# llvm-cov emulates gcov 4.2, which reports no function end lines, so lcov derives
-# them and got an inconsistent result inside a libtorch header -- a file the old
-# --remove chain was going to discard two commands later anyway.
-# The rest of the capture below is a no-op with gcc, which reports function end
-# lines and names no function __cxx_global_var_init. With llvm-cov it is needed:
-# - clang's static initialisers are reported at line 0, which lcov rejects as a
-#   format error, so they are erased;
-# - deriving end lines guesses wrong around inline header functions, and the
-#   resulting "function hit but no line hit" cannot be repaired afterwards, so
-#   derivation is off (lcov then warns 'unsupported', which is ignored);
-# - without end lines lcov still attributes a few lines to the wrong function;
-#   the --add-tracefile pass repairs those hit flags once, so summary, genhtml
-#   and updatebadge all read a consistent coverage.info.
-cov_exclude = '/usr/*' 'lib/*' 'include/*' 'libtorch/*' 'tests/*' \
-	'bayesnet/utils/loguru.*' '/opt/miniconda/*' '*/.conan2/*'
-genhtml = genhtml
+gcovr ?= gcovr
+ifeq ($(shell uname -s),Darwin)
+gcovr_gcov ?= xcrun llvm-cov gcov
+else
+gcovr_gcov ?= gcov
+endif
 dot = dot
 docsrcdir = docs/manual
 mansrcdir = docs/man3
@@ -95,10 +78,10 @@ endef
 
 setup: ## Install dependencies for tests and coverage
 	@if [ "$(shell uname)" = "Darwin" ]; then \
-		brew install lcov; \
+		brew install gcovr; \
 	fi
 	@if [ "$(shell uname)" = "Linux" ]; then \
-		sudo dnf install lcov;\
+		sudo dnf install gcovr;\
 	fi
 	@echo "* You should install plantuml & graphviz for the diagrams"
 
@@ -178,7 +161,7 @@ test: ## Run tests (opt="-s") to verbose output the tests, (opt="-c='Test Maximu
 
 coverage: ## Build the instrumented tests, run them and generate the report
 	@echo ">>> Building tests with coverage..."
-	@which $(lcov) || (echo ">>> Please install lcov"; exit 1)
+	@which $(gcovr) >/dev/null || (echo ">>> Please install gcovr (make setup)"; exit 1)
 	@if [ ! -d $(f_coverage) ] ; then $(MAKE) coverage-setup ; fi
 	$(call ClearTestsIn,$(f_coverage))
 	@cmake --build $(f_coverage) -t $(test_targets) --parallel $(JOBS)
@@ -191,50 +174,36 @@ coverage: ## Build the instrumented tests, run them and generate the report
 		fi ; \
 	done
 	@echo ">>> Building report..."
-	@cd $(f_coverage)/tests; \
-	$(lcov) --directory CMakeFiles --capture --demangle-cpp \
-		--ignore-errors source,source,unused,unused,unsupported,unsupported \
-		--rc derive_function_end_line=0 --erase-functions '^__cxx_global_var_init' \
-		$(addprefix --exclude ,$(cov_exclude)) $(GCOV_TOOL) \
-		--output-file capture.info >capture.log 2>&1 || { \
-		echo ">>> lcov could not capture the coverage data. Last lines of" ; \
-		echo ">>> $(f_coverage)/tests/capture.log:" ; \
-		tail -20 capture.log ; \
-		echo ">>> .gcda files present: $$(find . -name '*.gcda' | wc -l | tr -d ' ')" ; \
-		echo ">>> If lcov's gcov cannot read what the compiler wrote, pass your own:" ; \
-		echo ">>>   make coverage GCOV_TOOL=\"--gcov-tool /path/to/llvm-gcov.sh\"" ; \
-		exit 1 ; \
-	}; \
-	$(lcov) --add-tracefile capture.info --ignore-errors inconsistent,inconsistent \
-		--output-file coverage.info >>capture.log 2>&1 || { \
-		echo ">>> lcov could not consolidate the capture. Last lines of" ; \
-		echo ">>> $(f_coverage)/tests/capture.log:" ; \
-		tail -20 capture.log ; \
-		exit 1 ; \
-	}; \
-	$(lcov) --summary coverage.info
+	@mkdir -p $(f_coverage)/tests/coverage
+	@$(gcovr) --root . --object-directory $(f_coverage) \
+		--gcov-executable "$(gcovr_gcov)" \
+		--filter '$(CURDIR)/bayesnet/' \
+		--exclude '$(CURDIR)/bayesnet/utils/loguru.*' \
+		--html-details $(f_coverage)/tests/coverage/index.html \
+		--print-summary --lcov $(f_coverage)/tests/coverage.info \
+		$(f_coverage)
 	@$(MAKE) updatebadge
 	@echo ">>> Done";	
 
 viewcoverage: ## View the html coverage report
-	@which $(genhtml) >/dev/null || (echo ">>> Please install lcov (genhtml not found)"; exit 1)
+	@which $(gcovr) >/dev/null || (echo ">>> Please install gcovr (make setup)"; exit 1)
 	@if [ ! -d $(docsrcdir)/coverage ]; then mkdir -p $(docsrcdir)/coverage; fi
-	@if [ ! -f $(f_coverage)/tests/coverage.info ]; then \
-		echo ">>> No coverage.info file found. Run make coverage first!"; \
+	@if [ ! -f $(f_coverage)/tests/coverage/index.html ]; then \
+		echo ">>> No gcovr HTML report found. Run make coverage first!"; \
 		exit 1; \
 	fi
-	@$(genhtml) $(f_coverage)/tests/coverage.info --demangle-cpp --output-directory $(docsrcdir)/coverage --title "BayesNet Coverage Report" -s -k -f --legend >/dev/null 2>&1;
+	@cp -R $(f_coverage)/tests/coverage/. $(docsrcdir)/coverage/
 	@xdg-open $(docsrcdir)/coverage/index.html || open $(docsrcdir)/coverage/index.html 2>/dev/null
 	@echo ">>> Done";
 
 updatebadge: ## Update the coverage badge in README.md
-	@which python || (echo ">>> Please install python"; exit 1)
+	@which python3 >/dev/null || (echo ">>> Please install Python 3"; exit 1)
 	@if [ ! -f $(f_coverage)/tests/coverage.info ]; then \
 		echo ">>> No coverage.info file found. Run make coverage first!"; \
 		exit 1; \
 	fi
 	@echo ">>> Updating coverage badge..."
-	@env python update_coverage.py $(f_coverage)/tests
+	@env python3 update_coverage.py $(f_coverage)/tests
 	@echo ">>> Done";
 
 # Documentation targets
