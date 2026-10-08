@@ -30,18 +30,19 @@ YELLOW = \033[1;33m
 RED = \033[0;31m
 NC = \033[0m # No Color
 
-define ClearTests
-	@for d in $(f_debug) $(f_coverage); do \
-		for t in $(test_targets); do \
-			if [ -f $$d/tests/$$t ]; then \
-				echo ">>> Removing $$d/tests/$$t..." ; \
-				rm -f $$d/tests/$$t ; \
-			fi ; \
-		done ; \
+# Takes the build directory to clear, so that running one test target never
+# invalidates the other one's binary: they are separate trees now, and forcing a
+# relink of the build you did not ask for is pure waste on a machine without ccache.
+define ClearTestsIn
+	@for t in $(test_targets); do \
+		if [ -f $(1)/tests/$$t ]; then \
+			echo ">>> Removing $(1)/tests/$$t..." ; \
+			rm -f $(1)/tests/$$t ; \
+		fi ; \
 	done
 	@# Stale .gcda from a previous run make the next one spew "cannot merge
 	@# previous GCDA file" for every object and hide the test output.
-	@if test -d $(f_coverage) ; then find $(f_coverage) -name "*.gcda" -delete ; fi
+	@if test -d $(1) ; then find $(1) -name "*.gcda" -delete ; fi
 endef
 
 # $(3) carries the -D flags verbatim, so a target can pass more than one. Spelling
@@ -133,15 +134,16 @@ install: ## Install library
 # Test targets
 # ============
 
-clean-test: ## Clean the tests info
-	@echo ">>> Cleaning Debug BayesNet tests...";
-	$(call ClearTests)
+clean-test: ## Clean the tests info of both test builds
+	@echo ">>> Cleaning BayesNet tests...";
+	$(call ClearTestsIn,$(f_debug))
+	$(call ClearTestsIn,$(f_coverage))
 	@echo ">>> Done";
 
 opt = ""
 test: ## Run tests (opt="-s") to verbose output the tests, (opt="-c='Test Maximum Spanning Tree'") to run only that section
 	@echo ">>> Running BayesNet tests...";
-	@$(MAKE) clean-test
+	$(call ClearTestsIn,$(f_debug))
 	@cmake --build $(f_debug) -t $(test_targets) --parallel $(JOBS)
 	@for t in $(test_targets); do \
 		echo ">>> Running $$t...";\
@@ -157,7 +159,7 @@ coverage: ## Build the instrumented tests, run them and generate the report
 	@echo ">>> Building tests with coverage..."
 	@which $(lcov) || (echo ">>> Please install lcov"; exit 1)
 	@if [ ! -d $(f_coverage) ] ; then $(MAKE) coverage-setup ; fi
-	@$(MAKE) clean-test
+	$(call ClearTestsIn,$(f_coverage))
 	@cmake --build $(f_coverage) -t $(test_targets) --parallel $(JOBS)
 	@echo ">>> Running instrumented tests..."
 	@for t in $(test_targets); do \
