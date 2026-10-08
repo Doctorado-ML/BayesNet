@@ -11,6 +11,10 @@ test_targets = TestBayesNet
 clang-uml = clang-uml
 plantuml = plantuml
 lcov = lcov
+# Passed through to lcov --capture. Empty by default, so lcov picks its own gcov;
+# override when that gcov cannot read the .gcda the compiler wrote (Apple clang
+# needs llvm-cov in gcov mode, which lcov wants as a single wrapper script).
+GCOV_TOOL =
 genhtml = genhtml
 dot = dot
 docsrcdir = docs/manual
@@ -171,7 +175,16 @@ coverage: ## Build the instrumented tests, run them and generate the report
 	done
 	@echo ">>> Building report..."
 	@cd $(f_coverage)/tests; \
-	$(lcov) --directory CMakeFiles --capture --demangle-cpp --ignore-errors source,source --output-file coverage.info >/dev/null 2>&1; \
+	$(lcov) --directory CMakeFiles --capture --demangle-cpp --ignore-errors source,source $(GCOV_TOOL) --output-file coverage.info >capture.log 2>&1 || { \
+		echo ">>> lcov could not capture the coverage data. Last lines of" ; \
+		echo ">>> $(f_coverage)/tests/capture.log:" ; \
+		tail -20 capture.log ; \
+		echo ">>> .gcda files present: $$(find . -name '*.gcda' | wc -l | tr -d ' ')" ; \
+		echo ">>> If lcov's gcov cannot read what the compiler wrote (Apple clang needs" ; \
+		echo ">>> llvm-cov in gcov mode, which lcov wants as a single wrapper script)," ; \
+		echo ">>> pass your own: make coverage GCOV_TOOL=\"--gcov-tool /path/to/llvm-gcov.sh\"" ; \
+		exit 1 ; \
+	}; \
 	$(lcov) --remove coverage.info '/usr/*' --output-file coverage.info >/dev/null 2>&1; \
 	$(lcov) --remove coverage.info 'lib/*' --output-file coverage.info >/dev/null 2>&1; \
 	$(lcov) --remove coverage.info 'include/*' --output-file coverage.info >/dev/null 2>&1; \
