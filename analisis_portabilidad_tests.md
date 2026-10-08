@@ -743,6 +743,36 @@ que el criterio de ordenación ahora **es** una información mutua. Los valores 
 
 Suite en Linux: 2120 aserciones en 139 casos, verde.
 
+### Y un bucle infinito que esto destapó en macOS
+
+Cambiar el ranking de pares dejó al descubierto que **`BoostA2DE::trainModel` podía
+no terminar**. El bucle no tenía salida por agotamiento de pares: `pairSelection` se
+reconstruye entera con `SelectKPairs` en cada vuelta y nada la reducía, porque
+`featuresUsed` solo se lee y no existía registro de pares consumidos. Comparado con
+sus hermanos:
+
+| | ¿marca lo usado? | ¿sale por agotamiento? |
+|---|---|---|
+| `BoostAODE` | `featuresUsed.push_back` | sí |
+| `XBA2DE` | `pairsUsed.insert` + filtro | sí |
+| `BoostA2DE` | **no** | **no** |
+
+Con `convergence = false` y `bisection = false` —los hiperparámetros del test
+`Order asc, desc & random`— `tolerance` nunca se incrementa, así que la única salida
+era `epsilon_t > 0.5`. En Linux se alcanzaba; en macOS, con el ranking nuevo, dejó
+de alcanzarse y la suite se quedó colgada ahí hasta que se interrumpió a los 15
+minutos.
+
+El mismo defecto permitía **repetir pares**: en diabetes, 8 features dan 28 pares y
+reportaba «Number of models: 42». Tras replicar el `pairsUsed` de `XBA2DE` la cuenta
+cierra: diabetes con convergencia apagada consume sus 28 pares, y glass para por
+error ponderado en 20, 10 y 8 modelos con 16, 26 y 28 pares sin usar — 36 en los
+tres casos.
+
+Es un defecto preexistente y latente, no una consecuencia del arreglo de la CMI:
+ese solo cambió qué pares se eligen, y con ello la trayectoria de pesos que lo
+mantenía oculto.
+
 ## 8. Reproducir las mediciones
 
 Las mediciones 1 y 2 usan un programa aislado que llama a `Metrics`

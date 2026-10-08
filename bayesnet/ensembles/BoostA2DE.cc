@@ -5,6 +5,8 @@
 // ***************************************************************
 
 #include <limits.h>
+#include <algorithm>
+#include <set>
 #include <tuple>
 #include <folding.hpp>
 #include "BoostA2DE.h"
@@ -81,18 +83,29 @@ namespace bayesnet {
         bool ascending = order_algorithm == Orders.ASC;
         std::mt19937 g{ 173 };
         std::vector<std::pair<int, int>> pairSelection;
+        std::set<std::pair<int, int>> pairsUsed;
         while (!finished) {
             // Step 1: Build ranking with mutual information
             pairSelection = metrics.SelectKPairs(weights_, featuresUsed, ascending, 0); // Get all the pairs sorted
             if (order_algorithm == Orders.RAND) {
                 deterministicShuffle(pairSelection.begin(), pairSelection.end(), g);
             }
+            // Remove pairs already used (boosting without replacement of pairs), the
+            // way XBAODE and XBA2DE do. Without it the ranking is rebuilt whole on
+            // every iteration and nothing ever shrinks it, so the "run out of pairs"
+            // exit this loop claims to have could never fire: pairSelection.size()
+            // below was the full list minus the one pair consumed this round. The only
+            // remaining exit was epsilon_t > 0.5 from update_weights, which left the
+            // loop able to run forever -- and to re-pick the same pair repeatedly.
+            pairSelection.erase(std::remove_if(pairSelection.begin(), pairSelection.end(),
+                [&](const std::pair<int, int>& p) { return pairsUsed.count(p) > 0; }), pairSelection.end());
             int k = bisection ? pow(2, tolerance) : 1;
             int counter = 0; // The model counter of the current pack
             // VLOG_SCOPE_F(1, "counter=%d k=%d featureSelection.size: %zu", counter, k, featureSelection.size());
             while (counter++ < k && pairSelection.size() > 0) {
                 auto feature_pair = pairSelection[0];
                 pairSelection.erase(pairSelection.begin());
+                pairsUsed.insert(feature_pair);
                 std::unique_ptr<Classifier> model;
                 model = std::make_unique<SPnDE>(std::vector<int>({ feature_pair.first, feature_pair.second }));
                 model->fit(dataset, features, className, states, weights_, smoothing);
