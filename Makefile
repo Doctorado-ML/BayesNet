@@ -12,9 +12,16 @@ clang-uml = clang-uml
 plantuml = plantuml
 lcov = lcov
 # Passed through to lcov --capture. Empty by default, so lcov picks its own gcov;
-# override when that gcov cannot read the .gcda the compiler wrote (Apple clang
-# needs llvm-cov in gcov mode, which lcov wants as a single wrapper script).
+# override when that gcov cannot read the .gcda the compiler wrote.
 GCOV_TOOL =
+# Everything that is not our own source, excluded while capturing rather than
+# removed afterwards. lcov has to parse a file before it can drop it later, and
+# parsing a dependency's headers is what broke the capture on macOS: Apple's
+# llvm-cov emulates gcov 4.2, which reports no function end lines, so lcov derives
+# them and got an inconsistent result inside a libtorch header -- a file the old
+# --remove chain was going to discard two commands later anyway.
+cov_exclude = '/usr/*' 'lib/*' 'include/*' 'libtorch/*' 'tests/*' \
+	'bayesnet/utils/loguru.*' '/opt/miniconda/*' '*/.conan2/*'
 genhtml = genhtml
 dot = dot
 docsrcdir = docs/manual
@@ -175,24 +182,18 @@ coverage: ## Build the instrumented tests, run them and generate the report
 	done
 	@echo ">>> Building report..."
 	@cd $(f_coverage)/tests; \
-	$(lcov) --directory CMakeFiles --capture --demangle-cpp --ignore-errors source,source $(GCOV_TOOL) --output-file coverage.info >capture.log 2>&1 || { \
+	$(lcov) --directory CMakeFiles --capture --demangle-cpp \
+		--ignore-errors source,source,unused,unused \
+		$(addprefix --exclude ,$(cov_exclude)) $(GCOV_TOOL) \
+		--output-file coverage.info >capture.log 2>&1 || { \
 		echo ">>> lcov could not capture the coverage data. Last lines of" ; \
 		echo ">>> $(f_coverage)/tests/capture.log:" ; \
 		tail -20 capture.log ; \
 		echo ">>> .gcda files present: $$(find . -name '*.gcda' | wc -l | tr -d ' ')" ; \
-		echo ">>> If lcov's gcov cannot read what the compiler wrote (Apple clang needs" ; \
-		echo ">>> llvm-cov in gcov mode, which lcov wants as a single wrapper script)," ; \
-		echo ">>> pass your own: make coverage GCOV_TOOL=\"--gcov-tool /path/to/llvm-gcov.sh\"" ; \
+		echo ">>> If lcov's gcov cannot read what the compiler wrote, pass your own:" ; \
+		echo ">>>   make coverage GCOV_TOOL=\"--gcov-tool /path/to/llvm-gcov.sh\"" ; \
 		exit 1 ; \
 	}; \
-	$(lcov) --remove coverage.info '/usr/*' --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info 'lib/*' --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info 'include/*' --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info 'libtorch/*' --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info 'tests/*' --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info 'bayesnet/utils/loguru.*' --ignore-errors unused --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info '/opt/miniconda/*' --ignore-errors unused --output-file coverage.info >/dev/null 2>&1; \
-	$(lcov) --remove coverage.info '*/.conan2/*' --ignore-errors unused --output-file coverage.info >/dev/null 2>&1; \
 	$(lcov) --summary coverage.info
 	@$(MAKE) updatebadge
 	@echo ">>> Done";	
