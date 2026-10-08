@@ -179,6 +179,7 @@ coverage: ## Build the instrumented tests, run them and generate the report
 		--gcov-executable "$(gcovr_gcov)" \
 		--filter '$(CURDIR)/bayesnet/' \
 		--exclude '$(CURDIR)/bayesnet/utils/loguru.*' \
+		--merge-lines \
 		--html-details $(f_coverage)/tests/coverage/index.html \
 		--print-summary --lcov $(f_coverage)/tests/coverage.info \
 		$(f_coverage)

@@ -88,6 +88,15 @@ if (ENABLE_TESTING)
         if (NOT ${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
             set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fno-default-inline")
         endif()
+        # With GCC every out-of-line copy of a libstdc++ or libtorch helper
+        # (string::size, map lookups, tensor plumbing) gets its own global
+        # counters, and the prediction thread pool (one thread per core) hammers
+        # them all at once: the cache-line contention made BoostAODE 20x slower
+        # than uninstrumented on a 32-thread box. Only our own code is reported,
+        # so only our own code is instrumented.
+        if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+            set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fprofile-filter-files=${CMAKE_SOURCE_DIR}/bayesnet/")
+        endif()
     endif (ENABLE_COVERAGE)
     find_package(Catch2 CONFIG REQUIRED)
     find_package(arff-files CONFIG REQUIRED)
