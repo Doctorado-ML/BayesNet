@@ -166,7 +166,7 @@ With Conan:
 ```python
 # conanfile.txt or conanfile.py
 [requires]
-bayesnet/1.1.2@user/channel
+bayesnet/1.4.0@user/channel
 
 [generators]
 cmake
