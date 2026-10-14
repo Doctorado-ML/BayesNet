@@ -3,7 +3,7 @@ libtorch/2.7.1
 arff-files/2.0.0
 fimdlp/3.0.0
 folding/2.0.0
-bayesnet/1.3.0
+bayesnet/1.4.0
 nlohmann_json/3.11.3
 
 [generators]
