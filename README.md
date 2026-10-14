@@ -24,7 +24,7 @@ You can use the library with the [Conan](https://conan.io/) package manager. In 
 
 ```txt
 [requires]
-bayesnet/1.1.2
+bayesnet/1.4.0
 
 [generators]
 CMakeDeps
