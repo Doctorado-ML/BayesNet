@@ -163,13 +163,14 @@ make conan-upload remote=myremote profile=myprofile
 
 With Conan:
 
-```python
-# conanfile.txt or conanfile.py
+```txt
+# conanfile.txt
 [requires]
-bayesnet/1.4.0@user/channel
+bayesnet/1.4.0
 
 [generators]
-cmake
+CMakeDeps
+CMakeToolchain
 ```
 
 With vcpkg:
