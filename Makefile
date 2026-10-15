@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-.PHONY: viewcoverage coverage coverage-setup setup help install uninstall diagrams buildr buildd test clean updatebadge doc doc-install init clean-test debug release conan-create conan-upload conan-clean sample
+.PHONY: viewcoverage coverage coverage-setup setup help install uninstall diagrams buildr buildd test clean updatebadge doc doc-install clean-test debug release conan-create conan-clean sample
 
 f_release = build_Release
 f_debug = build_Debug
