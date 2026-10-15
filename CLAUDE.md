@@ -114,16 +114,17 @@ make sample fname=tests/data/iris.arff model=TANLd
 ### Creating Conan Packages
 
 ```bash
-# Create package locally
+# Create the Release and Debug packages in the local Conan cache
 make conan-create
 
-# Test package installation
-cd test_package
-conan create ..
+# Check that the package can be consumed (builds sample/ against it)
+make sample
 
-# Upload to remote repository
-make conan-upload remote=myremote profile=myprofile
+# Upload to a remote repository (no Makefile target)
+conan upload "bayesnet/1.4.0" -r myremote
 ```
+
+`make conan-create` skips the test_package step (`-tf ""`); `sample/` is the consumer check.
 
 ### Using the Library
 
