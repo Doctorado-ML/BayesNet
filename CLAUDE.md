@@ -42,7 +42,7 @@ make conan-create
 # Clean project
 make clean
 
-# Clean Conan cache and builds
+# Remove bayesnet from the Conan cache and clean builds
 make conan-clean
 ```
 

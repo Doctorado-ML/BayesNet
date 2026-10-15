@@ -263,10 +263,9 @@ conan-create: ## Create Conan package
 	@conan create . --build=missing -tf "" -s:a build_type=Debug -o "&:enable_coverage=False" -o "&:enable_testing=False"
 	@echo ">>> Done"
 
-conan-clean: ## Clean Conan cache and build folders
-	@echo ">>> Cleaning Conan cache and build folders..."
-	@conan remove "*" --confirm
-	@conan cache clean
+conan-clean: ## Remove the bayesnet package from the Conan cache and clean build folders
+	@echo ">>> Removing bayesnet from the Conan cache and cleaning build folders..."
+	@conan remove "bayesnet/*" --confirm
 	@if test -d "$(f_release)" ; then rm -rf "$(f_release)"; fi
 	@if test -d "$(f_debug)" ; then rm -rf "$(f_debug)"; fi
 	@echo ">>> Done"
