@@ -173,14 +173,6 @@ CMakeDeps
 CMakeToolchain
 ```
 
-With vcpkg:
-
-```json
-{
-  "dependencies": ["bayesnet"]
-}
-```
-
 ## Common Development Tasks
 
 - **Add new classifier**: Extend BaseClassifier, implement in appropriate subdirectory
