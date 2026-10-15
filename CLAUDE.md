@@ -10,69 +10,37 @@ BayesNet is a C++ library implementing Bayesian Network Classifiers. It provides
 
 ### Dependency Management
 
-The project supports **two package managers**:
+Dependencies are managed with **Conan**, configured in `conanfile.py`:
 
-#### vcpkg (Default)
-
-- Uses vcpkg with private registry at <https://github.com/rmontanana/vcpkg-stash>
-- Core dependencies: libtorch, nlohmann-json, folding, fimdlp, arff-files, catch2
-- All dependencies defined in `vcpkg.json` with version overrides
-
-#### Conan (Alternative)
-
-- Modern C++ package manager with better dependency resolution
-- Configured via `conanfile.py` for packaging and distribution
-- Supports subset of dependencies (libtorch, nlohmann-json, catch2)
-- Custom dependencies (folding, fimdlp, arff-files) need custom Conan recipes
+- Requires: libtorch, nlohmann_json, folding, fimdlp
+- Test requires: arff-files, catch2
+- folding, fimdlp and arff-files are custom packages
 
 ### Build Commands
 
-#### Using vcpkg (Default)
-
 ```bash
-# Initialize dependencies
-make init
+# Install Conan first: pip install conan
 
-# Build debug version (with tests and coverage)
+# Build debug version (with tests)
 make debug
 make buildd
 
-# Build release version  
+# Build release version
 make release
 make buildr
 
 # Run tests
 make test
 
-# Generate coverage report
+# Generate coverage report (instrumented build in build_Coverage)
 make coverage
 make viewcoverage
 
-# Clean project
-make clean
-```
-
-#### Using Conan
-
-```bash
-# Install Conan first: pip install conan
-
-# Initialize dependencies
-make conan-init
-
-# Build debug version (with tests and coverage)
-make conan-debug
-make buildd
-
-# Build release version
-make conan-release
-make buildr
-
-# Create and test Conan package
+# Create Conan package
 make conan-create
 
-# Upload to Conan remote
-make conan-upload remote=myremote
+# Clean project
+make clean
 
 # Clean Conan cache and builds
 make conan-clean
@@ -81,18 +49,16 @@ make conan-clean
 ### CMake Configuration
 
 - Uses CMake 3.27+ with C++17 standard
-- Debug builds automatically enable testing and coverage
+- Debug builds enable testing; coverage instrumentation is opt-in via `ENABLE_COVERAGE` (used by `make coverage`)
 - Release builds optimize with `-Ofast`
-- **Automatic package manager detection**: CMake detects whether Conan or vcpkg is being used
 - Supports both static library and package manager installation
-- Conditional dependency linking based on availability
 
 ## Testing Framework
 
 - **Catch2** testing framework (version 3.8.1)
 - Test executable: `TestBayesNet` in `build_Debug/tests/`
 - Individual test categories can be run: `./TestBayesNet "[CategoryName]"`
-- Coverage reporting with lcov/genhtml
+- Coverage reporting with gcovr
 
 ### Test Categories
 
@@ -131,7 +97,7 @@ bayesnet/
 ## Documentation & Tools
 
 - **Doxygen** for API documentation: `make doc`
-- **lcov** for coverage reports: `make coverage`
+- **gcovr** for coverage reports: `make coverage`
 - **plantuml + clang-uml** for UML diagrams: `make diagrams`
 - Man pages available in `docs/man3/`
 
@@ -178,7 +144,5 @@ CMakeToolchain
 - **Add new classifier**: Extend BaseClassifier, implement in appropriate subdirectory
 - **Add new test**: Update `tests/CMakeLists.txt` and create test in `tests/`
 - **Modify build**: Edit main `CMakeLists.txt` or use Makefile targets
-- **Update dependencies**:
-  - vcpkg: Modify `vcpkg.json` and run `make init`
-  - Conan: Modify `conanfile.py` and run `make conan-init`
+- **Update dependencies**: Modify `conanfile.py` and run `make debug` / `make release`
 - **Package for distribution**: Use `make conan-create` for Conan packaging
