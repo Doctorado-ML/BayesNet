@@ -10,6 +10,7 @@
 #include <catch2/matchers/catch_matchers.hpp>
 #include "TestUtils.h"
 #include "bayesnet/ensembles/XBAODE.h"
+#include "bayesnet/ensembles/XA1DE.h"
 
 TEST_CASE("Normal test", "[XBAODE]")
 {
@@ -21,7 +22,11 @@ TEST_CASE("Normal test", "[XBAODE]")
     REQUIRE(clf.getNotes().size() == 1);
     REQUIRE(clf.getVersion() == "0.9.7");
     REQUIRE(clf.getNotes()[0] == "Number of models: 4");
-    REQUIRE(clf.getNumberOfStates() == 256);
+    // Cells of the 4 SPODEs of iris: the same tables XA1DE holds.
+    REQUIRE(clf.getNumberOfStates() == 618);
+    auto aode = bayesnet::XA1DE();
+    aode.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    REQUIRE(clf.getNumberOfStates() == aode.getNumberOfStates());
     REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(1.0));
 }
 TEST_CASE("Feature_select CFS", "[XBAODE]")

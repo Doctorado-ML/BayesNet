@@ -42,7 +42,12 @@ TEST_CASE("Normal test", "[XBA2DE]")
     // iris has 4 features -> C(4,2)=6 distinct pairs; each used once (no repeat),
     // so training stops on pair exhaustion, not convergence.
     REQUIRE(clf.getNotes()[0] == "Number of models: 6");
-    REQUIRE(clf.getNumberOfStates() == 384);
+    // Size in cells of the probability tables: the 6 SP2DEs of iris are exactly
+    // the tables A2DE holds, so both report the same size.
+    REQUIRE(clf.getNumberOfStates() == 2547);
+    auto a2de = bayesnet::XA2DE();
+    a2de.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    REQUIRE(clf.getNumberOfStates() == a2de.getNumberOfStates());
     REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(1.0f));
     REQUIRE(clf.graph().size() == 6);
 }
@@ -114,7 +119,7 @@ TEST_CASE("Bisection Best", "[XBA2DE]")
     DUMP("Bisection", clf); std::cerr << "GOLDEN[Bisection] score=" << clf.score(raw.X_test, raw.y_test) << std::endl;
     REQUIRE(clf.getNumberOfNodes() == 180);
     REQUIRE(clf.getNumberOfEdges() == 468);
-    REQUIRE(clf.getNumberOfStates() == 16968);
+    REQUIRE(clf.getNumberOfStates() == 209313);
     REQUIRE(clf.getNotes().size() == 3);
     REQUIRE(clf.getNotes().at(0) == "Convergence threshold reached & 15 models eliminated");
     REQUIRE(clf.getNotes().at(1) == "Pairs not used in train: 64");
@@ -303,4 +308,21 @@ TEST_CASE("Weightless keeps the other exit conditions", "[XBA2DE]")
             REQUIRE(significance == Catch::Approx(1.0).epsilon(raw.epsilon));
         }
     }
+}
+TEST_CASE("Number of states is the number of probability cells", "[XBA2DE]")
+{
+    // Per SP2DE: C + C k1 + C k2 + C k1 k2 + C k1 k2 sum_{l != sp1, sp2} k_l, with
+    // the cardinalities derived from the data; 8 bytes per cell as doubles is a
+    // lower bound of what the fitted model holds (counts and offsets aside).
+    auto raw = RawDatasets("glass", true);
+    std::vector<int> k;
+    for (const auto& column : raw.Xv) k.push_back(*std::max_element(column.begin(), column.end()) + 1);
+    int C = *std::max_element(raw.yv.begin(), raw.yv.end()) + 1;
+    long children = std::accumulate(k.begin(), k.end(), 0L) - k[2] - k[5];
+    long expected = C + C * k[2] + C * k[5] + C * k[2] * k[5] + C * k[2] * k[5] * children;
+    REQUIRE(bayesnet::XSp2de::cellsOfSp2de(k, C, 2, 5) == expected);
+    auto sp = bayesnet::XSp2de(2, 5);
+    sp.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    REQUIRE(sp.getNumberOfStates() == expected);
+    REQUIRE(8 * static_cast<size_t>(sp.getNumberOfStates()) <= sp.memoryFootprint());
 }

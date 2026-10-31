@@ -422,9 +422,20 @@ namespace bayesnet {
         {
             return nFeatures_;
         }
-        int getNumberOfStates() const
+        // Cells of the probability tables of the SPODEs that vote (active
+        // parents), with the formula of XSpode::cellsOfSpode. states_ carries the
+        // class cardinality in its last position, which is left out of the sum.
+        long getNumberOfStates() const
         {
-            return std::accumulate(states_.begin(), states_.end(), 0) * nFeatures_;
+            long cells = 0;
+            for (int sp : active_parents) {
+                long ksp = states_[sp], children = 0;
+                for (int f = 0; f < nFeatures_; ++f) {
+                    if (f != sp) children += states_[f];
+                }
+                cells += statesClass_ + statesClass_ * ksp + statesClass_ * ksp * children;
+            }
+            return cells;
         }
         int getNumberOfEdges() const
         {

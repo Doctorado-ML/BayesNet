@@ -169,7 +169,7 @@ namespace bayesnet {
     {
         return aode_.getNumberOfEdges();
     }
-    int ExpClf::getNumberOfStates() const
+    long ExpClf::getNumberOfStates() const
     {
         return aode_.getNumberOfStates();
     }

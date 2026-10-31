@@ -30,7 +30,13 @@ namespace bayesnet {
         float virtual score(torch::Tensor& X, torch::Tensor& y) = 0;
         int virtual getNumberOfNodes() const = 0;
         int virtual getNumberOfEdges() const = 0;
-        int virtual getNumberOfStates() const = 0;
+        // Size of the model. For the X engines (XSpode, XSp2de, Xaode, Xaode2de and
+        // the ensembles built on them) it is the number of cells of the probability
+        // tables, so 8 * getNumberOfStates() bytes is the size of the model as
+        // doubles; for the Network based classifiers it is the sum of the node
+        // cardinalities. It is a long because A2DE on a few hundred features
+        // exceeds the range of an int.
+        long virtual getNumberOfStates() const = 0;
         int virtual getClassNumStates() const = 0;
         std::vector<std::string> virtual show() const = 0;
         std::vector<std::string> virtual graph(const std::string& title = "") const = 0;

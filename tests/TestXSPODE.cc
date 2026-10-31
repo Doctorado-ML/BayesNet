@@ -10,6 +10,16 @@
 #include <stdexcept>
 #include "bayesnet/classifiers/XSPODE.h"
 #include "TestUtils.h"
+#include <algorithm>
+
+// Cardinalities as the X engines derive them from the data (max value + 1),
+// features first and the class apart, to compute the expected number of cells.
+static std::pair<std::vector<int>, int> cardinalities(const RawDatasets& raw)
+{
+    std::vector<int> k;
+    for (const auto& column : raw.Xv) k.push_back(*std::max_element(column.begin(), column.end()) + 1);
+    return { k, *std::max_element(raw.yv.begin(), raw.yv.end()) + 1 };
+}
 
 TEST_CASE("fit vector test", "[XSPODE]") {
   auto raw = RawDatasets("iris", true);
@@ -72,7 +82,8 @@ TEST_CASE("mfeat-factors dataset test", "[XSPODE]") {
     REQUIRE(clf.getNumberOfNodes() == 217);
     REQUIRE(clf.getNumberOfEdges() == 433);
     REQUIRE(clf.getNotes().size() == 0);
-    REQUIRE(clf.getNumberOfStates() == 652320);
+    auto [k, C] = cardinalities(raw);
+    REQUIRE(clf.getNumberOfStates() == bayesnet::XSpode::cellsOfSpode(k, C, i));
     REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(scores.at(i)));
   }
 }
@@ -86,7 +97,8 @@ TEST_CASE("Laplace predict", "[XSPODE]") {
     REQUIRE(clf.getNumberOfNodes() == 5);
     REQUIRE(clf.getNumberOfEdges() == 9);
     REQUIRE(clf.getNotes().size() == 0);
-    REQUIRE(clf.getNumberOfStates() == 64);
+    auto [k, C] = cardinalities(raw);
+    REQUIRE(clf.getNumberOfStates() == bayesnet::XSpode::cellsOfSpode(k, C, i));
     REQUIRE(clf.getNFeatures() == 4);
     REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(scores.at(i)));
   }
@@ -120,9 +132,24 @@ TEST_CASE("Test to_string and fitx", "[XSPODE]")
   REQUIRE(clf.getNumberOfNodes() == 5);
   REQUIRE(clf.getNumberOfEdges() == 9);
   REQUIRE(clf.getNotes().size() == 0);
-  REQUIRE(clf.getNumberOfStates() == 64);
+  REQUIRE(clf.getNumberOfStates() == 129); // iris, superparent 0: 3 + 3*3 + 3*3*13 cells
   REQUIRE(clf.getNFeatures() == 4);
   REQUIRE(clf.score(raw.X_test, raw.y_test) == Catch::Approx(1.0f));
   REQUIRE(clf.to_string().size() == 1966);
   REQUIRE(clf.graph("Not yet implemented") == std::vector<std::string>({"Not yet implemented"}));
+}
+TEST_CASE("Number of states is the number of probability cells", "[XSPODE]") {
+  // The formula: C + C k_sp + C k_sp sum_{l != sp} k_l, with C the class
+  // cardinality and k the feature cardinalities derived from the data.
+  auto raw = RawDatasets("iris", true);
+  auto [k, C] = cardinalities(raw);
+  for (int sp = 0; sp < 4; ++sp) {
+    long children = 0;
+    for (int f = 0; f < 4; ++f) if (f != sp) children += k[f];
+    long expected = C + C * k[sp] + C * k[sp] * children;
+    REQUIRE(bayesnet::XSpode::cellsOfSpode(k, C, sp) == expected);
+    auto clf = bayesnet::XSpode(sp);
+    clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    REQUIRE(clf.getNumberOfStates() == expected);
+  }
 }

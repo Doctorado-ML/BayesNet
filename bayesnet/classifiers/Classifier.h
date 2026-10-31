@@ -22,7 +22,7 @@ namespace bayesnet {
         void addNodes();
         int getNumberOfNodes() const override;
         int getNumberOfEdges() const override;
-        int getNumberOfStates() const override;
+        long getNumberOfStates() const override;
         int getClassNumStates() const override;
         torch::Tensor predict(torch::Tensor& X) override;
         std::vector<int> predict(std::vector<std::vector<int>>& X) override;

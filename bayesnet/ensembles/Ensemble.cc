@@ -186,9 +186,9 @@ namespace bayesnet {
         }
         return edges;
     }
-    int Ensemble::getNumberOfStates() const
+    long Ensemble::getNumberOfStates() const
     {
-        int nstates = 0;
+        long nstates = 0;
         for (auto i = 0; i < n_models; ++i) {
             nstates += models[i]->getNumberOfStates();
         }

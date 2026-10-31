@@ -37,7 +37,12 @@ class XSp2de : public Classifier {
     int getNumberOfEdges() const override;
     int getNFeatures() const;
     int getClassNumStates() const override;
-    int getNumberOfStates() const override;
+    // Number of cells of the probability tables (see cellsOfSp2de).
+    long getNumberOfStates() const override;
+    // Cells of the probability tables of the SP2DE with superparents sp1, sp2 over
+    // features with the given cardinalities (class excluded) and statesClass
+    // class values: C + C k1 + C k2 + C k1 k2 + C k1 k2 sum_{l != sp1, sp2} k_l.
+    static long cellsOfSp2de(const std::vector<int> &states, int statesClass, int sp1, int sp2);
 
     // Bytes held by the probability/count tables of a *fitted* model, measured
     // from the vectors' capacity. This is the RESIDENT footprint: computeProbabilities

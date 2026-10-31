@@ -32,7 +32,7 @@ namespace bayesnet {
         float score(torch::Tensor& X, torch::Tensor& y) override;
         int getNumberOfNodes() const override;
         int getNumberOfEdges() const override;
-        int getNumberOfStates() const override;
+        long getNumberOfStates() const override;
         int getClassNumStates() const override;
         std::vector<std::string> show() const override { return {}; }
         std::vector<std::string> topological_order()  override { return {}; }

@@ -678,11 +678,24 @@ int XSp2de::getNFeatures() const
   return nFeatures_; 
 }
 
-int XSp2de::getNumberOfStates() const
+long XSp2de::getNumberOfStates() const
 {
-  // purely an example. Possibly you want to sum up actual 
-  // cardinalities or something else. 
-  return std::accumulate(states_.begin(), states_.end(), 0) * nFeatures_;
+  // Cells of the probability tables of this SP2DE (one copy, counts aside):
+  //   p(c)                               -> C
+  //   p(x_sp1 | c), p(x_sp2 | c)         -> C * k1 + C * k2
+  //   p(x_sp1, x_sp2 | c)                -> C * k1 * k2
+  //   p(x_l | c, x_sp1, x_sp2), l != sps -> C * k1 * k2 * sum_{l} k_l
+  // The last term dominates: with k states per feature the model holds about
+  // C k^3 (n - 2) cells, 8 bytes each when stored as doubles.
+  return cellsOfSp2de(states_, statesClass_, superParent1_, superParent2_);
+}
+long XSp2de::cellsOfSp2de(const std::vector<int> &states, int statesClass, int sp1, int sp2)
+{
+  long c = statesClass, k1 = states[sp1], k2 = states[sp2], children = 0;
+  for (size_t f = 0; f < states.size(); ++f) {
+    if (static_cast<int>(f) != sp1 && static_cast<int>(f) != sp2) children += states[f];
+  }
+  return c + c * k1 + c * k2 + c * k1 * k2 + c * k1 * k2 * children;
 }
 
 int XSp2de::getNumberOfEdges() const

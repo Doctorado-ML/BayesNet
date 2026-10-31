@@ -85,6 +85,10 @@ TEST_CASE("Matches averaged XSp2de over all pairs", "[XA2DE]")
         oracle_pred[s] = std::distance(acc.begin(), std::max_element(acc.begin(), acc.end()));
     }
     REQUIRE(xa2de_pred == oracle_pred);
+    // The size in cells is additive too: A2DE holds the tables of every SP2DE.
+    long cells = 0;
+    for (auto& sp : pairs) cells += sp->getNumberOfStates();
+    REQUIRE(clf.getNumberOfStates() == cells);
 }
 
 TEST_CASE("CESTNIK smoothing runs and differs from ORIGINAL", "[XA2DE]")

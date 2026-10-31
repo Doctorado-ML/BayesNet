@@ -168,7 +168,7 @@ namespace bayesnet {
     {
         return fitted ? model.getNumEdges() : 0;
     }
-    int Classifier::getNumberOfStates() const
+    long Classifier::getNumberOfStates() const
     {
         return fitted ? model.getStates() : 0;
     }

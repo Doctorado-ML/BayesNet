@@ -24,7 +24,7 @@ namespace bayesnet {
         float score(std::vector<std::vector<int>>& X, std::vector<int>& y) override;
         int getNumberOfNodes() const override;
         int getNumberOfEdges() const override;
-        int getNumberOfStates() const override;
+        long getNumberOfStates() const override;
         std::vector<std::string> show() const override;
         std::vector<std::string> graph(const std::string& title) const override;
         std::vector<std::string> topological_order()  override

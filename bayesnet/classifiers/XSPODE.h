@@ -25,7 +25,12 @@ namespace bayesnet {
         int getNFeatures() const;
         int getNumberOfNodes() const override;
         int getNumberOfEdges() const override;
-        int getNumberOfStates() const override;
+        // Number of cells of the probability tables (see cellsOfSpode).
+        long getNumberOfStates() const override;
+        // Cells of the probability tables of the SPODE with superparent sp over
+        // features with the given cardinalities (class excluded) and statesClass
+        // class values: C + C k_sp + C k_sp sum_{l != sp} k_l.
+        static long cellsOfSpode(const std::vector<int>& states, int statesClass, int sp);
         int getClassNumStates() const override;
         std::vector<int>& getStates();
         std::vector<std::string> graph(const std::string& title) const override { return std::vector<std::string>({ title }); }

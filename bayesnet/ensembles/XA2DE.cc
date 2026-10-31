@@ -132,6 +132,6 @@ namespace bayesnet {
     //
     int XA2DE::getNumberOfNodes() const { return aode_.getNumberOfNodes(); }
     int XA2DE::getNumberOfEdges() const { return aode_.getNumberOfEdges(); }
-    int XA2DE::getNumberOfStates() const { return aode_.getNumberOfStates(); }
+    long XA2DE::getNumberOfStates() const { return aode_.getNumberOfStates(); }
     int XA2DE::getClassNumStates() const { return aode_.getClassNumStates(); }
 }

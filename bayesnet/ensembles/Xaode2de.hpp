@@ -270,9 +270,19 @@ namespace bayesnet {
         // Per SP2DE: 3n-4 edges (class->all, both parents->children) plus the
         // sp1-sp2 edge when the superparents are modelled jointly.
         int getNumberOfEdges() const { return nPairs_ * (3 * nFeatures_ - 4 + (jointParents_ ? 1 : 0)); }
-        int getNumberOfStates() const
+        // Cells of the probability tables of the C(n,2) SP2DEs, with the formula
+        // of XSp2de::cellsOfSp2de (C + C k1 + C k2 + C k1 k2 + C k1 k2 sum k_l).
+        long getNumberOfStates() const
         {
-            return std::accumulate(states_.begin(), states_.end(), 0) * nFeatures_ * nPairs_;
+            long cells = 0;
+            for (int pid = 0; pid < nPairs_; ++pid) {
+                long c = statesClass_, k1 = states_[parent1_[pid]], k2 = states_[parent2_[pid]], children = 0;
+                for (int f = 0; f < nFeatures_; ++f) {
+                    if (f != parent1_[pid] && f != parent2_[pid]) children += states_[f];
+                }
+                cells += c + c * k1 + c * k2 + c * k1 * k2 + c * k1 * k2 * children;
+            }
+            return cells;
         }
 
     private:

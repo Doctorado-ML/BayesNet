@@ -427,9 +427,21 @@ namespace bayesnet {
   int XSpode::getNumberOfNodes() const { return nFeatures_ + 1; }
   int XSpode::getClassNumStates() const { return statesClass_; }
   int XSpode::getNFeatures() const { return nFeatures_; }
-  int XSpode::getNumberOfStates() const
+  long XSpode::getNumberOfStates() const
   {
-    return std::accumulate(states_.begin(), states_.end(), 0) * nFeatures_;
+    // Cells of the probability tables of this SPODE (one copy, counts aside):
+    //   p(c)                        -> C
+    //   p(x_sp | c)                 -> C * k_sp
+    //   p(x_l | c, x_sp), l != sp   -> C * k_sp * sum_{l != sp} k_l
+    return cellsOfSpode(states_, statesClass_, superParent_);
+  }
+  long XSpode::cellsOfSpode(const std::vector<int>& states, int statesClass, int sp)
+  {
+    long c = statesClass, ksp = states[sp], children = 0;
+    for (size_t f = 0; f < states.size(); ++f) {
+      if (static_cast<int>(f) != sp) children += states[f];
+    }
+    return c + c * ksp + c * ksp * children;
   }
   int XSpode::getNumberOfEdges() const
   {
