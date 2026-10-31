@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-31
+
+### Added
+
+- **XBA2DE** and **BoostA2DE** honour the `weightless` hyperparameter, which `Boost::setHyperparameters` has always accepted but only `XBAODE` and `BoostAODE` read. It was silently ignored by the pair-based ensembles, so a weights ablation run of `XBA2DE` was a plain boosted run. With `weightless = true` there is no AdaBoost step at all: the instance weights stay uniform (so the pair ranking from `SelectKPairs` is static and the model never calls `update_weights`, nor predicts on the training set to do so), every model is added with significance 1.0, and the `epsilon_t > 0.5` exit never fires; training stops on convergence, on pair exhaustion or on `max_memory_gb`. `BoostA2DE` also skips the block weight update in this mode, as `BoostAODE` does. `XBA2DE::getVersion` moves from 0.9.8 to 0.9.9. Six new cases in `[XBA2DE]` and `[BoostA2DE]` pin the behaviour: every significance is 1.0 (iris and glass; with `select_features` and with `block_update` for `BoostA2DE`), the weighted run is not uniform and differs from the weightless one, the memory budget and the convergence pruning still stop a weightless run, and a weightless `XBA2DE` with no convergence check on glass uses the 36 pairs and reproduces the size and the score of `XA2DE`.
+
+### Changed
+
+- **`getNumberOfStates()` is the number of cells of the probability tables** for the X family. `XSpode`, `XSp2de`, `Xaode` (`XA1DE`) and `Xaode2de` (`XA2DE`) returned a placeholder (`sum of the feature cardinalities * nFeatures`, marked "purely an example" in `XSp2de`) that measured nothing, and Platform records the value as `depth`. Per SPODE with superparent `s` the size is now `C + C k_s + C k_s sum_{l != s} k_l`; per SP2DE with superparents `i, j` it is `C + C k_i + C k_j + C k_i k_j + C k_i k_j sum_{l != i,j} k_l` (the last term dominates: about `C k^3 (n - 2)` cells with `k` states per feature), with `C` the class cardinality and `k` the cardinalities the engines derive from the training data; `Xaode` sums over its active parents, `Xaode2de` over its `C(n,2)` pairs and `Ensemble` over its models, so `XBAODE`/`XBA2DE` report the tables they keep after pruning. Stored as doubles the model takes `8 * getNumberOfStates()` bytes; this is a size of the model, independent of the implementation, not the resident footprint `XSp2de::memoryFootprint()` reports (counts and probabilities both alive). The formulas are exposed as the static `XSpode::cellsOfSpode(states, statesClass, sp)` and `XSp2de::cellsOfSp2de(states, statesClass, sp1, sp2)`. The `Network` based classifiers are unchanged and keep returning the sum of the node cardinalities.
+- `BaseClassifier::getNumberOfStates()` returns `long` instead of `int`, in every override (`Classifier`, `Ensemble`, `ExpClf`, `XA2DE`, `XSpode`, `XSp2de`). A2DE on a few hundred features holds more than 2^31 cells (`philippine`, 308 features, is about 1.5e10), which an `int` cannot represent. Consumers that override the method (Platform's `ExpEnsemble`) have to change the signature.
+- Expected values the new metric moves: `XSpode` on iris with superparent 0 is 129 cells (was 64), `XBAODE` on iris 618 (was 256), `XA1DE` on glass 4008 (was 297), `XBA2DE` on iris 2547 (was 384) and on kdd_JapaneseVowels 209313 (was 16968); the `mfeat-factors` case of `XSpode` computes its expectation from the formula. New cross-checks tie the four engines together: `XA1DE` equals the sum of its `XSpode`s, `XA2DE` the sum of its `XSp2de`s, `XBAODE` on iris equals `XA1DE` and `XBA2DE` on iris equals `XA2DE`, and `8 * cells <= memoryFootprint()` for a fitted `XSp2de`.
+
+### Build
+
+- Version 1.4.1; `sample/` consumes `bayesnet/1.4.1` and `fimdlp/3.0.1`, the version the library itself requires since 1.4.0.
+
 ## [1.4.0] - 2026-10-14
 
 ### Added

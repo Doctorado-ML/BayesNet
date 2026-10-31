@@ -24,7 +24,7 @@ You can use the library with the [Conan](https://conan.io/) package manager. In 
 
 ```txt
 [requires]
-bayesnet/1.4.0
+bayesnet/1.4.1
 
 [generators]
 CMakeDeps
@@ -142,6 +142,8 @@ make sample fname=tests/data/iris.arff model=AODE  # Use specific model
 
 #### - BoostA2DE
 
+Accepts the hyperparameters of `BoostAODE`, including `weightless` (see XBA2DE).
+
 #### - XBA2DE
 
 Accepts `max_memory_gb`, a working-memory budget for the ensemble in gigabytes
@@ -149,6 +151,26 @@ Accepts `max_memory_gb`, a working-memory budget for the ensemble in gigabytes
 `XSp2de` models hold, and acts as an exit condition of the boosting loop: when
 the next model no longer fits, training stops and the classifier records a
 `Memory limit reached` note with `status = WARNING`.
+
+Accepts `weightless` (default `false`), the weights ablation of the boosting
+scheme: no AdaBoost step is run, the instance weights stay uniform (so the pair
+ranking is static) and every model votes with significance 1.0. The
+`epsilon_t > 0.5` exit never fires in this mode; training stops on convergence,
+on pair exhaustion or on the memory budget. Since 1.4.1 `XBA2DE` and `BoostA2DE`
+honour the flag like `XBAODE` and `BoostAODE` always did.
+
+#### Model size
+
+`getNumberOfStates()` of the X family (`XSpode`, `XSp2de`, `XA1DE`, `XA2DE`,
+`XBAODE`, `XBA2DE`) is the number of cells of the probability tables of the
+model, so `8 * getNumberOfStates()` bytes is its size stored as doubles. Per
+SPODE with superparent `s` it is `C + C k_s + C k_s sum_{l != s} k_l`, per SP2DE
+with superparents `i, j` it is `C + C k_i + C k_j + C k_i k_j + C k_i k_j sum_{l
+!= i,j} k_l`, with `C` the class cardinality and `k` the cardinalities derived
+from the training data; ensembles add up their models. It is returned as a
+`long`, because A2DE on a few hundred features exceeds the range of an `int`.
+The `Network` based classifiers keep reporting the sum of the node
+cardinalities.
 
 ### With Local Discretization
 

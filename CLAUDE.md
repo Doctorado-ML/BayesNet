@@ -121,7 +121,7 @@ make conan-create
 make sample
 
 # Upload to a remote repository (no Makefile target)
-conan upload "bayesnet/1.4.0" -r myremote
+conan upload "bayesnet/1.4.1" -r myremote
 ```
 
 `make conan-create` skips the test_package step (`-tf ""`); `sample/` is the consumer check.
@@ -133,7 +133,7 @@ With Conan:
 ```txt
 # conanfile.txt
 [requires]
-bayesnet/1.4.0
+bayesnet/1.4.1
 
 [generators]
 CMakeDeps
