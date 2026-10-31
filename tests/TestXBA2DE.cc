@@ -11,8 +11,19 @@
 #include "TestUtils.h"
 #include "bayesnet/ensembles/XBA2DE.h"
 #include "bayesnet/classifiers/XSP2DE.h"
+#include "bayesnet/ensembles/XA2DE.h"
 #include <algorithm>
 #include <iostream>
+#include <numeric>
+
+// Test helper that exposes the protected ensemble internals needed to verify
+// the behaviour of the "weightless" hyperparameter.
+class TestXBA2DE : public bayesnet::XBA2DE {
+public:
+    TestXBA2DE() : bayesnet::XBA2DE() {}
+    const std::vector<double>& get_significances() const { return significanceModels; }
+    unsigned get_n_models() const { return n_models; }
+};
 #define DUMP(tag, clf) do { std::cerr << "GOLDEN[" << tag << "] nodes=" << (clf).getNumberOfNodes() \
     << " edges=" << (clf).getNumberOfEdges() << " states=" << (clf).getNumberOfStates() \
     << " notes=" << (clf).getNotes().size(); for (auto& _n : (clf).getNotes()) std::cerr << " || " << _n; \
@@ -27,7 +38,7 @@ TEST_CASE("Normal test", "[XBA2DE]")
     REQUIRE(clf.getNumberOfNodes() == 30);
     REQUIRE(clf.getNumberOfEdges() == 54);
     REQUIRE(clf.getNotes().size() == 1);
-    REQUIRE(clf.getVersion() == "0.9.8");
+    REQUIRE(clf.getVersion() == "0.9.9");
     // iris has 4 features -> C(4,2)=6 distinct pairs; each used once (no repeat),
     // so training stops on pair exhaustion, not convergence.
     REQUIRE(clf.getNotes()[0] == "Number of models: 6");
@@ -206,4 +217,90 @@ TEST_CASE("Working memory budget", "[XBA2DE]")
     auto notes = limited.getNotes();
     REQUIRE(std::any_of(notes.begin(), notes.end(), [](const std::string& n) {
         return n.rfind("Memory limit reached:", 0) == 0; }));
+}
+TEST_CASE("Weightless: every SP2DE votes with significance 1.0", "[XBA2DE]")
+{
+    // The CAEPIA weights ablation: no AdaBoost step, uniform instance weights,
+    // alpha_t = 1 for every model.
+    for (const std::string& name : { "iris", "glass" }) {
+        auto raw = RawDatasets(name, true);
+        TestXBA2DE clf;
+        clf.setHyperparameters({ {"weightless", true} });
+        clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+        auto significances = clf.get_significances();
+        INFO("dataset: " << name);
+        REQUIRE(significances.size() == clf.get_n_models());
+        REQUIRE(significances.size() > 1);
+        for (const auto& significance : significances) {
+            REQUIRE(significance == Catch::Approx(1.0).epsilon(raw.epsilon));
+        }
+        REQUIRE(clf.score(raw.Xv, raw.yv) > 0.6);
+    }
+}
+TEST_CASE("Weighted (default) produces non uniform significances", "[XBA2DE]")
+{
+    // Sanity counter-test: without weightless the significances are the AdaBoost
+    // amounts of say, so they are not all 1.0, and the ensemble differs.
+    auto raw = RawDatasets("glass", true);
+    TestXBA2DE weighted;
+    weighted.setHyperparameters({ {"weightless", false} });
+    weighted.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    auto significances = weighted.get_significances();
+    REQUIRE(significances.size() > 1);
+    REQUIRE(std::any_of(significances.begin(), significances.end(),
+        [&](double s) { return s != Catch::Approx(1.0).epsilon(raw.epsilon); }));
+    TestXBA2DE weightless;
+    weightless.setHyperparameters({ {"weightless", true} });
+    weightless.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    auto differing = (weightless.predict(raw.Xt) != weighted.predict(raw.Xt)).sum().item<int>();
+    std::cerr << "GOLDEN[weightless] n_models=" << weightless.get_n_models() << " weighted n_models="
+        << weighted.get_n_models() << " differing=" << differing << " score_weightless="
+        << weightless.score(raw.Xt, raw.yt) << " score_weighted=" << weighted.score(raw.Xt, raw.yt) << std::endl;
+    REQUIRE((differing > 0 || weightless.get_n_models() != weighted.get_n_models()));
+}
+TEST_CASE("Weightless keeps the other exit conditions", "[XBA2DE]")
+{
+    // Without the AdaBoost step the epsilon_t > 0.5 exit never fires, so the
+    // loop must still stop on the memory budget, on pair exhaustion and on
+    // convergence, with every significance still equal to 1.0.
+    auto raw = RawDatasets("glass", true);
+    std::vector<int> stateCounts;
+    for (const auto& feature : raw.features) stateCounts.push_back((int)raw.states.at(feature).size());
+    size_t worstPair = 0;
+    for (size_t i = 0; i < stateCounts.size(); ++i)
+        for (size_t j = i + 1; j < stateCounts.size(); ++j)
+            worstPair = std::max(worstPair,
+                bayesnet::XSp2de::estimateFootprint(stateCounts, (int)raw.states.at(raw.className).size(), (int)i, (int)j));
+    TestXBA2DE limited;
+    limited.setHyperparameters({ {"weightless", true}, {"convergence", false},
+                                 {"max_memory_gb", 3.0 * (double)worstPair / (double)(1ULL << 30)} });
+    limited.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    REQUIRE(limited.getStatus() == bayesnet::WARNING);
+    auto notes = limited.getNotes();
+    REQUIRE(std::any_of(notes.begin(), notes.end(), [](const std::string& n) {
+        return n.rfind("Memory limit reached:", 0) == 0; }));
+    for (const auto& significance : limited.get_significances()) {
+        REQUIRE(significance == Catch::Approx(1.0).epsilon(raw.epsilon));
+    }
+    // No convergence check and no budget: every one of the C(9,2) = 36 pairs of
+    // glass is used, so weightless XBA2DE holds exactly the tables of A2DE.
+    TestXBA2DE all;
+    all.setHyperparameters({ {"weightless", true}, {"convergence", false} });
+    all.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    REQUIRE(all.get_n_models() == 36);
+    auto a2de = bayesnet::XA2DE();
+    a2de.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    REQUIRE(all.getNumberOfStates() == a2de.getNumberOfStates());
+    REQUIRE(all.score(raw.Xt, raw.yt) == Catch::Approx(a2de.score(raw.Xt, raw.yt)).epsilon(raw.epsilon));
+    // Convergence still prunes, and random order still works, in weightless mode.
+    for (const std::string& order : { "desc", "rand" }) {
+        TestXBA2DE conv;
+        conv.setHyperparameters({ {"weightless", true}, {"convergence", true}, {"maxTolerance", 1}, {"order", order} });
+        conv.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+        INFO("order: " << order);
+        REQUIRE(conv.get_n_models() < 36);
+        for (const auto& significance : conv.get_significances()) {
+            REQUIRE(significance == Catch::Approx(1.0).epsilon(raw.epsilon));
+        }
+    }
 }

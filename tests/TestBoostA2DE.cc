@@ -10,6 +10,15 @@
 #include <catch2/generators/catch_generators.hpp>
 #include "bayesnet/utils/BayesMetrics.h"
 #include "bayesnet/ensembles/BoostA2DE.h"
+
+// Test helper that exposes the protected ensemble internals needed to verify
+// the behaviour of the "weightless" hyperparameter.
+class TestBoostA2DE : public bayesnet::BoostA2DE {
+public:
+    TestBoostA2DE() : bayesnet::BoostA2DE() {}
+    const std::vector<double>& get_significances() const { return significanceModels; }
+    unsigned get_n_models() const { return n_models; }
+};
 #include "TestUtils.h"
 
 
@@ -212,4 +221,30 @@ TEST_CASE("Test graph b2a2de", "[BoostA2DE]")
     REQUIRE(graph.size() == 78);
     REQUIRE(graph[0] == "digraph BayesNet {\nlabel=<BayesNet BoostA2DE_0>\nfontsize=30\nfontcolor=blue\nlabelloc=t\nlayout=circo\n");
     REQUIRE(graph[1] == "\"class\" [shape=circle, fontcolor=red, fillcolor=lightblue, style=filled ] \n");
+}
+TEST_CASE("Weightless all SP2DE significances are 1.0", "[BoostA2DE]")
+{
+    auto raw = RawDatasets("iris", true);
+    for (const auto& extra : std::vector<nlohmann::json>{ {}, { {"select_features", "CFS"} },
+                                                           { {"bisection", true}, {"block_update", true} } }) {
+        nlohmann::json hyper = extra;
+        hyper["weightless"] = true;
+        TestBoostA2DE clf;
+        clf.setHyperparameters(hyper);
+        clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+        auto significances = clf.get_significances();
+        INFO("hyperparameters: " << extra.dump());
+        REQUIRE(significances.size() == clf.get_n_models());
+        REQUIRE(significances.size() > 0);
+        for (const auto& significance : significances) {
+            REQUIRE(significance == Catch::Approx(1.0).epsilon(raw.epsilon));
+        }
+    }
+    // Sanity counter-test: weighted significances are not all 1.0.
+    TestBoostA2DE weighted;
+    weighted.setHyperparameters({ {"weightless", false}, {"convergence", false} });
+    weighted.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    auto significances = weighted.get_significances();
+    REQUIRE(std::any_of(significances.begin(), significances.end(),
+        [&](double s) { return s != Catch::Approx(1.0).epsilon(raw.epsilon); }));
 }

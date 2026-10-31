@@ -51,7 +51,9 @@ namespace bayesnet {
         // Algorithm based on the adaboost algorithm for classification
         // as explained in Ensemble methods (Zhi-Hua Zhou, 2012)
         fitted = true;
-        double alpha_t = 0;
+        // weightless: no AdaBoost step (uniform instance weights, alpha_t = 1 for
+        // every model), as in BoostAODE. See XBA2DE::trainModel for the details.
+        double alpha_t = weightless ? 1.0 : 0.0;
         torch::Tensor weights_ = torch::full({ m }, 1.0 / m, torch::kFloat64);
         bool finished = false;
         std::vector<int> featuresUsed;
@@ -60,8 +62,10 @@ namespace bayesnet {
             if (featuresUsed.size() == 0) {
                 return;
             }
-            auto ypred = predict(X_train);
-            std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
+            if (!weightless) {
+                auto ypred = predict(X_train);
+                std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
+            }
             // Update significance of the models
             for (int i = 0; i < n_models; ++i) {
                 significanceModels[i] = alpha_t;
@@ -109,8 +113,8 @@ namespace bayesnet {
                 std::unique_ptr<Classifier> model;
                 model = std::make_unique<SPnDE>(std::vector<int>({ feature_pair.first, feature_pair.second }));
                 model->fit(dataset, features, className, states, weights_, smoothing);
-                alpha_t = 0.0;
-                if (!block_update) {
+                alpha_t = weightless ? 1.0 : 0.0;
+                if (!block_update && !weightless) {
                     auto ypred = model->predict(X_train);
                     // Step 3.1: Compute the classifier amout of say
                     std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
@@ -122,7 +126,7 @@ namespace bayesnet {
                 n_models++;
                 // VLOG_SCOPE_F(2, "numItemsPack: %d n_models: %d featuresUsed: %zu", numItemsPack, n_models, featuresUsed.size());
             }
-            if (block_update) {
+            if (block_update && !weightless) {
                 std::tie(weights_, alpha_t, finished) = update_weights_block(k, y_train, weights_);
             }
             if (convergence && !finished) {

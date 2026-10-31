@@ -80,7 +80,11 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
     // train/test folds are needed. XBAODE keeps them because its inner loop
     // predicts through the vector overload.
     fitted = true;
-    double alpha_t = 0;
+    // weightless (the CAEPIA weights ablation): no AdaBoost step at all. The
+    // instance weights stay uniform, so the pair ranking is static, and every
+    // model votes with alpha_t = 1. The epsilon_t > 0.5 exit never fires then;
+    // the loop stops on convergence, pair exhaustion or the memory budget.
+    double alpha_t = weightless ? 1.0 : 0.0;
     torch::Tensor weights_ = torch::full({m}, 1.0 / m, torch::kFloat64);
     bool finished = false;
     // XBA2DE always starts from an empty ensemble; no feature-selection seeding.
@@ -163,10 +167,12 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
             std::unique_ptr<Classifier> model;
             model = std::make_unique<XSp2de>(feature_pair.first, feature_pair.second);
             model->fit(dataset, features, className, states, weights_, smoothing);
-            alpha_t = 0.0;
-            auto ypred = model->predict(X_train);
-            // Step 3.1: Compute the classifier amount of say
-            std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
+            alpha_t = weightless ? 1.0 : 0.0;
+            if (!weightless) {
+                // Step 3.1: Compute the classifier amount of say
+                auto ypred = model->predict(X_train);
+                std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
+            }
             // Step 3.4: Store classifier and its accuracy to weigh its future vote
             numItemsPack++;
             pairsUsed.insert(feature_pair);
