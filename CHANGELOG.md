@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The X family read its probability tables out of range for a value unseen in training** ([#47](https://gitea.rmontanana.es/rmontanana/BayesNet/issues/47)). The four engines (`Xaode` behind `XA1DE`, `Xaode2de` behind `XA2DE`, `XSpode` behind `XBAODE` and `XSp2de` behind `XBA2DE`) sized every feature with its largest *training* value + 1 and ignored the `states` map that `fit` receives, which lists every value of the variable in training and in test (Platform builds it from both partitions). A value present only at prediction time, with a code above every training value, was then indexed past its feature's block: `predict_proba` read another feature's cells or past the end of the table — undefined behaviour that showed up as a segfault in Platform's `b_grid` (`XA1DE` on `splice`, whose rare nucleotide codes D/N/R/S appear once in the whole dataset and always carry the highest codes) and as silent garbage elsewhere. The boosted ensembles were exposed more widely: `Boost` trains each model on 80 % of the training data and validates on the rest, so a value missing from that 80 % also reached the validation predictions that drive the weights and the convergence check. The engines now take each cardinality from the `states` map, with the training maximum + 1 as a lower bound when the map lacks the variable or lists fewer values (`bayesnet::cardinality`), so the unseen value has its own smoothed cell; and `predict_proba` of the four engines checks every value against its cardinality and throws `std::out_of_range` naming the feature instead of reading out of range (`bayesnet::checkInstanceRange`). Results change only where the defect fired — where some feature's map size exceeds its training maximum + 1 — since otherwise both sizes coincide. Model versions move so results computed with the fix can be told apart: `XA1DE` and `XA2DE` 1.0.0 -> 1.0.1, `XBAODE` 0.9.7 -> 0.9.8, `XBA2DE` 0.9.9 -> 0.9.10. `XBA2DE`'s memory estimate already used the `states` map and is now exact rather than an upper bound.
+- `Xaode::fit` appended to `states_` without clearing it, so refitting the same object grew the cardinality vector; it is now rebuilt on every fit.
+
+### Tests
+
+- New `TestXUnseenValues.cc`: a synthetic dataset whose feature 0 is trained on codes {0, 1} with a states map of 3, predicted on the unseen code 2, against the same data with the codes of feature 0 rotated so the unseen value becomes 0 (which the old sizing covered). A relabelling of codes cannot change a model, so both must give the same number of cells and the same posteriors; checked for the four engines (`XSpode` with the unseen value in the superparent and in a child, `XSp2de` on two pairs) and the four classifiers. All six cases fail on 1.4.1 (`XA1DE` reports 262 cells against 304). A value outside the map now throws `std::out_of_range`.
+- `XSpode`'s `Test instance predict` and `XSp2de`'s `Check rest` predicted the iris instance `{1,2,3,4}`, which lies outside the states of iris (`petalwidth` has 3), and asserted whatever the out-of-range read returned; they now expect `std::out_of_range` for it and predict the in-range `{1,2,2,2}` (class 2 for `XSpode(0)`, 1 for `XSp2de(0,1)`).
+
 ## [1.4.1] - 2026-10-31
 
 ### Added

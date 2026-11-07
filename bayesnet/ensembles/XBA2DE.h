@@ -27,7 +27,7 @@ namespace bayesnet {
         // 0 means unlimited. It bounds the tables of the accumulated XSp2de models
         // only -- not the dataset, the metrics or the pair ranking.
         double max_memory_gb_ = 0.0;
-        std::string version = "0.9.9";
+        std::string version = "0.9.10";
     };
 }
 #endif

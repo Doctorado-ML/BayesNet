@@ -112,10 +112,9 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
     const size_t memoryBudget = max_memory_gb_ > 0.0
         ? static_cast<size_t>(max_memory_gb_ * static_cast<double>(1ULL << 30))
         : 0;
-    // Per-feature cardinalities, taken from the ensemble's `states` map rather than
-    // from the training fold. That makes estimateFootprint an upper bound of what the
-    // model will really hold (XSp2de derives its own states_ from the fold, whose
-    // per-feature maxima can only be smaller), so the budget is never overshot.
+    // Per-feature cardinalities, taken from the ensemble's `states` map, which is
+    // also what XSp2de sizes its tables with (BayesNet#47), so estimateFootprint
+    // matches what each model will really hold and the budget is never overshot.
     std::vector<int> stateCounts;
     int statesClass = 0;
     if (memoryBudget > 0) {

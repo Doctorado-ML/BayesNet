@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include "XSPODE.h"
 #include "bayesnet/utils/TensorUtils.h"
+#include "bayesnet/utils/bayesnetUtils.h"
 
 namespace bayesnet {
 
@@ -63,14 +64,14 @@ namespace bayesnet {
     // Here, we assume the user also gave us the total #states per feature in e.g.
     // statesMap. We'll simply reconstruct the integer states_ array. The last
     // entry is statesClass_.
+    // Cardinalities from the states map handed to fit (every value of the
+    // variable, train and test), never below the training maximum + 1: a value
+    // only present in test must have its cell (BayesNet#47).
     states_.resize(nFeatures_);
     for (int f = 0; f < nFeatures_; f++) {
-      // Suppose you look up in “statesMap” by the feature name, or read directly
-      // from X. We'll assume states_[f] = max value in X[f] + 1.
-      states_[f] = dataset[f].max().item<int>() + 1;
+      states_[f] = cardinality(states, features[f], dataset[f].max().item<int>());
     }
-    // For the class: states_.back() = max(y)+1
-    statesClass_ = dataset[-1].max().item<int>() + 1;
+    statesClass_ = cardinality(states, className, dataset[-1].max().item<int>());
 
     // Initialize counts
     classCounts_.resize(statesClass_, 0.0);
@@ -274,6 +275,7 @@ namespace bayesnet {
     }
     // Work in log-space (sum of log-probabilities + log-sum-exp normalization):
     // numerically stable, needs no magic scaling constant, and matches XSp2de.
+    checkInstanceRange(instance, states_, nFeatures_, features, "XSpode::predict_proba");
     std::vector<double> logProbs(statesClass_, 0.0);
     // log p(c) + log p(x_sp | c)
     int spVal = instance[superParent_];

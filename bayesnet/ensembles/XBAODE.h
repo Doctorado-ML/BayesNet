@@ -21,7 +21,7 @@ namespace bayesnet {
         std::vector<int> initializeModels(const Smoothing_t smoothing);
         std::vector<std::vector<int>> X_train_, X_test_;
         std::vector<int> y_train_, y_test_;
-        std::string version = "0.9.7";
+        std::string version = "0.9.8";
     };
 }
 #endif // XBAODE_H

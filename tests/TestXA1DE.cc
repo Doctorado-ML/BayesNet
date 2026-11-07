@@ -37,5 +37,5 @@ TEST_CASE("Fit and Score", "[XA1DE]")
     REQUIRE(clf.getNumberOfStates() == 4008);
     REQUIRE(clf.getClassNumStates() == 6);
     REQUIRE(clf.score(raw.Xv, raw.yv) == Catch::Approx(0.82243).epsilon(raw.epsilon));
-    REQUIRE(clf.getVersion() == "1.0.0");
+    REQUIRE(clf.getVersion() == "1.0.1");
 }

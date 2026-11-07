@@ -20,7 +20,7 @@ namespace bayesnet {
         void buildModel(const torch::Tensor& weights) override {};
         void trainModel(const torch::Tensor& weights, const bayesnet::Smoothing_t smoothing) override;
     private:
-        std::string version = "1.0.0";
+        std::string version = "1.0.1";
     };
 }
 #endif // XA1DE_H

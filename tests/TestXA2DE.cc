@@ -21,7 +21,7 @@ TEST_CASE("Fit and Score", "[XA2DE]")
     REQUIRE(clf.getNumberOfNodes() == 360);   // C(9,2)=36 pairs * (9+1) nodes
     REQUIRE(clf.getNumberOfEdges() == 864);   // 36 pairs * (3*9-4+1) edges (joint superparents)
     REQUIRE(clf.getClassNumStates() == 6);
-    REQUIRE(clf.getVersion() == "1.0.0");
+    REQUIRE(clf.getVersion() == "1.0.1");
     REQUIRE(clf.score(raw.Xv, raw.yv) == Catch::Approx(0.827103).epsilon(raw.epsilon));
 }
 

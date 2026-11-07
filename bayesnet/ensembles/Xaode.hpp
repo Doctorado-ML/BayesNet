@@ -19,6 +19,7 @@
 #include <sstream>
 #include <torch/torch.h>
 #include <bayesnet/network/Smoothing.h>
+#include <bayesnet/utils/bayesnetUtils.h>
 
 
 namespace bayesnet {
@@ -56,11 +57,15 @@ namespace bayesnet {
             nFeatures_ = X.size();
 
             significance_models_.resize(nFeatures_, (all_parents ? 1.0 : 0.0));
+            // Cardinalities from the states map, not from the training maxima: a
+            // value only present in test must have its cell (BayesNet#47).
+            features_ = features;
+            states_.clear();
             for (int i = 0; i < nFeatures_; i++) {
                 if (all_parents) active_parents.push_back(i);
-                states_.push_back(*max_element(X[i].begin(), X[i].end()) + 1);
+                states_.push_back(cardinality(states, features[i], *max_element(X[i].begin(), X[i].end())));
             }
-            states_.push_back(*max_element(y.begin(), y.end()) + 1);
+            states_.push_back(cardinality(states, className, *max_element(y.begin(), y.end())));
             //
             statesClass_ = states_.back();
             classCounts_.resize(statesClass_, 0.0);
@@ -289,6 +294,7 @@ namespace bayesnet {
             if (std::find(active_parents.begin(), active_parents.end(), parent) == active_parents.end()) {
                 return spodeProbs;
             }
+            checkInstanceRange(instance, states_, nFeatures_, features_, "Xaode::predict_proba_spode");
             // Initialize the probabilities with the feature|class probabilities x class priors
             int localOffset;
             int sp = instance[parent];
@@ -344,6 +350,7 @@ namespace bayesnet {
             // accumulates posterior probabilities for each class
             auto probs = std::vector<double>(statesClass_);
             auto spodeProbs = std::vector<std::vector<double>>(nFeatures_, std::vector<double>(statesClass_));
+            checkInstanceRange(instance, states_, nFeatures_, features_, "Xaode::predict_proba");
             // Initialize the probabilities with the feature|class probabilities
             int localOffset;
             for (int feature = 0; feature < nFeatures_; ++feature) {
@@ -459,6 +466,7 @@ namespace bayesnet {
         // MEMBER DATA
         // -----------
         std::vector<int> states_;            // [states_feat0, ..., states_feat(n-1), statesClass_]
+        std::vector<std::string> features_;  // feature names, for error messages
         int nFeatures_;
         int statesClass_;
 

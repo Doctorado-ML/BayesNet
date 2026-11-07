@@ -145,10 +145,12 @@ TEST_CASE("Check rest", "[XSP2DE]")
   auto clf = bayesnet::XSp2de(0, 1);
   REQUIRE_THROWS_AS(clf.predict_proba(std::vector<int>({1,2,3,4})), std::logic_error);
   clf.fitx(raw.Xt, raw.yt, raw.weights, bayesnet::Smoothing_t::ORIGINAL);
-  std::cerr << "GOLDEN[rest] score=" << clf.score(raw.Xv, raw.yv) << " predict=" << clf.predict({1,2,3,4}) << std::endl;
+  std::cerr << "GOLDEN[rest] score=" << clf.score(raw.Xv, raw.yv) << " predict=" << clf.predict({1,2,2,2}) << std::endl;
   REQUIRE(clf.getNFeatures() == 4);
   REQUIRE(clf.score(raw.Xv, raw.yv) == Catch::Approx(0.973333359f).epsilon(raw.epsilon));
-  REQUIRE(clf.predict({1,2,3,4}) == 1);
+  // {1,2,3,4} lies outside the states of iris: rejected, not read out of range (BayesNet#47)
+  REQUIRE_THROWS_AS(clf.predict({1,2,3,4}), std::out_of_range);
+  REQUIRE(clf.predict({1,2,2,2}) == 1);
 
 }
 TEST_CASE("Joint superparents model (XSP2DE)", "[XSP2DE]")

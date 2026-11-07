@@ -16,6 +16,7 @@
 #include <type_traits>
 #include <iostream>
 #include "bayesnet/utils/TensorUtils.h"
+#include "bayesnet/utils/bayesnetUtils.h"
 
 namespace bayesnet {
 
@@ -85,15 +86,14 @@ void XSp2de::buildModel(const torch::Tensor &weights)
 {
   nFeatures_ = n;
 
-  // Derive the number of states for each feature from the dataset
-  // states_[f] = max value in dataset[f] + 1.
+  // Cardinalities from the states map handed to fit (every value of the
+  // variable, train and test), never below the training maximum + 1: a value
+  // only present in test must have its cell (BayesNet#47).
   states_.resize(nFeatures_);
   for (int f = 0; f < nFeatures_; f++) {
-    // This is naive: we take max in feature f. You might adapt for real data.
-    states_[f] = dataset[f].max().item<int>() + 1;
+    states_[f] = cardinality(states, features[f], dataset[f].max().item<int>());
   }
-  // Class states:
-  statesClass_ = dataset[-1].max().item<int>() + 1;
+  statesClass_ = cardinality(states, className, dataset[-1].max().item<int>());
 
   // Initialize the class counts
   classCounts_.resize(statesClass_, 0.0);
@@ -414,6 +414,7 @@ std::vector<double> XSp2de::predict_proba(const std::vector<int> &instance) cons
   // underflows for high-dimensional instances (SP2DE's 4-way child tables are
   // very sparse). Summing log-probabilities and normalizing with log-sum-exp is
   // numerically stable and needs no magic scaling constant.
+  checkInstanceRange(instance, states_, nFeatures_, features, "XSp2de::predict_proba");
   std::vector<double> logProbs(statesClass_, 0.0);
 
   int sp1Val = instance[superParent1_];

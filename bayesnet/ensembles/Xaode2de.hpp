@@ -24,6 +24,7 @@
 #include <sstream>
 #include <torch/torch.h>
 #include <bayesnet/network/Smoothing.h>
+#include <bayesnet/utils/bayesnetUtils.h>
 
 namespace bayesnet {
     class Xaode2de {
@@ -46,12 +47,14 @@ namespace bayesnet {
             int num_instances = X[0].size();
             m_ = num_instances;
 
-            // Cardinalities
+            // Cardinalities from the states map, not from the training maxima: a
+            // value only present in test must have its cell (BayesNet#47).
+            features_ = features;
             states_.resize(nFeatures_);
             for (int f = 0; f < nFeatures_; ++f) {
-                states_[f] = *std::max_element(X[f].begin(), X[f].end()) + 1;
+                states_[f] = cardinality(states, features[f], *std::max_element(X[f].begin(), X[f].end()));
             }
-            statesClass_ = *std::max_element(y.begin(), y.end()) + 1;
+            statesClass_ = cardinality(states, className, *std::max_element(y.begin(), y.end()));
             classCounts_.assign(statesClass_, 0.0);
             classPriors_.assign(statesClass_, 0.0);
 
@@ -206,6 +209,7 @@ namespace bayesnet {
             std::vector<double> result(statesClass_, 0.0);
             std::vector<double> logp(statesClass_, 0.0);
             std::vector<double> post(statesClass_, 0.0);
+            checkInstanceRange(instance, states_, nFeatures_, features_, "Xaode2de::predict_proba");
             for (int pid = 0; pid < nPairs_; ++pid) {
                 if (significance_models_[pid] == 0.0) continue;
                 int p = parent1_[pid], q = parent2_[pid];
@@ -287,6 +291,7 @@ namespace bayesnet {
 
     private:
         std::vector<int> states_;            // cardinality per feature
+        std::vector<std::string> features_;  // feature names, for error messages
         int nFeatures_;
         int statesClass_;
         int nPairs_;

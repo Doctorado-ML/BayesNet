@@ -38,7 +38,7 @@ TEST_CASE("Normal test", "[XBA2DE]")
     REQUIRE(clf.getNumberOfNodes() == 30);
     REQUIRE(clf.getNumberOfEdges() == 54);
     REQUIRE(clf.getNotes().size() == 1);
-    REQUIRE(clf.getVersion() == "0.9.9");
+    REQUIRE(clf.getVersion() == "0.9.10");
     // iris has 4 features -> C(4,2)=6 distinct pairs; each used once (no repeat),
     // so training stops on pair exhaustion, not convergence.
     REQUIRE(clf.getNotes()[0] == "Number of models: 6");

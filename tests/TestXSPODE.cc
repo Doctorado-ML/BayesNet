@@ -114,13 +114,15 @@ TEST_CASE("Test instance predict", "[XSPODE]")
     auto raw = RawDatasets("iris", true);
     auto clf = bayesnet::XSpode(0);
     clf.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, bayesnet::Smoothing_t::ORIGINAL);
-    REQUIRE(clf.predict(std::vector<int>({1,2,3,4})) == 1);
+    // {1,2,3,4} lies outside the states of iris (petalwidth has 3): it used to be
+    // read out of range and is now rejected (BayesNet#47).
+    REQUIRE_THROWS_AS(clf.predict(std::vector<int>({1,2,3,4})), std::out_of_range);
+    REQUIRE(clf.predict(std::vector<int>({1,2,2,2})) == 2);
     REQUIRE(clf.score(raw.Xv, raw.yv) == Catch::Approx(0.973333359f));
-    // CESTNIK is now a real m-estimate (m=1, uniform prior), not a silent no-op:
-    // it smooths like the other strategies, so this instance is classified as 1
-    // (as ORIGINAL), unlike the old unsmoothed behaviour that predicted 0.
+    // CESTNIK is a real m-estimate (m=1, uniform prior), not a silent no-op: it
+    // smooths like the other strategies and classifies this instance as ORIGINAL.
     clf.fit(raw.Xt, raw.yt, raw.features, raw.className, raw.states, bayesnet::Smoothing_t::CESTNIK);
-    REQUIRE(clf.predict(std::vector<int>({1,2,3,4})) == 1);
+    REQUIRE(clf.predict(std::vector<int>({1,2,2,2})) == 2);
     REQUIRE(clf.score(raw.Xv, raw.yv) == Catch::Approx(0.966666639f));
 }
 TEST_CASE("Test to_string and fitx", "[XSPODE]")

@@ -51,7 +51,7 @@ namespace bayesnet {
         bool joint_parents_ = true;
         const std::string CLASSIFIER_NOT_FITTED = "Classifier has not been fitted";
     private:
-        std::string version = "1.0.0";
+        std::string version = "1.0.1";
         CountingSemaphore& semaphore_;
     };
 }
