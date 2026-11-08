@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **`"M1"`** keeps the published BoostAODE algorithm; nothing changes unless `"SAMME"` is asked for.
   - New `TestBoostSamme.cc` (`[Boost50]`): accepted and invalid values; threshold and amount of say against the formulas with ten classes; with two classes SAMME gives the same `alpha_t`, rejections and fitted model as M1 (diabetes, four ensembles); on glass (six classes) SAMME rejects no model.
 
+- **`weight_update` hyperparameter for the four boosted ensembles** ([#51](https://gitea.rmontanana.es/rmontanana/BayesNet/issues/51)), with values `"BoostAODE"` (default) and `"AdaBoost"`.
+  - **`"BoostAODE"`** keeps the published update: misclassified instances x (1 + e^alpha_t), the rest x (1 + e^-alpha_t). The ratio between them is e^alpha_t, so the model just added keeps a weighted error below 0.5 (sqrt(e) / (sqrt(e) + sqrt(1 - e)), 0.396 for e = 0.3).
+  - **`"AdaBoost"`** (Zhou 2012) multiplies them by e^alpha_t and e^-alpha_t, a ratio of e^(2 alpha_t). The model just added ends with a weighted error of 0.5 with `"M1"` and of 1 - 1/K with `"SAMME"`; with `"SAMME"` it is exactly the algorithm of Zhu et al. (2009).
+  - New cases in `TestBoostSamme.cc` (`[Boost51]`): accepted and invalid values; the ratio and the weighted error after the update for both rules, with M1 and with SAMME; on glass the first significance is the same with both rules and the ensembles differ afterwards.
+
 ## [1.4.3] - 2026-11-08
 
 ### Fixed

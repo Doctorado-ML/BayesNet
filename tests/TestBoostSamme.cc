@@ -146,3 +146,79 @@ TEMPLATE_TEST_CASE("SAMME accepts the first model where M1 rejects it", "[Boost5
         REQUIRE(note.find("rejected") == std::string::npos);
     }
 }
+
+// BayesNet#51: the "weight_update" hyperparameter.
+//   * "BoostAODE" (default, published): wrong x (1 + e^alpha), right x (1 + e^-alpha).
+//   * "AdaBoost" (Zhou 2012): wrong x e^alpha, right x e^-alpha.
+namespace {
+    // Weighted error, under the updated weights, of the model that was just added.
+    double errorAfter(const torch::Tensor& weights, int wrong)
+    {
+        return weights.slice(0, 0, wrong).sum().item<double>();
+    }
+}
+
+TEMPLATE_TEST_CASE("weight_update hyperparameter", "[Boost51][Ensemble]",
+    bayesnet::BoostAODE, bayesnet::BoostA2DE, bayesnet::XBAODE, bayesnet::XBA2DE)
+{
+    TestType clf;
+    REQUIRE_NOTHROW(clf.setHyperparameters({ { "weight_update", "BoostAODE" } }));
+    REQUIRE_NOTHROW(clf.setHyperparameters({ { "weight_update", "AdaBoost" } }));
+    REQUIRE_THROWS_AS(clf.setHyperparameters({ { "weight_update", "adaboost" } }), std::invalid_argument);
+}
+
+TEST_CASE("Weight update rules", "[Boost51][Ensemble]")
+{
+    SECTION("BoostAODE (default): ratio e^alpha, the model keeps an error below 0.5")
+    {
+        SammeProbe<bayesnet::XBAODE> clf;
+        clf.setClasses(10);
+        Round r(3); // epsilon_t = 0.3
+        auto [w, alpha, terminate] = clf.updateWeights(r.y, r.ypred, r.weights);
+        REQUIRE_FALSE(terminate);
+        REQUIRE(w[0].item<double>() / w[9].item<double>() == Catch::Approx(std::exp(alpha)).epsilon(1e-12));
+        const double expected = std::sqrt(0.3) / (std::sqrt(0.3) + std::sqrt(0.7));
+        REQUIRE(errorAfter(w, 3) == Catch::Approx(expected).epsilon(1e-12));
+    }
+    SECTION("AdaBoost with M1: ratio e^(2 alpha), the model ends at 0.5")
+    {
+        SammeProbe<bayesnet::XBAODE> clf;
+        clf.setHyperparameters({ { "weight_update", "AdaBoost" } });
+        clf.setClasses(10);
+        Round r(3);
+        auto [w, alpha, terminate] = clf.updateWeights(r.y, r.ypred, r.weights);
+        REQUIRE_FALSE(terminate);
+        REQUIRE(alpha == Catch::Approx(0.5 * std::log(0.7 / 0.3)).epsilon(1e-12));
+        REQUIRE(w.sum().item<double>() == Catch::Approx(1.0));
+        REQUIRE(w[0].item<double>() / w[9].item<double>() == Catch::Approx(std::exp(2 * alpha)).epsilon(1e-12));
+        REQUIRE(errorAfter(w, 3) == Catch::Approx(0.5).epsilon(1e-12));
+    }
+    SECTION("AdaBoost with SAMME: the model ends at random guessing, 1 - 1/K")
+    {
+        SammeProbe<bayesnet::XBAODE> clf;
+        clf.setHyperparameters({ { "adaboost", "SAMME" }, { "weight_update", "AdaBoost" } });
+        clf.setClasses(10);
+        Round r(6); // epsilon_t = 0.6, rejected by M1
+        auto [w, alpha, terminate] = clf.updateWeights(r.y, r.ypred, r.weights);
+        REQUIRE_FALSE(terminate);
+        // Zhu et al. 2009: wrong instances x (1 - e)(K - 1) / e relative to the right ones.
+        REQUIRE(w[0].item<double>() / w[9].item<double>() == Catch::Approx(0.4 * 9 / 0.6).epsilon(1e-12));
+        REQUIRE(errorAfter(w, 6) == Catch::Approx(0.9).epsilon(1e-12));
+    }
+}
+
+TEMPLATE_TEST_CASE("AdaBoost weight update trains a different ensemble", "[Boost51][Ensemble]",
+    bayesnet::XBAODE, bayesnet::XBA2DE)
+{
+    auto raw = RawDatasets("glass", true);
+    SammeProbe<TestType> published, adaboost;
+    adaboost.setHyperparameters({ { "weight_update", "AdaBoost" } });
+    published.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    adaboost.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
+    for (double s : adaboost.significances()) {
+        REQUIRE(s > 0.0);
+    }
+    // The first model sees uniform weights in both, so it gets the same significance.
+    REQUIRE(adaboost.significances().at(0) == Catch::Approx(published.significances().at(0)).epsilon(1e-12));
+    REQUIRE(adaboost.significances() != published.significances());
+}

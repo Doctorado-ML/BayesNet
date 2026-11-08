@@ -14,7 +14,7 @@ namespace bayesnet {
     {
         validHyperparameters = { "alpha_block", "order",        "convergence",    "convergence_best", "bisection",
                                 "threshold",   "maxTolerance", "predict_voting", "select_features",  "block_update", "weightless",
-                                "adaboost" };
+                                "adaboost", "weight_update" };
     }
     void Boost::setHyperparameters(const nlohmann::json& hyperparameters_)
     {
@@ -36,6 +36,15 @@ namespace bayesnet {
                     AdaBoostVariants.SAMME + "]");
             }
             hyperparameters.erase("adaboost");
+        }
+        if (hyperparameters.contains("weight_update")) {
+            std::vector<std::string> updates = { WeightUpdates.BOOSTAODE, WeightUpdates.ADABOOST };
+            weight_update = hyperparameters["weight_update"];
+            if (std::find(updates.begin(), updates.end(), weight_update) == updates.end()) {
+                throw std::invalid_argument("Invalid weight_update value, valid values [" + WeightUpdates.BOOSTAODE + ", " +
+                    WeightUpdates.ADABOOST + "]");
+            }
+            hyperparameters.erase("weight_update");
         }
         if (hyperparameters.contains("alpha_block")) {
             alpha_block = hyperparameters["alpha_block"];
@@ -208,10 +217,19 @@ namespace bayesnet {
             double wt = (1 - epsilon_t) / epsilon_t;
             alpha_t = epsilon_t == 0 ? 1 : 0.5 * (log(wt) + (samme ? log(n_classes - 1) : 0.0));
             // Step 3.2: Update weights for next classifier
-            // Step 3.2.1: Update weights of wrong samples
-            weights += mask_wrong.to(weights.dtype()) * exp(alpha_t) * weights;
-            // Step 3.2.2: Update weights of right samples
-            weights += mask_right.to(weights.dtype()) * exp(-alpha_t) * weights;
+            if (weight_update == WeightUpdates.ADABOOST) {
+                // BayesNet#51: AdaBoost (Zhou 2012): wrong x e^alpha, right x e^-alpha. The
+                // model just added ends with a weighted error of 0.5 (M1) or 1 - 1/K (SAMME,
+                // which is then exactly the update of Zhu et al. 2009).
+                weights *= torch::where(mask_wrong, torch::full_like(weights, exp(alpha_t)), torch::full_like(weights, exp(-alpha_t)));
+            } else {
+                // Published BoostAODE: wrong x (1 + e^alpha), right x (1 + e^-alpha), a
+                // ratio of e^alpha between them instead of e^(2 alpha).
+                // Step 3.2.1: Update weights of wrong samples
+                weights += mask_wrong.to(weights.dtype()) * exp(alpha_t) * weights;
+                // Step 3.2.2: Update weights of right samples
+                weights += mask_right.to(weights.dtype()) * exp(-alpha_t) * weights;
+            }
             // Step 3.3: Normalise the weights
             double totalWeights = torch::sum(weights).item<double>();
             weights = weights / totalWeights;

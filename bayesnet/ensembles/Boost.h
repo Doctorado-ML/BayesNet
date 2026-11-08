@@ -29,6 +29,11 @@ namespace bayesnet {
         std::string M1 = "M1";       // AdaBoost.M1: reject epsilon_t >= 0.5 (the published BoostAODE)
         std::string SAMME = "SAMME"; // Zhu et al. 2009: reject epsilon_t >= 1 - 1/K, alpha_t + ln(K - 1)
     }AdaBoostVariants;
+    // BayesNet#51. Instance weight update after an accepted model.
+    const struct {
+        std::string BOOSTAODE = "BoostAODE"; // wrong w(1 + e^alpha), right w(1 + e^-alpha): ratio e^alpha (published)
+        std::string ADABOOST = "AdaBoost";   // wrong w e^alpha, right w e^-alpha: ratio e^(2 alpha) (Zhou 2012)
+    }WeightUpdates;
     class Boost : public Ensemble {
     public:
         explicit Boost(bool predict_voting = false);
@@ -69,6 +74,7 @@ namespace bayesnet {
         bool block_update = false; // if true, use block update algorithm, only meaningful if bisection is true
         bool alpha_block = false; // if true, the alpha is computed with the ensemble built so far and the new model
         std::string adaboost = AdaBoostVariants.M1; // AdaBoost variant (M1, SAMME); both are the same with two classes
+        std::string weight_update = WeightUpdates.BOOSTAODE; // instance weight update (BoostAODE, AdaBoost)
     };
 }
 #endif

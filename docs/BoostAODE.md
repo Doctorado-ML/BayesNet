@@ -25,6 +25,8 @@ The hyperparameters defined in the algorithm are:
 
 - ***adaboost*** (*{"M1", "SAMME"}*): AdaBoost variant used to weigh each model. *"M1"* rejects a model when its weighted error is $\epsilon_t \geq 0.5$ and gives it $\alpha_t = \frac{1}{2}\ln\frac{1-\epsilon_t}{\epsilon_t}$. *"SAMME"* (Zhu, Zou, Rosset & Hastie, 2009) accepts any model better than random guessing among the $K$ classes, $\epsilon_t < 1 - 1/K$, and gives it $\alpha_t = \frac{1}{2}\left(\ln\frac{1-\epsilon_t}{\epsilon_t} + \ln(K-1)\right)$. With two classes both are the same. Default value: *"M1"*.
 
+- ***weight_update*** (*{"BoostAODE", "AdaBoost"}*): How the instance weights change after a model is accepted. *"BoostAODE"* multiplies the misclassified instances by $1 + e^{\alpha_t}$ and the rest by $1 + e^{-\alpha_t}$, a ratio of $e^{\alpha_t}$ between them. *"AdaBoost"* (Zhou, 2012) multiplies them by $e^{\alpha_t}$ and $e^{-\alpha_t}$, a ratio of $e^{2\alpha_t}$: the model just added ends with a weighted error of $0.5$ with *"M1"*, and of $1 - 1/K$ with *"SAMME"*, which is then exactly the update of Zhu et al. (2009). Default value: *"BoostAODE"*.
+
 - ***predict_voting*** (*boolean*): Sets whether the algorithm will use *model voting* to predict the result. If set to false, the weighted average of the probabilities of each model's prediction will be used. Default value: *false*.
 
 ## Operation
