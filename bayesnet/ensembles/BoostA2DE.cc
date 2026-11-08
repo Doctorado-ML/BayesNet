@@ -66,6 +66,12 @@ namespace bayesnet {
                 auto ypred = predict(X_train);
                 std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
             }
+            if (finished) {
+                // BayesNet#48: the seeding models are the whole ensemble; keep them
+                // with significance 1 instead of 0 (0/0 = NaN when predicting).
+                alpha_t = 1.0;
+                notes.push_back("First models rejected (epsilon_t > 0.5): kept with significance 1");
+            }
             // Update significance of the models
             for (int i = 0; i < n_models; ++i) {
                 significanceModels[i] = alpha_t;
@@ -118,6 +124,11 @@ namespace bayesnet {
                     auto ypred = model->predict(X_train);
                     // Step 3.1: Compute the classifier amout of say
                     std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
+                    // BayesNet#48: a rejected model is left out unless it is the first.
+                    // The pack goes on as before: a later model of the pack resets finished.
+                    if (finished && !keepRejectedModel(alpha_t)) {
+                        continue;
+                    }
                 }
                 // Step 3.4: Store classifier and its accuracy to weigh its future vote
                 numItemsPack++;
@@ -174,6 +185,7 @@ namespace bayesnet {
             notes.push_back("Pairs not used in train: " + std::to_string(pairSelection.size()));
             status = WARNING;
         }
+        noteRejectedModels();
         notes.push_back("Number of models: " + std::to_string(n_models));
     }
     std::vector<std::string> BoostA2DE::graph(const std::string& title) const

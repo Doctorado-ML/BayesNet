@@ -20,7 +20,7 @@ TEST_CASE("Normal test", "[XBAODE]")
     REQUIRE(clf.getNumberOfNodes() == 20);
     REQUIRE(clf.getNumberOfEdges() == 36);
     REQUIRE(clf.getNotes().size() == 1);
-    REQUIRE(clf.getVersion() == "0.9.8");
+    REQUIRE(clf.getVersion() == "0.9.9");
     REQUIRE(clf.getNotes()[0] == "Number of models: 4");
     // Cells of the 4 SPODEs of iris: the same tables XA1DE holds.
     REQUIRE(clf.getNumberOfStates() == 618);

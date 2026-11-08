@@ -171,6 +171,13 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
                 // Step 3.1: Compute the classifier amount of say
                 auto ypred = model->predict(X_train);
                 std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred, weights_);
+                // BayesNet#48: a rejected model is left out unless it is the first
+                // (and so it takes no memory budget). The pack goes on as before: a
+                // later model of the pack resets finished.
+                if (finished && !keepRejectedModel(alpha_t)) {
+                    pairsUsed.insert(feature_pair);
+                    continue;
+                }
             }
             // Step 3.4: Store classifier and its accuracy to weigh its future vote
             numItemsPack++;
@@ -243,6 +250,7 @@ void XBA2DE::trainModel(const torch::Tensor &weights, const Smoothing_t smoothin
         notes.push_back("Pairs not used in train: " + std::to_string(pairSelection.size()));
         status = WARNING;
     }
+    noteRejectedModels();
     notes.push_back("Number of models: " + std::to_string(n_models));
 }
 std::vector<std::string> XBA2DE::graph(const std::string &title) const { return Ensemble::graph(title); }

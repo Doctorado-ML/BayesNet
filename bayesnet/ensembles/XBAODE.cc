@@ -48,6 +48,12 @@ namespace bayesnet {
             if (!weightless) {
                 std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred_t, weights_);
             }
+            if (finished) {
+                // BayesNet#48: the seeding models are the whole ensemble; keep them
+                // with significance 1 instead of 0 (0/0 = NaN when predicting).
+                alpha_t = 1.0;
+                notes.push_back("First models rejected (epsilon_t > 0.5): kept with significance 1");
+            }
             // Update significance of the models
             for (const int& feature : featuresUsed) {
                 significanceModels.pop_back();
@@ -122,6 +128,12 @@ namespace bayesnet {
                 auto ypred_t = torch::tensor(ypred);
                 if (!weightless) {
                     std::tie(weights_, alpha_t, finished) = update_weights(y_train, ypred_t, weights_);
+                    // BayesNet#48: a rejected model is left out unless it is the first.
+                    // The pack goes on as before: a later model of the pack resets finished.
+                    if (finished && !keepRejectedModel(alpha_t)) {
+                        featuresUsed.push_back(feature);
+                        continue;
+                    }
                 }
                 // Step 3.4: Store classifier and its accuracy to weigh its future vote
                 numItemsPack++;
@@ -184,6 +196,7 @@ namespace bayesnet {
                 std::to_string(features.size()));
             status = bayesnet::WARNING;
         }
+        noteRejectedModels();
         notes.push_back("Number of models: " + std::to_string(n_models));
         return;
     }

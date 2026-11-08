@@ -49,6 +49,10 @@ namespace bayesnet {
         torch::Tensor compute_arg_max(torch::Tensor& X);
         std::vector<int> compute_arg_max(std::vector<std::vector<double>>& X);
         torch::Tensor voting(torch::Tensor& votes);
+        // Sum of the significances the predictions are divided by. Throws
+        // std::logic_error when the ensemble has no models or the sum is 0, which
+        // would make every probability 0/0 = NaN (BayesNet#48).
+        double significanceSum() const;
         // Attributes
         unsigned n_models;
         std::vector<std::unique_ptr<Classifier>> models;

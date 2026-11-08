@@ -28,7 +28,9 @@ TEST_CASE("Dump CPT", "[Ensemble]")
     auto clf = bayesnet::BoostAODE();
     clf.fit(raw.Xv, raw.yv, raw.features, raw.className, raw.states, raw.smoothing);
     auto dump = clf.dump_cpt();
-    REQUIRE(dump.size() == 39929);
+    // 8 SPODEs since 1.4.3: the ninth, rejected by epsilon_t > 0.5 and kept with
+    // significance 0 until then, is no longer added (BayesNet#48). It was 39929.
+    REQUIRE(dump.size() == 37592);
 }
 TEST_CASE("Number of States", "[Ensemble]")
 {

@@ -96,12 +96,29 @@ namespace bayesnet {
         significanceModels.pop_back();
         n_models--;
     }
+    bool Boost::keepRejectedModel(double& alpha_t)
+    {
+        if (n_models > 0) {
+            rejectedModels++;
+            return false;
+        }
+        alpha_t = 1.0;
+        notes.push_back("First model rejected (epsilon_t > 0.5): kept with significance 1 as the only model");
+        return true;
+    }
+    void Boost::noteRejectedModels()
+    {
+        if (rejectedModels > 0) {
+            notes.push_back("Models rejected (epsilon_t > 0.5) and not added: " + std::to_string(rejectedModels));
+        }
+    }
     void Boost::buildModel(const torch::Tensor& weights)
     {
         // Models shall be built in trainModel
         models.clear();
         significanceModels.clear();
         n_models = 0;
+        rejectedModels = 0;
         // Prepare the validation dataset
         auto y_ = dataset.index({ -1, "..." });
         if (convergence) {
@@ -275,6 +292,22 @@ namespace bayesnet {
         }
         // 10. n_models <- n_models_bak
         n_models = n_models_bak;
+        // BayesNet#48: a rejected block is not kept with significance 0. If it is
+        // the whole ensemble it stays with significance 1; otherwise it is dropped.
+        if (terminate) {
+            if (n_models == k) {
+                for (int i = 0; i < k; ++i) {
+                    significanceModels[i] = 1.0;
+                }
+                alpha_t = 1.0;
+                notes.push_back("First models rejected (epsilon_t > 0.5): kept with significance 1");
+            } else {
+                for (int i = 0; i < k; ++i) {
+                    remove_last_model();
+                }
+                rejectedModels += k;
+            }
+        }
         return { weights, alpha_t, terminate };
     }
 } // namespace bayesnet
