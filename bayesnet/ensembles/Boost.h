@@ -37,7 +37,7 @@ namespace bayesnet {
         void add_model(std::unique_ptr<Classifier> model, double significance);
         void remove_last_model();
         // BayesNet#48. Called when update_weights() has rejected the model just
-        // built (epsilon_t > 0.5, alpha_t = 0). AdaBoost leaves a rejected model out
+        // built (epsilon_t >= 0.5, alpha_t <= 0). AdaBoost leaves a rejected model out
         // of the ensemble, so it returns false and counts the rejection, unless the
         // ensemble is still empty: then the model is the only one there is, and it
         // is kept with alpha_t = 1 (any positive significance gives the same

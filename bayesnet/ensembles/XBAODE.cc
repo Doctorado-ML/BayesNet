@@ -52,7 +52,7 @@ namespace bayesnet {
                 // BayesNet#48: the seeding models are the whole ensemble; keep them
                 // with significance 1 instead of 0 (0/0 = NaN when predicting).
                 alpha_t = 1.0;
-                notes.push_back("First models rejected (epsilon_t > 0.5): kept with significance 1");
+                notes.push_back("First models rejected (alpha_t <= 0): kept with significance 1");
             }
             // Update significance of the models
             for (const int& feature : featuresUsed) {

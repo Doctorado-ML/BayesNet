@@ -5,7 +5,8 @@
 // ***************************************************************
 // Regression tests for BayesNet#48: the four boosted ensembles (BoostAODE,
 // BoostA2DE, XBAODE, XBA2DE) added the model that update_weights rejects
-// (epsilon_t > 0.5) to the ensemble with significance 0.
+// (epsilon_t > 0.5) to the ensemble with significance 0; since 1.4.3 a model
+// with epsilon_t = 0.5 (alpha_t = 0) is rejected too.
 //   * When it was the first model, every significance was 0 and the averaged
 //     prediction divided 0 by 0: predict_proba returned NaN and predict always
 //     class 0, with no error.
@@ -25,6 +26,7 @@
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <vector>
 #include <torch/torch.h>
 #include "TestUtils.h"
@@ -34,9 +36,9 @@
 #include "bayesnet/ensembles/XBA2DE.h"
 
 namespace {
-    const std::string kFirstKept = "First model rejected (epsilon_t > 0.5): kept with significance 1 as the only model";
-    const std::string kFirstBlockKept = "First models rejected (epsilon_t > 0.5): kept with significance 1";
-    std::string rejectedNote(int n) { return "Models rejected (epsilon_t > 0.5) and not added: " + std::to_string(n); }
+    const std::string kFirstKept = "First model rejected (alpha_t <= 0): kept with significance 1 as the only model";
+    const std::string kFirstBlockKept = "First models rejected (alpha_t <= 0): kept with significance 1";
+    std::string rejectedNote(int n) { return "Models rejected (alpha_t <= 0) and not added: " + std::to_string(n); }
 
     // Exposes the protected internals the checks need.
     template <class Base>
@@ -48,6 +50,10 @@ namespace {
         std::vector<int> predictWithModel(int i, std::vector<std::vector<int>>& X) { return this->models.at(i)->predict(X); }
         void zeroSignificances() { std::fill(this->significanceModels.begin(), this->significanceModels.end(), 0.0); }
         void dropModels() { this->models.clear(); this->significanceModels.clear(); this->n_models = 0; }
+        std::tuple<torch::Tensor&, double, bool> updateWeights(torch::Tensor& y, torch::Tensor& ypred, torch::Tensor& weights)
+        {
+            return this->update_weights(y, ypred, weights);
+        }
     };
 
     // Ten classes at random and six features at random with four values: no model
@@ -248,4 +254,25 @@ TEST_CASE("An ensemble whose significances sum to 0 throws", "[Boost48][Ensemble
         REQUIRE_THROWS_AS(clf.predict_proba(raw.Xv), std::logic_error);
         REQUIRE_THROWS_AS(clf.predict_proba(raw.Xt), std::logic_error);
     }
+}
+
+TEST_CASE("A model with epsilon_t = 0.5 is rejected", "[Boost48][Ensemble]")
+{
+    // alpha_t = 0.5 * ln(1) = 0: the model would have no say in the prediction.
+    // Up to 1.4.2 (and the first build of 1.4.3) it was accepted with alpha_t = 0;
+    // a first model like that left an ensemble whose significances sum to 0.
+    Probe<bayesnet::XBAODE> clf;
+    auto y = torch::tensor({ 0, 1, 0, 1 }, torch::kInt32);
+    auto ypred = torch::tensor({ 0, 0, 0, 0 }, torch::kInt32);
+    auto weights = torch::full({ 4 }, 0.25, torch::kFloat64);
+    auto before = weights.clone();
+    auto [w, alpha_t, terminate] = clf.updateWeights(y, ypred, weights);
+    REQUIRE(terminate);
+    REQUIRE(alpha_t == 0.0);
+    REQUIRE(torch::equal(w, before));
+    // Just below 0.5 it is still accepted, with a positive significance.
+    auto weights2 = torch::tensor({ 0.26, 0.24, 0.26, 0.24 }, torch::kFloat64);
+    auto [w2, alpha2, terminate2] = clf.updateWeights(y, ypred, weights2);
+    REQUIRE_FALSE(terminate2);
+    REQUIRE(alpha2 > 0.0);
 }

@@ -103,13 +103,13 @@ namespace bayesnet {
             return false;
         }
         alpha_t = 1.0;
-        notes.push_back("First model rejected (epsilon_t > 0.5): kept with significance 1 as the only model");
+        notes.push_back("First model rejected (alpha_t <= 0): kept with significance 1 as the only model");
         return true;
     }
     void Boost::noteRejectedModels()
     {
         if (rejectedModels > 0) {
-            notes.push_back("Models rejected (epsilon_t > 0.5) and not added: " + std::to_string(rejectedModels));
+            notes.push_back("Models rejected (alpha_t <= 0) and not added: " + std::to_string(rejectedModels));
         }
     }
     void Boost::buildModel(const torch::Tensor& weights)
@@ -178,7 +178,9 @@ namespace bayesnet {
         double epsilon_t = masked_weights.sum().item<double>();
         // std::cout << "epsilon_t: " << epsilon_t << " count wrong: " << mask_wrong.sum().item<int>() << " count right: "
         // << mask_right.sum().item<int>() << std::endl;
-        if (epsilon_t > 0.5) {
+        // BayesNet#48: epsilon_t = 0.5 gives alpha_t = 0, a model with no say in the
+        // prediction, so it is rejected as well (alpha_t <= 0).
+        if (epsilon_t >= 0.5) {
             // Inverse the weights policy (plot ln(wt))
             // "In each round of AdaBoost, there is a sanity check to ensure that the current base
             // learner is better than random guess" (Zhi-Hua Zhou, 2012)
@@ -300,7 +302,7 @@ namespace bayesnet {
                     significanceModels[i] = 1.0;
                 }
                 alpha_t = 1.0;
-                notes.push_back("First models rejected (epsilon_t > 0.5): kept with significance 1");
+                notes.push_back("First models rejected (alpha_t <= 0): kept with significance 1");
             } else {
                 for (int i = 0; i < k; ++i) {
                     remove_last_model();
