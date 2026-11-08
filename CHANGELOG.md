@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-11-08
+
+### Fixed
+
+- **The boosted ensembles kept the model AdaBoost rejects** ([#48](https://gitea.rmontanana.es/rmontanana/BayesNet/issues/48)).
+  - **The 1.4.2 behaviour.** When `update_weights` finds `epsilon_t > 0.5`, it returns `alpha_t = 0` and asks to stop. `BoostAODE`, `BoostA2DE`, `XBAODE` and `XBA2DE` added that model to the ensemble anyway, with significance 0. The reference algorithm (Zhou 2012) leaves it out.
+  - **When it was the first model.** Every significance was 0, so `predict_average_proba` divided 0 by 0. `predict_proba` returned NaN for every class and `predict` returned class 0 for every instance, with no error. In the BoostA2DE experiments this turned `XBAODE` and `XBA2DE` with `order=rand` into constant predictors on volkert in all 25 folds (10 classes; the first SPODE had `epsilon_t` = 0.51), and `XBAODE` on 5 folds of first-order-theorem-proving.
+  - **Now the first rejected model is kept with significance 1.** With a single model, any positive significance gives that model's predictions. The note `First model rejected (alpha_t <= 0): kept with significance 1 as the only model` is added.
+  - **Seeding and block updates.** When the rejected unit is the whole ensemble, it is kept with significance 1 and the note `First models rejected (alpha_t <= 0): kept with significance 1` is added. This covers the models seeded by `select_features` and, with `block_update`, the first block.
+  - **When a rejected model is not the first.** It is no longer added. Its feature or pair still counts as used, as before, and the note `Models rejected (alpha_t <= 0) and not added: <n>` reports how many were left out. These models had no say in the prediction, so probabilities and predictions do not change. What changes is the number of models, nodes, edges and cells, which counted them, and `XBA2DE`'s memory budget, which charged them.
+  - **More frequent than the final stop.** With `bisection` (always on in `XBA2DE`, the default elsewhere), a pack of k models carries on after a rejection. A later model of the same pack resets the stop flag, so rejected models also sat in the middle of ensembles. `XBA2DE` on glass with default settings held 7 of its 25 models with significance 0, 6 of them before the last pack. This release does not change that continuation: it would change the predictions, so it is left as a separate decision.
+- **A model with `epsilon_t` exactly 0.5 is rejected too.** It got `alpha_t` = 0.5·ln(1) = 0, a model with no say in the prediction, and was accepted. `update_weights` now rejects `epsilon_t >= 0.5`, that is `alpha_t <= 0`, so no model enters an ensemble with significance 0. The notes say `alpha_t <= 0` for that reason.
+- **`Ensemble` throws `std::logic_error` instead of returning NaN** when its significances sum to 0 or it has no models. This applies to the average of probabilities, both overloads, and to voting. No boosted ensemble reaches that state any more; the check guards against future changes.
+
+### Tests
+
+- New `TestBoostRejected.cc` (`[Boost48]`):
+  - **The 1.4.2 failure.** On 10 random classes with 6 random features, no model gets below `epsilon_t` = 0.5. For the four ensembles, the first model is now kept with significance 1, the probabilities are finite and add up to 1, and the ensemble predicts what its only model predicts. The same holds for the first block with `block_update` and for the `select_features` seed.
+  - **The other rejections.** Six cases on glass and ecoli check that the rejected models are not added and that the probabilities match those of 1.4.2 to 1e-9, as do the correct predictions: `XBA2DE` glass (25 → 18 models), `XBA2DE` ecoli without convergence, `BoostA2DE` ecoli with a rejection in the middle of a pack, `BoostA2DE` glass, `BoostAODE` glass and `XBAODE` glass.
+  - **The `Ensemble` guard.** A zero sum of significances and an empty ensemble throw on both `predict_proba` overloads, in probability and in voting mode.
+  - **`epsilon_t` = 0.5.** `update_weights` rejects it and leaves the weights as they were; just below 0.5 the model is accepted with a positive significance.
+- **Updated expectations.**
+  - `Dump CPT` (`BoostAODE` on glass) expects 37592 characters instead of 39929: the ensemble has 8 SPODEs instead of 9, the ninth having been a rejected one.
+  - The model versions move so results computed with the fix can be told apart: `XBAODE` 0.9.8 -> 0.9.9 and `XBA2DE` 0.9.10 -> 0.9.11. `BoostAODE` and `BoostA2DE` report the library version.
+
+### Build
+
+- Version 1.4.3; `sample/` consumes `bayesnet/1.4.3`.
+- `Boost` gains a protected counter and two helpers (`keepRejectedModel`, `noteRejectedModels`), and `Ensemble` gains `significanceSum`. Code that derives from them has to be rebuilt (Platform), but needs no source change.
+
 ## [1.4.2] - 2026-11-07
 
 ### Fixed
