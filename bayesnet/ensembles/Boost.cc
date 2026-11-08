@@ -13,7 +13,8 @@ namespace bayesnet {
     Boost::Boost(bool predict_voting) : Ensemble(predict_voting)
     {
         validHyperparameters = { "alpha_block", "order",        "convergence",    "convergence_best", "bisection",
-                                "threshold",   "maxTolerance", "predict_voting", "select_features",  "block_update", "weightless" };
+                                "threshold",   "maxTolerance", "predict_voting", "select_features",  "block_update", "weightless",
+                                "adaboost" };
     }
     void Boost::setHyperparameters(const nlohmann::json& hyperparameters_)
     {
@@ -26,6 +27,15 @@ namespace bayesnet {
                     ", " + Orders.RAND + "]");
             }
             hyperparameters.erase("order");
+        }
+        if (hyperparameters.contains("adaboost")) {
+            std::vector<std::string> variants = { AdaBoostVariants.M1, AdaBoostVariants.SAMME };
+            adaboost = hyperparameters["adaboost"];
+            if (std::find(variants.begin(), variants.end(), adaboost) == variants.end()) {
+                throw std::invalid_argument("Invalid adaboost variant, valid values [" + AdaBoostVariants.M1 + ", " +
+                    AdaBoostVariants.SAMME + "]");
+            }
+            hyperparameters.erase("adaboost");
         }
         if (hyperparameters.contains("alpha_block")) {
             alpha_block = hyperparameters["alpha_block"];
@@ -178,16 +188,25 @@ namespace bayesnet {
         double epsilon_t = masked_weights.sum().item<double>();
         // std::cout << "epsilon_t: " << epsilon_t << " count wrong: " << mask_wrong.sum().item<int>() << " count right: "
         // << mask_right.sum().item<int>() << std::endl;
-        // BayesNet#48: epsilon_t = 0.5 gives alpha_t = 0, a model with no say in the
-        // prediction, so it is rejected as well (alpha_t <= 0).
-        if (epsilon_t >= 0.5) {
+        // BayesNet#50: AdaBoost.M1 asks every model for epsilon_t < 0.5, which with K
+        // classes is far stricter than beating random guessing (error 1 - 1/K). SAMME
+        // (Zhu, Zou, Rosset & Hastie 2009) accepts epsilon_t < 1 - 1/K and adds
+        // ln(K - 1) to the amount of say. The factor 1/2 of this implementation is
+        // kept for both, so with K = 2 SAMME and M1 are the same.
+        const bool use_samme = adaboost == AdaBoostVariants.SAMME;
+        const double n_classes = use_samme ? static_cast<double>(states.at(className).size()) : 2.0;
+        const bool samme = use_samme && n_classes > 2;
+        const double max_epsilon = samme ? 1.0 - 1.0 / n_classes : 0.5;
+        // BayesNet#48: epsilon_t = max_epsilon gives alpha_t = 0, a model with no say
+        // in the prediction, so it is rejected as well (alpha_t <= 0).
+        if (epsilon_t >= max_epsilon) {
             // Inverse the weights policy (plot ln(wt))
             // "In each round of AdaBoost, there is a sanity check to ensure that the current base
             // learner is better than random guess" (Zhi-Hua Zhou, 2012)
             terminate = true;
         } else {
             double wt = (1 - epsilon_t) / epsilon_t;
-            alpha_t = epsilon_t == 0 ? 1 : 0.5 * log(wt);
+            alpha_t = epsilon_t == 0 ? 1 : 0.5 * (log(wt) + (samme ? log(n_classes - 1) : 0.0));
             // Step 3.2: Update weights for next classifier
             // Step 3.2.1: Update weights of wrong samples
             weights += mask_wrong.to(weights.dtype()) * exp(alpha_t) * weights;

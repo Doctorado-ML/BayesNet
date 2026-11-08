@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`adaboost` hyperparameter for the four boosted ensembles** ([#50](https://gitea.rmontanana.es/rmontanana/BayesNet/issues/50)), with values `"M1"` (default) and `"SAMME"`.
+  - **Why.** AdaBoost.M1 rejects a model when `epsilon_t >= 0.5`. With K classes random guessing has error 1 - 1/K, so in multiclass problems M1 rejects models that are clearly useful, sometimes the very first one. In the BoostA2DE experiments, on volkert (10 classes) the first SPODE had `epsilon_t` = 0.511, the best of the 180 had 0.462 and even the whole AODE had 0.510 on its training data.
+  - **`"SAMME"`** (Zhu, Zou, Rosset & Hastie 2009) rejects only when `epsilon_t >= 1 - 1/K` and gives `alpha_t = 0.5 * (ln((1 - epsilon_t) / epsilon_t) + ln(K - 1))`. The factor 1/2 of this implementation is kept, so with two classes SAMME and M1 are the same model. The instance weights are updated as with M1 (see [#51](https://gitea.rmontanana.es/rmontanana/BayesNet/issues/51)).
+  - **`"M1"`** keeps the published BoostAODE algorithm; nothing changes unless `"SAMME"` is asked for.
+  - New `TestBoostSamme.cc` (`[Boost50]`): accepted and invalid values; threshold and amount of say against the formulas with ten classes; with two classes SAMME gives the same `alpha_t`, rejections and fitted model as M1 (diabetes, four ensembles); on glass (six classes) SAMME rejects no model.
+
 ## [1.4.3] - 2026-11-08
 
 ### Fixed

@@ -23,6 +23,8 @@ The hyperparameters defined in the algorithm are:
 
   Default value is *-1* so every time any of those algorithms are called, the threshold has to be set to the desired value.
 
+- ***adaboost*** (*{"M1", "SAMME"}*): AdaBoost variant used to weigh each model. *"M1"* rejects a model when its weighted error is $\epsilon_t \geq 0.5$ and gives it $\alpha_t = \frac{1}{2}\ln\frac{1-\epsilon_t}{\epsilon_t}$. *"SAMME"* (Zhu, Zou, Rosset & Hastie, 2009) accepts any model better than random guessing among the $K$ classes, $\epsilon_t < 1 - 1/K$, and gives it $\alpha_t = \frac{1}{2}\left(\ln\frac{1-\epsilon_t}{\epsilon_t} + \ln(K-1)\right)$. With two classes both are the same. Default value: *"M1"*.
+
 - ***predict_voting*** (*boolean*): Sets whether the algorithm will use *model voting* to predict the result. If set to false, the weighted average of the probabilities of each model's prediction will be used. Default value: *false*.
 
 ## Operation
