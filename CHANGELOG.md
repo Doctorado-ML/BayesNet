@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-12
+
 ### Added
 
 - **`adaboost` hyperparameter for the four boosted ensembles** ([#50](https://gitea.rmontanana.es/rmontanana/BayesNet/issues/50)), with values `"M1"` (default) and `"SAMME"`.
